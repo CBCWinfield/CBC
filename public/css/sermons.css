@@ -1,0 +1,52 @@
+/* Sermon carousel embedded on the church website */
+:root { --sx-ink: #18211A; --sx-soft: #5A6A5D; --sx-bg: transparent; --sx-card: #fff; --sx-line: #E1E8DC; --sx-green: #2E7D32; }
+.sx-dark { --sx-ink: #F2F5EF; --sx-soft: #B9C6B4; --sx-card: #1B2320; --sx-line: #2E3A33; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--sx-bg); }
+body.sx { font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; color: var(--sx-ink); padding: 6px 4px 4px; }
+.sx-wrap { position: relative; }
+.sx-track { list-style: none; margin: 0; padding: 4px 2px 10px; display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 32px) / 3); gap: 16px;
+  overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; }
+.sx-track::-webkit-scrollbar { display: none; }
+.sx-grid .sx-track { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); grid-auto-columns: auto; overflow: visible; }
+@media (max-width: 900px) { .sx-carousel .sx-track { grid-auto-columns: calc((100% - 16px) / 2); } }
+@media (max-width: 560px) { .sx-carousel .sx-track { grid-auto-columns: 82%; } }
+.sx-card { scroll-snap-align: start; min-width: 0; }
+.sx-frame { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #0d120f; box-shadow: 0 10px 24px -16px rgba(0, 0, 0, 0.6); }
+.sx-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.sx-thumb { all: unset; cursor: pointer; position: absolute; inset: 0; display: block; }
+.sx-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.35s ease, filter 0.35s ease; }
+.sx-thumb:hover img, .sx-thumb:focus-visible img { transform: scale(1.04); filter: brightness(0.85); }
+.sx-thumb:focus-visible { outline: 3px solid #8CC63F; outline-offset: -3px; border-radius: 14px; }
+.sx-play { position: absolute; inset: 0; display: grid; place-items: center; transition: transform 0.2s ease; }
+.sx-thumb:hover .sx-play { transform: scale(1.1); }
+.sx-title { margin: 10px 2px 2px; font-family: 'Montserrat', system-ui, sans-serif; font-weight: 700; font-size: 0.98rem; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sx-date { margin: 0 2px; font-size: 0.84rem; color: var(--sx-soft); }
+.sx-nav { position: absolute; top: calc((100% - 70px) / 2 - 22px); z-index: 2; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--sx-line);
+  background: var(--sx-card); color: var(--sx-ink); font-size: 1.6rem; line-height: 1; cursor: pointer; box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.5); display: grid; place-items: center; }
+.sx-nav:hover { background: var(--sx-green); color: #fff; border-color: var(--sx-green); }
+.sx-prev { left: 6px; } .sx-next { right: 6px; }
+html, body { overflow-x: hidden; }
+.sx-more { margin: 6px 2px 0; text-align: right; font-size: 0.9rem; }
+.sx-more a, .sx-empty a { color: var(--sx-green); font-weight: 700; text-decoration: none; }
+.sx-dark .sx-more a { color: #8CC63F; }
+.sx-empty { padding: 30px 10px; text-align: center; color: var(--sx-soft); }
+@media (prefers-reduced-motion: reduce) { .sx-track { scroll-behavior: auto; } .sx-thumb img, .sx-play { transition: none; } }
+/* Phones and touch screens: swipe with a peek of the next sermon, page dots instead of arrows */
+.sx-dots { display: none; justify-content: center; gap: 7px; margin: 2px 0 0; padding: 0; list-style: none; }
+.sx-dots button { all: unset; cursor: pointer; width: 8px; height: 8px; border-radius: 50%; background: var(--sx-line); transition: width 0.2s ease, background 0.2s ease; padding: 6px; background-clip: content-box; }
+.sx-dots button[aria-current="true"] { width: 22px; border-radius: 6px; background-color: var(--sx-green); }
+@media (hover: none), (max-width: 560px) {
+  .sx-nav { display: none !important; }
+  .sx-carousel .sx-dots { display: flex; }
+  .sx-carousel .sx-track { scroll-padding-left: 2px; }
+}
+@media (max-width: 560px) {
+  body.sx { padding: 4px 0 2px; }
+  .sx-carousel .sx-track { grid-auto-columns: 84%; gap: 12px; padding-left: 2px; padding-right: 16%; }
+  .sx-title { font-size: 1rem; }
+  .sx-play svg { width: 64px; height: 46px; }
+  .sx-more { text-align: center; font-size: 0.95rem; }
+  .sx-more a { display: inline-block; padding: 10px 14px; }
+}

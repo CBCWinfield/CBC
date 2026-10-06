@@ -152,7 +152,7 @@ function headers() {
     res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()'); // camera: scanning pickup tags
     res.setHeader('Content-Security-Policy', [
       "default-src 'self'",
-      "img-src 'self' data: blob: https://covers.openlibrary.org https://*.archive.org",
+      "img-src 'self' data: blob: https://covers.openlibrary.org https://*.archive.org https://i.ytimg.com",
       "style-src 'self' https://fonts.googleapis.com",
       "style-src-attr 'unsafe-inline'",
       "font-src 'self' https://fonts.gstatic.com",

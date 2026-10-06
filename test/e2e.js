@@ -63,6 +63,11 @@ class Browser {
     assert.strictEqual(r.status, 200, `${p} loads`);
   }
 
+  // Sermon carousel page loads (falls back to a YouTube link when the feed can't be reached)
+  r = await pat.get('/sermons/embed');
+  assert.strictEqual(r.status, 200);
+  assert.match(r.body, /See all sermons on YouTube/);
+
   // Patron applies (manual approval)
   r = await pat.post('/apply', {
     first_name: 'Ruth', last_name: 'Miller', email: 'ruth@example.com', phone: '620-555-0101',

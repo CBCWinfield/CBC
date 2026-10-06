@@ -56,6 +56,7 @@ app.use(async (req, res, next) => {
 });
 
 require('./routes/public')(app);
+require('./routes/sermons')(app);
 require('./routes/account')(app);
 require('./routes/admin')(app);
 require('./checkin/routes')(app);

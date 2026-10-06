@@ -170,3 +170,14 @@ test('automatic check-out reads service times', () => {
   assert.deepStrictEqual(parseTime('12:15 am'), [0, 15]);
   assert.strictEqual(parseTime('soon'), null);
 });
+
+test('YouTube feed parsing for the sermon carousel', () => {
+  const yt = require('../src/lib/youtube');
+  const xml = require('fs').readFileSync(require('path').join(__dirname, 'fixtures/youtube-feed.xml'), 'utf8');
+  const v = yt.parse(xml);
+  assert.strictEqual(v.length, 15);
+  assert.strictEqual(v[0].id, 'vid00000000');
+  assert.strictEqual(v[0].title, 'Faith That Endures | James 1:2-12');
+  assert.ok(!Number.isNaN(new Date(v[1].published).getTime()));
+  assert.strictEqual(yt.parse('<feed><entry><yt:videoId>bad id!</yt:videoId></entry></feed>').length, 0, 'ignores malformed ids');
+});
