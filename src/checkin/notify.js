@@ -83,7 +83,7 @@ module.exports = {
       libraryName: CHURCH,
       footer: FOOTER,
       subject: 'Welcome to the Central Kids & Teens team',
-      heading: `Welcome to the team, ${esc(firstName)}!`,
+      heading: `Welcome to the team, ${firstName}!`,
       paragraphs: [
         `${invitedBy ? `${esc(invitedBy)} added you` : 'You’ve been added'} to the Central Baptist Church check-in team as a <strong>${esc(role)}</strong>. Thank you for serving our kids and teens!`,
         isNew ? 'First, use the button below to set your password. The link works for 7 days.' : 'Log in with your existing Central account (the same one you use for the library).',

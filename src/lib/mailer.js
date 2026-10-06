@@ -70,4 +70,4 @@ async function send({ to, subject, heading, paragraphs, button, footer, attachme
   }
 }
 
-module.exports = { send, enabled: () => Boolean(API_KEY) };
+module.exports = { send, layout, enabled: () => Boolean(API_KEY) };
