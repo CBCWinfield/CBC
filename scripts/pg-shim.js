@@ -28,6 +28,9 @@ class Pool {
   constructor({ connectionString }) { this.url = connectionString; }
   on() {}
   async query(text, params = []) {
+    // Same rule as real Postgres: the number of values must match the highest $n used.
+    const used = Math.max(0, ...[...text.matchAll(/\$(\d+)/g)].map((m) => Number(m[1])));
+    if (used !== params.length) throw new Error(`bind message supplies ${params.length} parameters, but prepared statement "" requires ${used}`);
     const sql = text.replace(/\$(\d+)/g, (_, n) => literal(params[Number(n) - 1]));
     const trimmed = sql.trim().replace(/;\s*$/, '');
     // Decide from the query text before values are filled in, so book text can't confuse it.

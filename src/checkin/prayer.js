@@ -32,7 +32,8 @@ const initials = (name) => String(name || '?').split(/\s+/).filter(Boolean).map(
 const tone = (id) => `pw-tone-${(Number(id) || 0) % 6}`;
 
 // SQL: prayers this user may see. $1 is always the viewer's id.
-const visibleSql = (user) => `p.status <> 'hidden'${D.isTeam(user) ? '' : ` AND (p.audience = 'everyone' OR p.user_id = $1)`}`;
+// (Team members see everything, but $1 is still referenced so the parameter count always matches.)
+const visibleSql = (user) => `p.status <> 'hidden' AND ${D.isTeam(user) ? '$1::int IS NOT NULL' : `(p.audience = 'everyone' OR p.user_id = $1)`}`;
 
 async function list(user, { filter = '', id = null, since = null } = {}) {
   const where = [visibleSql(user)];
