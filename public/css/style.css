@@ -256,6 +256,17 @@ fieldset.card legend + * { clear: both; }
 .avail-none { color: var(--ink-soft); }
 .avail-none::before { background: var(--line); }
 
+.subcats { display: flex; flex-wrap: wrap; gap: 6px; margin: -8px 0 24px; }
+.subcats a { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); text-decoration: none; font-size: 0.93rem; }
+.subcats a:hover { border-color: var(--green); }
+.subcats a[aria-current="page"] { background: var(--green); border-color: var(--green); color: #fff; }
+.subcats a[aria-current="page"] .muted { color: var(--gilt-light); }
+.more-subcats { display: contents; }
+.more-subcats summary { padding: 6px 12px; border: 1px dashed var(--line); border-radius: 999px; cursor: pointer; font-size: 0.93rem; color: var(--green); list-style: none; }
+.more-subcats[open] summary { display: none; }
+.cover-card { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.cover-card h2 { margin-bottom: 4px; }
+.cover-card p { margin: 0; }
 .pager { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; }
 
 .book-detail { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 44px; align-items: start; }

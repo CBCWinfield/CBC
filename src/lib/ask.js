@@ -15,7 +15,7 @@ const STOP = new Set(`a an the and or but of in on at to for from with about int
   book books title titles read reading reads find finding show give get got want wanted need needs needed looking look search searching
   recommend recommendation recommendations suggest suggestion good great best nice new something like also just really very
   library catalog copy copies kind kinds type types sort topic topics subject subjects stuff thing things one ones
-  written wrote write writer by author authors called named help helps helping deal dealing cope coping going through
+  written wrote write writer by author authors called named series help helps helping deal dealing cope coping going through
   im ive id dont doesnt cant wont maybe perhaps think know tell let lets got gotten anybody someone somebody person people`.split(/\s+/));
 
 // Words that belong to questions about how the library works, not to book topics.
@@ -26,7 +26,7 @@ const FAQ_WORDS = new Set(`pick pickup up time times long keep free return retur
 
 // Topic synonyms: a word on the left also matches words on the right.
 const SYNONYMS = {
-  grief: ['loss', 'grieving', 'bereavement', 'mourning', 'death', 'dying', 'heaven', 'comfort', 'widow', 'sorrow'],
+  grief: ['loss', 'grieving', 'bereavement', 'mourning', 'comfort', 'widow', 'widowed', 'sorrow'],
   loss: ['grief', 'grieving', 'bereavement', 'mourning', 'comfort'],
   death: ['grief', 'dying', 'heaven', 'eternity'],
   heaven: ['eternity', 'afterlife', 'eternal'],
@@ -96,9 +96,15 @@ const AUDIENCE_WORDS = {
 
 const FORMAT_WORDS = {
   'Large Print': ['large print', 'big print', 'large type'],
-  DVD: ['dvd', 'dvds', 'movie', 'movies', 'film', 'films', 'video', 'videos'],
+  DVD: ['dvd', 'dvds', 'blu-ray', 'bluray', 'movie', 'movies', 'film', 'films', 'video', 'videos'],
   Audiobook: ['audiobook', 'audiobooks', 'audio book', 'audio books', 'books on cd'],
+  CD: ['cd', 'cds', 'music cd', 'music cds', 'album', 'albums'],
+  'Board Book': ['board book', 'board books'],
+  Workbook: ['workbook', 'workbooks', 'study guide', 'study guides'],
 };
+// Which stored formats count for each group.
+const FORMAT_GROUPS = { DVD: ['DVD', 'Blu-ray'], CD: ['CD', 'Audiobook'], Audiobook: ['Audiobook', 'CD'] };
+const formatMatches = (group, value) => (FORMAT_GROUPS[group] || [group]).includes(value);
 
 const AVAILABLE_PHRASES = ['available', 'in stock', 'on the shelf', 'on shelf', 'right now', 'checked in', 'can i get', 'can i borrow', 'not checked out'];
 
@@ -189,32 +195,40 @@ function faqAnswer(q, s) {
 }
 
 // ---------------- Catalog search ----------------
+const prepared = new WeakMap();
 function prepareBook(b) {
+  if (prepared.has(b)) return prepared.get(b);
   const fields = {
     title: words([b.title, b.subtitle].filter(Boolean).join(' ')),
     author: words(b.author),
-    category: words(b.category),
+    category: words([b.category, b.subcategory].filter(Boolean).join(' ')),
     tags: words(b.tags),
+    series: words(b.series),
+    number: words(b.call_number),
     description: words(b.description),
     audience: words(b.audience),
     format: words(b.format),
   };
   const sets = {};
   for (const [k, list] of Object.entries(fields)) sets[k] = new Set(list.flatMap((w) => [w, stem(w)]));
-  return { b, fields, sets, titleNorm: normalize(b.title), authorNorm: normalize(b.author) };
+  const p = { b, fields, sets, titleNorm: normalize(b.title), authorNorm: normalize(b.author) };
+  prepared.set(b, p);
+  return p;
 }
 
-const WEIGHTS = { title: 6, author: 5, category: 4, tags: 4, audience: 2, format: 2, description: 1.5 };
+const WEIGHTS = { title: 6, author: 5, series: 5, number: 6, category: 4, tags: 4, audience: 2, format: 2, description: 1.5 };
+const NO_FUZZY = new Set(['description', 'number']); // too many words to check spelling against, or exact codes
 
-function scoreTerm(p, term) {
+function scoreTerm(p, term, fuzzy = true, skipDescription = false) {
   let best = 0;
   const st = stem(term);
-  const lim = fuzzyLimit(term);
+  const lim = fuzzy ? fuzzyLimit(term) : 0;
   for (const [field, w] of Object.entries(WEIGHTS)) {
+    if (skipDescription && field === 'description') continue;
     const set = p.sets[field];
     let s = 0;
     if (set.has(term) || set.has(st)) s = w;
-    else if (lim) {
+    else if (lim && !NO_FUZZY.has(field)) {
       for (const x of p.fields[field]) {
         if (x.length > 3 && lev(term, x, lim) <= lim) { s = w * 0.55; break; }
       }
@@ -253,7 +267,7 @@ function detect(question, books, s) {
     for (const x of normAuthors) {
       const parts = x.n.split(' ').filter((w) => w.length > 2);
       const last = parts[parts.length - 1];
-      if (last && last.length > 3 && n.includes(` ${last} `) && (parts.length < 2 || parts.some((w) => w !== last && n.includes(` ${w} `)) || last.length > 5)) {
+      if (last && last.length > 2 && n.includes(` ${last} `) && (parts.length < 2 || parts.some((w) => w !== last && n.includes(` ${w} `)) || last.length > 5)) {
         out.author = x.a; break;
       }
     }
@@ -299,6 +313,15 @@ function askOnce(question, books, settings, { ignoreAudience = false } = {}) {
   if (!q) return { answer: 'Ask about a topic, a title, an author, or how the library works.', books: [] };
 
   const active = books.filter((b) => b.active !== false);
+  // A library number typed on its own ("6871", "DVD78") goes straight to that item.
+  const code = q.replace(/^(library\s*(no\.?|number|#)\s*|#)/i, '').trim().toLowerCase();
+  if (/^[a-z]{0,4}\d{1,6}$/i.test(code)) {
+    const hit = active.filter((b) => b.call_number && String(b.call_number).toLowerCase() === code);
+    if (hit.length) {
+      const b = hit[0];
+      return { answer: `Library number ${b.call_number} is “${b.title}”${b.author ? ` by ${b.author}` : ''}. It is ${b.available > 0 ? 'available now' : 'checked out right now'}.`, books: hit, kind: 'search', total: hit.length };
+    }
+  }
   const faq = faqAnswer(q, settings);
   const filters = detect(q, active, settings);
   const askedAudience = filters.audience;
@@ -317,33 +340,39 @@ function askOnce(question, books, settings, { ignoreAudience = false } = {}) {
   let pool = active;
   if (filters.author) pool = pool.filter((b) => b.author === filters.author);
   if (filters.audience) pool = pool.filter((b) => !b.audience || b.audience === filters.audience || b.audience === 'Everyone' || normalize(b.category).includes(normalize(filters.audience)));
-  if (filters.format) pool = pool.filter((b) => b.format === filters.format);
+  if (filters.format) pool = pool.filter((b) => formatMatches(filters.format, b.format));
 
   const prepared = pool.map(prepareBook);
   let scored;
+  let closeOnly = false; // true when only near-spellings matched
   if (terms.length) {
-    scored = prepared.map((p) => {
-      let total = 0;
-      let matched = 0;
-      for (const term of terms) {
-        let s = scoreTerm(p, term);
-        if (!s) {
-          const syns = SYNONYMS[term] || SYNONYMS[stem(term)] || [];
-          for (const syn of syns) { s = Math.max(s, scoreTerm(p, syn) * 0.6); }
+    const phrase = normalize(terms.join(' '));
+    const pass = (fuzzy, need) => {
+      const out = prepared.map((p) => {
+        let total = 0;
+        let matched = 0;
+        for (const term of terms) {
+          let s = scoreTerm(p, term, fuzzy);
+          if (!s) {
+            const syns = SYNONYMS[term] || SYNONYMS[stem(term)] || [];
+            for (const syn of syns) { s = Math.max(s, scoreTerm(p, syn, false, true) * 0.75); } // related words count in titles, subjects and keywords
+          }
+          if (s) matched++;
+          total += s;
         }
-        if (s) matched++;
-        total += s;
-      }
-      const phrase = normalize(terms.join(' '));
-      if (phrase.length > 3 && p.titleNorm.includes(phrase)) total += 8;
-      if (filters.category && p.b.category === filters.category) total += 4;
-      // Require most terms to match when the question has several.
-      const need = terms.length <= 2 ? 1 : Math.ceil(terms.length * 0.5);
-      return { p, score: matched >= need ? total : 0 };
-    }).filter((x) => x.score > 0);
-    // Keep only reasonably strong matches, so a stray synonym in a description doesn't crowd the list.
-    const top = scored.reduce((m, x) => Math.max(m, x.score), 0);
-    scored = scored.filter((x) => x.score >= 1.5 && x.score >= top * 0.4);
+        if (phrase.length > 3 && p.titleNorm.includes(phrase)) total += 8;
+        if (filters.category && p.b.category === filters.category) total += 4;
+        return { p, score: matched >= need ? total : 0 };
+      }).filter((x) => x.score > 0);
+      // Keep only reasonably strong matches, so a stray word in a description doesn't crowd the list.
+      const top = out.reduce((m, x) => Math.max(m, x.score), 0);
+      return out.filter((x) => x.score >= 1.5 && x.score >= top * 0.3);
+    };
+    // Every word must match ("amish romance" means both), spelled exactly; then loosen step by step.
+    const all = terms.length <= 3 ? terms.length : Math.ceil(terms.length * 0.6);
+    scored = pass(false, all);
+    if (!scored.length) { scored = pass(true, all); closeOnly = scored.length > 0; }
+    if (!scored.length && all > 1) scored = pass(false, 1);
   } else {
     scored = prepared
       .filter((p) => !filters.category || p.b.category === filters.category)
@@ -374,9 +403,9 @@ function askOnce(question, books, settings, { ignoreAudience = false } = {}) {
   if (filters.category && !terms.length) about.push(`in ${filters.category}`);
   if (filters.author) about.push(`by ${filters.author}`);
   if (filters.audience) about.push(`for ${filters.audience.toLowerCase()}`);
-  if (filters.format) about.push(`in ${filters.format}`);
-  const desc = about.join(' ');
-  const noun = filters.format === 'DVD' ? 'item' : 'book';
+  if (filters.format && filters.format !== filters.category) about.push(`in ${filters.format}`);
+  const desc = [...new Set(about)].join(' ');
+  const noun = ['DVD', 'CD'].includes(filters.format) ? 'item' : 'book';
 
   let answer;
   if (!list.length) {
@@ -387,6 +416,8 @@ function askOnce(question, books, settings, { ignoreAudience = false } = {}) {
     } else {
       answer = `I couldn't find ${noun}s ${desc || `matching "${q}"`}. Try a broader word (like prayer, marriage or devotional), or browse by category.`;
     }
+  } else if (closeOnly && !filters.author) {
+    answer = `I couldn't find “${terms.join(' ')}” exactly. The closest match${list.length > 1 ? 'es are' : ' is'} below.`;
   } else {
     const count = list.length;
     answer = `I found ${count} ${noun}${count > 1 ? 's' : ''}${desc ? ' ' + desc : ''}`;

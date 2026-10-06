@@ -183,7 +183,7 @@ function bodyParser({ limit = 4 * 1024 * 1024 } = {}) {
   return async (req, res, next) => {
     if (req.method === 'POST') {
       const type = (req.headers['content-type'] || '').toLowerCase();
-      const buf = await readBody(req, limit);
+      const buf = await readBody(req, typeof limit === 'function' ? limit(req) : limit);
       const text = buf.toString('utf8');
       if (type.includes('application/json')) {
         try { req.body = text ? JSON.parse(text) : {}; } catch { throw new HttpError(400, 'Invalid JSON.'); }

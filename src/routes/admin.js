@@ -9,13 +9,15 @@ const notify = require('../notify');
 const mailer = require('../lib/mailer');
 const push = require('../lib/push');
 const isbnLib = require('../lib/isbn');
+const covers = require('../covers');
+const woo = require('../lib/woo');
 const { parseCsvObjects } = require('../lib/csv');
 const t = require('../lib/time');
 const { requireStaff, requireLibrarian, intParam, clean } = require('./guards');
 const { approve, normalCode } = require('./public');
 
 const PAGE = 50;
-const FORMATS = ['Book', 'Large Print', 'Audiobook', 'DVD'];
+const FORMATS = ['Book', 'Paperback', 'Hardback', 'Board Book', 'Large Print', 'Workbook', 'Audiobook', 'CD', 'DVD', 'Blu-ray', 'Pamphlet', 'Other'];
 const AUDIENCES = ['Everyone', 'Adults', 'Youth', 'Children'];
 
 async function pendingCount() {
@@ -49,7 +51,7 @@ function bookValues(body) {
     isbn: (clean(body.isbn, 20).replace(/[^0-9Xx]/g, '').toUpperCase()) || null,
     category: clean(body.category, 80) || null,
     audience: AUDIENCES.includes(body.audience) ? body.audience : 'Everyone',
-    format: FORMATS.includes(body.format) ? body.format : 'Book',
+    format: clean(body.format, 40) || 'Book',
     description: clean(body.description, 8000) || null,
     tags: clean(body.tags, 500) || null,
     publisher: clean(body.publisher, 200) || null,
@@ -57,6 +59,9 @@ function bookValues(body) {
     pages: int(body.pages, { min: 1, max: 100000 }),
     copies_total: int(body.copies_total ?? body.copies, { min: 0, max: 999, fallback: 1 }),
     shelf_location: clean(body.shelf_location ?? body.shelf, 80) || null,
+    call_number: clean(body.call_number, 40) || null,
+    series: clean(body.series, 200) || null,
+    subcategory: clean(body.subcategory, 200) || null,
   };
   const errors = {};
   if (!v.title) errors.title = 'A title is required.';
@@ -190,10 +195,14 @@ module.exports = (app) => {
   app.get('/admin/books', requireStaff, async (req, res) => {
     const q = clean(req.query.q, 200);
     const category = clean(req.query.category, 100);
+    const noCover = req.query.nocover === '1';
     const pg = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const { rows, total } = await books.list({ q, category, includeInactive: true }, { limit: PAGE, offset: (pg - 1) * PAGE, order: 'b.active DESC, b.title' });
-    const params = new URLSearchParams(Object.entries({ q, category }).filter(([, v]) => v));
-    await page(req, res, 'books', 'Books', A.booksPage({ rows, q, category, total, page: pg, pages: Math.ceil(total / PAGE), base: `/admin/books?${params}`, categories: await books.categories() }));
+    const { rows, total } = await books.list({ q, category, noCover, includeInactive: true }, { limit: PAGE, offset: (pg - 1) * PAGE, order: 'b.active DESC, b.title' });
+    const params = new URLSearchParams(Object.entries({ q, category, nocover: noCover ? '1' : '' }).filter(([, v]) => v));
+    await page(req, res, 'books', 'Books', A.booksPage({
+      rows, q, category, noCover, total, page: pg, pages: Math.ceil(total / PAGE), base: `/admin/books?${params}`,
+      categories: await books.categories(), coverStatus: await covers.status(), csrf: res.locals.csrf,
+    }));
   });
 
   app.get('/admin/books/new', requireStaff, async (req, res) => {
@@ -221,10 +230,11 @@ module.exports = (app) => {
     }
     const cover = await coverFrom(req.body);
     const row = await db.one(`INSERT INTO books (title, subtitle, author, isbn, category, audience, format, description, tags, publisher,
-      published_year, pages, copies_total, shelf_location, cover_image, cover_type)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
+      published_year, pages, copies_total, shelf_location, call_number, series, subcategory, cover_image, cover_type, cover_status)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING id`,
     [v.title, v.subtitle, v.author, v.isbn, v.category, v.audience, v.format, v.description, v.tags, v.publisher,
-      v.published_year, v.pages, v.copies_total, v.shelf_location, cover ? cover.data : null, cover ? cover.type : null]);
+      v.published_year, v.pages, v.copies_total, v.shelf_location, v.call_number, v.series, v.subcategory,
+      cover ? cover.data : null, cover ? cover.type : null, cover ? 'done' : 'none']);
     security.flash(req, 'ok', `Added “${v.title}”.`);
     res.redirect(req.body.and_new ? '/admin/books/new' : `/admin/books/${row.id}/edit`);
   });
@@ -245,12 +255,13 @@ module.exports = (app) => {
       return page(req, res, 'books', 'Edit book', A.bookForm({ csrf: res.locals.csrf, book: { ...existing, ...v }, errors, categories: await books.categories() }));
     }
     await db.query(`UPDATE books SET title=$2, subtitle=$3, author=$4, isbn=$5, category=$6, audience=$7, format=$8, description=$9, tags=$10,
-      publisher=$11, published_year=$12, pages=$13, copies_total=$14, shelf_location=$15, active=$16, updated_at=now() WHERE id=$1`,
+      publisher=$11, published_year=$12, pages=$13, copies_total=$14, shelf_location=$15, active=$16, call_number=$17, series=$18, subcategory=$19,
+      updated_at=now() WHERE id=$1`,
     [id, v.title, v.subtitle, v.author, v.isbn, v.category, v.audience, v.format, v.description, v.tags, v.publisher,
-      v.published_year, v.pages, v.copies_total, v.shelf_location, req.body.active === '1']);
+      v.published_year, v.pages, v.copies_total, v.shelf_location, req.body.active === '1', v.call_number, v.series, v.subcategory]);
     const cover = await coverFrom(req.body);
-    if (cover) await db.query('UPDATE books SET cover_image = $2, cover_type = $3 WHERE id = $1', [id, cover.data, cover.type]);
-    else if (req.body.remove_cover === '1') await db.query('UPDATE books SET cover_image = NULL, cover_type = NULL WHERE id = $1', [id]);
+    if (cover) await db.query("UPDATE books SET cover_image = $2, cover_type = $3, cover_status = 'done', cover_note = 'added by staff' WHERE id = $1", [id, cover.data, cover.type]);
+    else if (req.body.remove_cover === '1') await db.query("UPDATE books SET cover_image = NULL, cover_type = NULL, cover_status = 'none' WHERE id = $1", [id]);
     security.flash(req, 'ok', `Saved “${v.title}”.`);
     res.redirect(`/admin/books/${id}/edit`);
   });
@@ -289,27 +300,85 @@ module.exports = (app) => {
   });
 
   app.post('/admin/books/import', requireStaff, async (req, res) => {
-    const rows = parseCsvObjects(req.body.csv || '');
-    const result = { added: 0, skipped: [] };
+    const text = String(req.body.csv || '');
     const skipDup = req.body.skip_duplicates === '1';
-    for (let i = 0; i < rows.length && i < 5000; i++) {
-      const r = rows[i];
-      const { v, errors } = bookValues({ ...r, published_year: r.year || r.published_year, copies_total: r.copies || r.copies_total || 1 });
-      if (errors.title) { result.skipped.push({ row: i + 2, reason: 'no title' }); continue; }
-      if (r.audience && !AUDIENCES.includes(r.audience)) v.audience = /child|kid/i.test(r.audience) ? 'Children' : /teen|youth/i.test(r.audience) ? 'Youth' : /adult/i.test(r.audience) ? 'Adults' : 'Everyone';
-      if (skipDup) {
-        const dup = v.isbn
-          ? await db.one('SELECT id FROM books WHERE isbn = $1 LIMIT 1', [v.isbn])
-          : await db.one('SELECT id FROM books WHERE lower(title) = lower($1) AND lower(COALESCE(author, \'\')) = lower(COALESCE($2, \'\')) LIMIT 1', [v.title, v.author]);
-        if (dup) { result.skipped.push({ row: i + 2, reason: `“${v.title}” is already in the catalog` }); continue; }
+    const result = { added: 0, updated: 0, skipped: [], format: 'simple', coversQueued: 0 };
+
+    if (woo.isWooExport(text)) {
+      // The old library system's export: add new books, update ones imported before (matched by old ID).
+      result.format = 'old';
+      const { books: rows, skipped } = woo.parseWoo(text);
+      result.skipped.push(...skipped);
+      const existing = new Set((await db.many('SELECT legacy_id FROM books WHERE legacy_id IS NOT NULL')).map((r) => r.legacy_id));
+      const COLS = ['legacy_id', 'call_number', 'title', 'author', 'category', 'subcategory', 'audience', 'format', 'description', 'tags',
+        'publisher', 'published_year', 'pages', 'series', 'copies_total', 'active', 'details', 'cover_source_url'];
+      for (let i = 0; i < rows.length; i += 100) {
+        const chunk = rows.slice(i, i + 100);
+        const params = [];
+        const values = chunk.map((b) => {
+          const ph = COLS.map((c) => { params.push(c === 'details' ? (b.details ? JSON.stringify(b.details) : null) : b[c]); return `$${params.length}`; });
+          return `(${ph.join(',')}, 'pending')`;
+        });
+        await db.query(`INSERT INTO books (${COLS.join(', ')}, cover_status) VALUES ${values.join(',\n')}
+          ON CONFLICT (legacy_id) WHERE legacy_id IS NOT NULL DO UPDATE SET
+            call_number = EXCLUDED.call_number, title = EXCLUDED.title, author = EXCLUDED.author, category = EXCLUDED.category,
+            subcategory = EXCLUDED.subcategory, audience = EXCLUDED.audience, format = EXCLUDED.format, description = EXCLUDED.description,
+            tags = EXCLUDED.tags, publisher = EXCLUDED.publisher, published_year = EXCLUDED.published_year, pages = EXCLUDED.pages,
+            series = EXCLUDED.series, copies_total = EXCLUDED.copies_total, active = EXCLUDED.active, details = EXCLUDED.details,
+            cover_source_url = EXCLUDED.cover_source_url,
+            cover_status = CASE WHEN books.cover_image IS NULL THEN 'pending' ELSE books.cover_status END,
+            updated_at = now()`, params);
+        for (const b of chunk) { if (existing.has(b.legacy_id)) result.updated++; else result.added++; }
       }
-      await db.query(`INSERT INTO books (title, subtitle, author, isbn, category, audience, format, description, tags, publisher, published_year, pages, copies_total, shelf_location)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-      [v.title, v.subtitle, v.author, v.isbn, v.category, v.audience, v.format, v.description, v.tags, v.publisher, v.published_year, v.pages, v.copies_total, v.shelf_location]);
-      result.added++;
+      result.coversQueued = (await db.one("SELECT count(*)::int AS n FROM books WHERE cover_status = 'pending'")).n;
+      covers.kick();
+    } else {
+      const rows = parseCsvObjects(text);
+      for (let i = 0; i < rows.length && i < 5000; i++) {
+        const r = rows[i];
+        const { v, errors } = bookValues({ ...r, published_year: r.year || r.published_year, copies_total: r.copies || r.copies_total || 1 });
+        if (errors.title) { result.skipped.push({ row: i + 2, reason: 'no title' }); continue; }
+        if (r.audience && !AUDIENCES.includes(r.audience)) v.audience = /child|kid/i.test(r.audience) ? 'Children' : /teen|youth/i.test(r.audience) ? 'Youth' : /adult/i.test(r.audience) ? 'Adults' : 'Everyone';
+        if (skipDup) {
+          const dup = v.isbn
+            ? await db.one('SELECT id FROM books WHERE isbn = $1 LIMIT 1', [v.isbn])
+            : await db.one('SELECT id FROM books WHERE lower(title) = lower($1) AND lower(COALESCE(author, \'\')) = lower(COALESCE($2, \'\')) LIMIT 1', [v.title, v.author]);
+          if (dup) { result.skipped.push({ row: i + 2, reason: `“${v.title}” is already in the catalog` }); continue; }
+        }
+        await db.query(`INSERT INTO books (title, subtitle, author, isbn, category, audience, format, description, tags, publisher, published_year, pages,
+          copies_total, shelf_location, call_number, series, subcategory, cover_status)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'none')`,
+        [v.title, v.subtitle, v.author, v.isbn, v.category, v.audience, v.format, v.description, v.tags, v.publisher, v.published_year, v.pages,
+          v.copies_total, v.shelf_location, v.call_number, v.series, v.subcategory]);
+        result.added++;
+      }
+      if (!rows.length) result.skipped.push({ row: 1, reason: 'no rows found. Make sure the first line has the column names.' });
     }
-    if (!rows.length) result.skipped.push({ row: 1, reason: 'no rows found. Make sure the first line has the column names.' });
     await page(req, res, 'books', 'Import books', A.importPage({ csrf: res.locals.csrf, result }));
+  });
+
+  // Download the whole catalog in the old library system's format.
+  app.get('/admin/books/export.csv', requireStaff, async (req, res) => {
+    const rows = await db.many(`SELECT ${require('../models').BOOK_COLS} FROM ${require('../models').BOOK_FROM} ORDER BY b.title`);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="cbc-library-export-${t.dateKey(new Date())}.csv"`);
+    res.send('\uFEFF' + woo.toWooCsv(rows, notify.BASE_URL));
+  });
+
+  // ---------- Covers ----------
+  app.get('/admin/covers/status', requireStaff, async (req, res) => res.json(await covers.status()));
+
+  app.post('/admin/covers/find-missing', requireStaff, async (req, res) => {
+    const n = await covers.queueMissing();
+    security.flash(req, 'ok', n ? `Looking for covers for ${n} book${n === 1 ? '' : 's'}. This runs in the background; you can keep working.` : 'Every book that can have a cover already has one or is being looked up.');
+    res.redirect('/admin/books');
+  });
+
+  app.post('/admin/books/:id/find-cover', requireStaff, async (req, res) => {
+    const id = intParam(req.params.id);
+    await covers.queueBook(id);
+    security.flash(req, 'ok', 'Looking for a cover now. Refresh this page in a few seconds.');
+    res.redirect(`/admin/books/${id}/edit`);
   });
 
   // ---------- Applications (librarian) ----------

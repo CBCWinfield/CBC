@@ -74,7 +74,9 @@ In the Wix editor, add a menu item or button called **Library** that links to th
 - **Pickups & checkouts** has three views: waiting for pickup, checked out (with days out and due dates), and history. **Returned** checks a book back in. **Extend** adds another checkout period.
 - **Check out at the desk** is for walk-ins: enter their library code and choose the book.
 - **Books > Add a book:** type the ISBN and press **Fill in from ISBN** to look up the title, author, description and cover. Snap a photo of the cover with a phone if there isn't one. **Add and start another** speeds up entering a stack of books.
-- **Books > Import a list:** upload a spreadsheet saved as CSV. Download the template on that page to see the columns.
+- **Books > Import a list:** upload the old library system's export file (the WooCommerce "product export" CSV) as-is, or a simple spreadsheet saved as CSV (download the template on that page). Old-system books are matched by their old ID, so importing the same file again updates them instead of duplicating them.
+- **Covers:** after an import, the library copies each book's cover photo from the old website (cbcwinfield.com) in the background, shrinks it, and stores it in the database. Books without a photo are looked up on Open Library by title and author. Progress shows on the Books page; **Find missing covers** retries any that didn't come through. Keep the old site online until the copying finishes.
+- **Download the catalog:** exports every book in the same column layout as the old system's export, so it can be opened in a spreadsheet or imported again.
 - **Applications:** approve or deny. The switch at the top turns automatic approval on or off.
 - **Patrons:** search, pause, resume, delete, or make a temporary password for someone who's locked out.
 - **Staff:** give an assistant access, or create an account for one. Assistants can manage books and checkouts; they can't approve applications, pause or delete accounts, or change settings.
@@ -94,6 +96,8 @@ In the Wix editor, add a menu item or button called **Library** that links to th
 - `src/lib/ask.js`: the Ask engine (keyword scoring, synonyms, typo tolerance, library questions)
 - `src/lib/push.js`: Web Push (VAPID + aes128gcm) using Node's crypto
 - `src/reminders.js`: reminder emails, every 15 minutes, 8 AM–8 PM library time
+- `src/lib/woo.js`: import/export of the old WooCommerce library format
+- `src/covers.js`: background cover finder (old site photos, then Open Library search; resized with `sharp` when installed)
 - `src/db.js`: schema migrations (add new ones to the end of `MIGRATIONS`)
 - Tests: `npm test` (unit). `test/e2e.js` walks through every flow against a running server.
 

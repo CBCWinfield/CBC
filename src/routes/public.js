@@ -48,15 +48,16 @@ module.exports = (app) => {
   app.get('/catalog', async (req, res) => {
     const q = clean(req.query.q, 200);
     const filters = {
-      q, category: clean(req.query.category, 100), audience: clean(req.query.audience, 30),
-      format: clean(req.query.format, 30), available: req.query.available === '1',
+      q, category: clean(req.query.category, 100), subcategory: clean(req.query.subcategory, 150), audience: clean(req.query.audience, 30),
+      format: clean(req.query.format, 40), available: req.query.available === '1',
     };
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const { rows, total } = await books.list(filters, { limit: PAGE, offset: (page - 1) * PAGE });
     const params = new URLSearchParams(Object.entries({ ...filters, available: filters.available ? '1' : '' }).filter(([, v]) => v));
     res.render(V.catalog({
       ...filters, rows, total, page, pages: Math.ceil(total / PAGE),
-      categories: await books.categories(), base: `/catalog?${params}`,
+      categories: await books.categories(), base: `/catalog?${params}`, formats: await books.formats(),
+      subcategories: filters.category ? await books.subcategories(filters.category) : [],
     }), { title: 'Catalog', current: 'catalog' });
   });
 

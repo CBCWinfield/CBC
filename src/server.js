@@ -8,6 +8,7 @@ const { users } = require('./models');
 const { layout } = require('./views/layout');
 const V = require('./views/public');
 const reminders = require('./reminders');
+const covers = require('./covers');
 
 const app = new App();
 const PORT = Number(process.env.PORT || 3000);
@@ -29,7 +30,8 @@ app.use(async (req, res, next) => {
 });
 
 app.use(serveStatic(path.join(__dirname, '..', 'public'), { maxAge: 86400 }));
-app.use(bodyParser({ limit: 6 * 1024 * 1024 }));
+// The catalog import accepts a large spreadsheet; everything else stays small.
+app.use(bodyParser({ limit: (req) => (req.path === '/admin/books/import' ? 30 : 6) * 1024 * 1024 }));
 app.use(security.sessions());
 app.use(security.csrf());
 
@@ -109,6 +111,7 @@ if (require.main === module) {
     .then(() => {
       app.listen(PORT, () => console.log(`Library running on port ${PORT}`));
       if (process.env.DISABLE_REMINDERS !== '1') reminders.start();
+      if (process.env.DISABLE_COVERS !== '1') covers.start();
     })
     .catch((err) => {
       console.error('Startup failed:', err);

@@ -105,24 +105,44 @@ function deskCheckout({ csrf, books, error, values = {} }) {
   </form>`;
 }
 
-function booksPage({ rows, q, total, page, pages, base, categories, category }) {
+function coverCard(st, csrf) {
+  if (!st || !st.total) return '';
+  const missing = st.total - st.with_cover;
+  const mb = (st.bytes / 1048576).toFixed(0);
+  return html`<div class="card cover-card" data-cover-status${st.running ? raw(' data-running') : ''}>
+    <div>
+      <h2>Covers</h2>
+      <p class="small"><strong data-cv="with">${st.with_cover.toLocaleString()}</strong> of ${st.total.toLocaleString()} books have a cover${st.pending ? html` · <span data-cv="pending">${st.pending.toLocaleString()}</span> being looked up now` : ''}${st.failed ? html` · ${st.failed} not found` : ''} · ${mb} MB</p>
+      ${st.running ? html`<p class="small muted" data-cv="last">${st.lastTitle ? `Working on “${st.lastTitle}”` : 'Starting…'}</p>` : ''}
+    </div>
+    <div class="actions">
+      ${missing && !st.pending ? html`<form method="post" action="/admin/covers/find-missing" class="inline">${P.csrfField(csrf)}<button class="btn btn-quiet btn-small" type="submit">Find missing covers</button></form>` : ''}
+      ${missing ? html`<a class="btn btn-quiet btn-small" href="/admin/books?nocover=1">Show books without a cover</a>` : ''}
+    </div>
+  </div>`;
+}
+
+function booksPage({ rows, q, total, page, pages, base, categories, category, coverStatus, csrf, noCover }) {
   return html`
   <div class="quick">
     <a class="btn" href="/admin/books/new">Add a book</a>
     <a class="btn btn-quiet" href="/admin/books/import">Import a list</a>
+    <a class="btn btn-quiet" href="/admin/books/export.csv">Download the catalog</a>
   </div>
+  ${coverCard(coverStatus, csrf)}
   <form class="filters" method="get" action="/admin/books">
     <div class="field grow"><label for="ab-q">Search title, author, ISBN</label><input id="ab-q" type="search" name="q" value="${q || ''}"></div>
     <div class="field"><label for="ab-cat">Subject</label><select id="ab-cat" name="category"><option value="">All</option>${categories.map((c) => html`<option${selected(c.category, category)}>${c.category}</option>`)}</select></div>
+    <label class="check"><input type="checkbox" name="nocover" value="1"${checked(noCover)}> No cover yet</label>
     <button class="btn btn-quiet" type="submit">Search</button>
   </form>
   <p class="muted small">${total} title${total === 1 ? '' : 's'}</p>
   ${rows.length ? html`<div class="table-wrap"><table class="table books-table">
-    <thead><tr><th>Title</th><th>Author</th><th>Subject</th><th>Copies</th><th>Shelf</th></tr></thead>
+    <thead><tr><th>Title</th><th>Author</th><th>Library no.</th><th>Subject</th><th>Copies</th></tr></thead>
     <tbody>${rows.map((b) => html`<tr${b.active ? '' : raw(' class="inactive"')}>
       <td class="with-cover">${P.cover(b, 'xs')}<a href="/admin/books/${b.id}/edit">${b.title}</a>${b.active ? '' : html` <span class="badge badge-muted">Archived</span>`}</td>
-      <td>${b.author || ''}</td><td>${b.category || ''}</td>
-      <td>${b.available} of ${b.copies_total} in</td><td>${b.shelf_location || ''}</td>
+      <td>${b.author || ''}</td><td>${b.call_number || ''}</td><td>${b.category || ''}${b.subcategory ? html`<br><span class="small muted">${b.subcategory}</span>` : ''}</td>
+      <td>${b.available} of ${b.copies_total} in</td>
     </tr>`)}</tbody></table></div>`
     : html`<div class="empty"><p>${q ? 'No books match that search.' : 'The catalog is empty.'}</p><p><a class="btn" href="/admin/books/new">Add the first book</a></p></div>`}
   ${P.pager({ page, pages, base })}`;
@@ -130,7 +150,10 @@ function booksPage({ rows, q, total, page, pages, base, categories, category }) 
 
 const CATEGORY_SUGGESTIONS = ['Bible Study', 'Bibles', 'Commentary', 'Devotional', 'Christian Living', 'Prayer', 'Theology', 'Apologetics', 'Church History', 'Biography', 'Missions', 'Marriage & Family', 'Parenting', 'Grief & Comfort', 'Prophecy', 'Women', 'Men', 'Youth', 'Children', 'Fiction', 'Music & Worship', 'Reference'];
 
+const FORMATS = ['Book', 'Paperback', 'Hardback', 'Board Book', 'Large Print', 'Workbook', 'Audiobook', 'CD', 'DVD', 'Blu-ray', 'Pamphlet', 'Other'];
+
 function bookForm({ csrf, book = {}, errors = {}, categories, history = [], isNew }) {
+  const formats = book.format && !FORMATS.includes(book.format) ? [...FORMATS, book.format] : FORMATS;
   const allCats = [...new Set([...categories.map((c) => c.category), ...CATEGORY_SUGGESTIONS])].sort();
   const f = (name, label, opts = {}) => html`<div class="field${opts.cls ? ' ' + opts.cls : ''}">
     <label for="b-${name}">${label}${opts.optional === false ? '' : opts.req ? '' : html` <span class="muted">(optional)</span>`}</label>
@@ -152,13 +175,18 @@ function bookForm({ csrf, book = {}, errors = {}, categories, history = [], isNe
         <div class="row">
           ${f('category', 'Subject', { list: 'cat-list', hint: 'Pick one or type a new one.' })}
           <div class="field"><label for="b-audience">For</label><select id="b-audience" name="audience">${['Everyone', 'Adults', 'Youth', 'Children'].map((a) => html`<option${selected(a, book.audience || 'Everyone')}>${a}</option>`)}</select></div>
-          <div class="field"><label for="b-format">Format</label><select id="b-format" name="format">${['Book', 'Large Print', 'Audiobook', 'DVD'].map((a) => html`<option${selected(a, book.format || 'Book')}>${a}</option>`)}</select></div>
+          <div class="field"><label for="b-format">Format</label><select id="b-format" name="format">${formats.map((a) => html`<option${selected(a, book.format || 'Book')}>${a}</option>`)}</select></div>
+        </div>
+        <div class="row">
+          ${f('subcategory', 'Sub-subject', { hint: 'e.g. Historical Fiction under Christian Fiction.' })}
+          ${f('series', 'Series')}
         </div>
         <datalist id="cat-list">${allCats.map((c) => html`<option value="${c}">`)}</datalist>
         <div class="field"><label for="b-description">Description <span class="muted">(optional)</span></label><textarea id="b-description" name="description" rows="6">${book.description || ''}</textarea></div>
         ${f('tags', 'Keywords', { hint: 'Separate with commas, e.g. grief, comfort, widows. These help people find the book with the Ask bar.' })}
         <div class="row">
           ${f('copies_total', 'Copies', { type: 'number', min: 0, req: true, cls: 'short' })}
+          ${f('call_number', 'Library no.', { hint: 'The number on the book’s label, e.g. 6871 or DVD78.' })}
           ${f('shelf_location', 'Shelf location', { hint: 'e.g. B-3 or “Children’s corner”' })}
         </div>
         <div class="row">
@@ -177,6 +205,9 @@ function bookForm({ csrf, book = {}, errors = {}, categories, history = [], isNe
         <input type="hidden" name="cover_data" id="cover-data">
         <input type="hidden" name="cover_url" id="cover-url">
         ${book.has_cover ? html`<label class="check small"><input type="checkbox" name="remove_cover" value="1"> Remove cover</label>` : ''}
+        ${!isNew && book.cover_status === 'pending' ? html`<p class="small muted">Looking for a cover…</p>` : ''}
+        ${!isNew && book.cover_note ? html`<p class="small muted">${book.cover_note}</p>` : ''}
+        ${!isNew && !book.has_cover ? html`<button class="btn btn-quiet btn-small" type="submit" formaction="/admin/books/${book.id}/find-cover" formnovalidate>Find a cover online</button>` : ''}
       </div>
     </div>
     <div class="form-actions">
@@ -199,19 +230,23 @@ function bookForm({ csrf, book = {}, errors = {}, categories, history = [], isNe
 
 function importPage({ csrf, result }) {
   return html`
-  <p>Add many books at once from a spreadsheet. Save your spreadsheet as a <strong>CSV</strong> file (in Excel or Google Sheets: File › Download › CSV), then upload it here.</p>
-  <p><a href="/admin/books/template.csv" download>Download the template</a> to see the columns. Only <em>title</em> is required. Columns: title, subtitle, author, isbn, category, audience, format, description, tags, publisher, year, pages, copies, shelf.</p>
+  <p>Add many books at once from a spreadsheet saved as <strong>CSV</strong> (in Excel or Google Sheets: File › Download › CSV).</p>
+  <ul class="small">
+    <li><strong>The old library system's export</strong> (the WooCommerce “product export” file) works as-is. Books are matched by their old ID, so importing the same file again updates them instead of adding duplicates. Cover photos are copied from the old site automatically.</li>
+    <li>For a simple list, <a href="/admin/books/template.csv" download>download the template</a>. Only <em>title</em> is required. Columns: title, subtitle, author, isbn, category, audience, format, description, tags, publisher, year, pages, copies, shelf.</li>
+  </ul>
   ${result ? html`<div class="card card-note" role="status">
     <h2>Import finished</h2>
-    <p>${result.added} book${result.added === 1 ? '' : 's'} added${result.skipped.length ? `, ${result.skipped.length} skipped` : ''}.</p>
+    <p>${result.added.toLocaleString()} book${result.added === 1 ? '' : 's'} added${result.updated ? `, ${result.updated.toLocaleString()} updated` : ''}${result.skipped.length ? `, ${result.skipped.length} skipped` : ''}.</p>
+    ${result.coversQueued ? html`<p>Covers are being copied for ${result.coversQueued.toLocaleString()} books in the background. The Books page shows the progress. This takes roughly half an hour for a few thousand books.</p>` : ''}
     ${result.skipped.length ? html`<ul class="small">${result.skipped.slice(0, 50).map((x) => html`<li>Row ${x.row}: ${x.reason}</li>`)}</ul>` : ''}
     <p><a href="/admin/books">See the books</a></p>
   </div>` : ''}
   <form method="post" action="/admin/books/import" class="stack" id="import-form">
     ${P.csrfField(csrf)}
-    <div class="field"><label for="csv-file">CSV file</label><input type="file" id="csv-file" accept=".csv,text/csv"></div>
-    <div class="field"><label for="csv-text">Or paste the rows here</label><textarea id="csv-text" name="csv" rows="10" required placeholder="title,author,category,copies"></textarea></div>
-    <label class="check"><input type="checkbox" name="skip_duplicates" value="1" checked> Skip books already in the catalog (same ISBN, or same title and author)</label>
+    <div class="field"><label for="csv-file">CSV file</label><input type="file" id="csv-file" accept=".csv,text/csv"><p class="hint" id="csv-info"></p></div>
+    <div class="field" id="csv-paste"><label for="csv-text">Or paste the rows here</label><textarea id="csv-text" name="csv" rows="8" required placeholder="title,author,category,copies"></textarea></div>
+    <label class="check"><input type="checkbox" name="skip_duplicates" value="1" checked> For simple lists, skip books already in the catalog (same ISBN, or same title and author)</label>
     <button class="btn" type="submit">Import books</button>
   </form>`;
 }

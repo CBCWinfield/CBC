@@ -93,19 +93,44 @@ async function lookup(raw) {
   };
 }
 
-// Download a cover image from Open Library only.
-async function fetchCover(url) {
+// Download a cover image. Only from Open Library or the church's old website.
+const IMAGE_HOSTS = ['covers.openlibrary.org', 'www.cbcwinfield.com', 'cbcwinfield.com'];
+async function fetchCover(url, { maxBytes = 3 * 1024 * 1024 } = {}) {
   let u;
   try { u = new URL(url); } catch { return null; }
-  if (u.protocol !== 'https:' || u.hostname !== 'covers.openlibrary.org') return null;
-  if (!u.searchParams.has('default')) u.searchParams.set('default', 'false');
-  const res = await fetch(u, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(15000) });
+  if (!/^https?:$/.test(u.protocol) || !IMAGE_HOSTS.includes(u.hostname.toLowerCase())) return null;
+  if (u.hostname === 'covers.openlibrary.org' && !u.searchParams.has('default')) u.searchParams.set('default', 'false');
+  const res = await fetch(u, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(20000) });
+  // Busy or broken server: throw so the cover finder tries again later. Missing image: give up.
+  if (res.status === 429 || res.status >= 500) throw new Error(`server busy (${res.status})`);
   if (!res.ok) return null;
-  const type = (res.headers.get('content-type') || '').split(';')[0];
-  if (!/^image\/(jpeg|png|webp|gif)$/.test(type)) return null;
+  const type = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  if (!/^image\/(jpeg|jpg|png|webp|gif)$/.test(type)) return null;
   const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length < 1000 || buf.length > 3 * 1024 * 1024) return null;
-  return { data: buf, type };
+  if (buf.length < 800 || buf.length > maxBytes) return null;
+  return { data: buf, type: type === 'image/jpg' ? 'image/jpeg' : type };
 }
 
-module.exports = { lookup, fetchCover, validIsbn };
+// Find a cover by title and author when there's no ISBN or old cover photo.
+async function searchCover(title, author) {
+  const words = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 2);
+  const q = new URLSearchParams({ title: String(title).slice(0, 120), limit: '8', fields: 'title,author_name,cover_i' });
+  if (author) q.set('author', String(author).split(',')[0].slice(0, 80));
+  let data = await getJson(`https://openlibrary.org/search.json?${q}`);
+  if ((!data || !data.docs || !data.docs.length) && author) {
+    q.delete('author');
+    data = await getJson(`https://openlibrary.org/search.json?${q}`);
+  }
+  const want = words(title);
+  const last = words(author).pop();
+  for (const d of (data && data.docs) || []) {
+    if (!d.cover_i) continue;
+    const got = new Set(words(d.title));
+    const overlap = want.filter((w) => got.has(w)).length / Math.max(1, want.length);
+    const authorOk = !last || (d.author_name || []).some((a) => a.toLowerCase().includes(last));
+    if (overlap >= 0.75 && authorOk) return `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg`;
+  }
+  return null;
+}
+
+module.exports = { lookup, fetchCover, searchCover, validIsbn };

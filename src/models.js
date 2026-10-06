@@ -4,6 +4,7 @@ const db = require('./db');
 
 const BOOK_COLS = `b.id, b.title, b.subtitle, b.author, b.isbn, b.category, b.audience, b.format, b.description,
   b.tags, b.publisher, b.published_year, b.pages, b.copies_total, b.shelf_location, b.active,
+  b.legacy_id, b.call_number, b.series, b.subcategory, b.details, b.cover_status, b.cover_note, b.cover_source_url,
   b.created_at, b.updated_at, (b.cover_image IS NOT NULL) AS has_cover,
   GREATEST(b.copies_total - COALESCE(a.n, 0), 0)::int AS available, COALESCE(a.n, 0)::int AS out_count`;
 const BOOK_FROM = `books b LEFT JOIN (
@@ -12,16 +13,19 @@ const BOOK_FROM = `books b LEFT JOIN (
 
 const ACTIVE = `status IN ('reserved','checked_out')`;
 
-function bookFilters({ q, category, audience, format, available, includeInactive } = {}) {
+function bookFilters({ q, category, subcategory, audience, format, available, includeInactive, noCover } = {}) {
   const where = [];
   const params = [];
   if (!includeInactive) where.push('b.active');
   if (q) {
     params.push(`%${q.trim()}%`);
     const i = params.length;
-    where.push(`(b.title ILIKE $${i} OR b.subtitle ILIKE $${i} OR b.author ILIKE $${i} OR b.isbn ILIKE $${i} OR b.tags ILIKE $${i} OR b.category ILIKE $${i} OR b.description ILIKE $${i})`);
+    where.push(`(b.title ILIKE $${i} OR b.subtitle ILIKE $${i} OR b.author ILIKE $${i} OR b.isbn ILIKE $${i} OR b.tags ILIKE $${i} OR b.category ILIKE $${i}
+      OR b.subcategory ILIKE $${i} OR b.series ILIKE $${i} OR b.call_number ILIKE $${i} OR b.description ILIKE $${i})`);
   }
   if (category) { params.push(category); where.push(`b.category = $${params.length}`); }
+  if (subcategory) { params.push(subcategory); where.push(`(b.subcategory = $${params.length} OR b.subcategory LIKE $${params.length} || ' › %')`); }
+  if (noCover) where.push('b.cover_image IS NULL');
   if (audience) { params.push(audience); where.push(`b.audience = $${params.length}`); }
   if (format) { params.push(format); where.push(`b.format = $${params.length}`); }
   if (available) where.push('b.copies_total - COALESCE(a.n, 0) > 0');
@@ -39,6 +43,10 @@ const books = {
   recent: (n = 18) => db.many(`SELECT ${BOOK_COLS} FROM ${BOOK_FROM} WHERE b.active ORDER BY b.created_at DESC LIMIT ${Number(n)}`),
   get: (id) => db.one(`SELECT ${BOOK_COLS} FROM ${BOOK_FROM} WHERE b.id = $1`, [id]),
   categories: () => db.many(`SELECT category, count(*)::int AS n FROM books WHERE active AND category IS NOT NULL AND category <> '' GROUP BY category ORDER BY category`),
+  // First level below a subject, e.g. "Historical Fiction" under "Christian Fiction".
+  subcategories: (category) => db.many(`SELECT split_part(subcategory, ' › ', 1) AS name, count(*)::int AS n FROM books
+    WHERE active AND category = $1 AND subcategory IS NOT NULL AND subcategory <> '' GROUP BY 1 ORDER BY 2 DESC, 1`, [category]),
+  formats: async () => (await db.many(`SELECT format, count(*)::int AS n FROM books WHERE active AND format IS NOT NULL GROUP BY format ORDER BY 2 DESC`)).map((r) => r.format),
   count: async () => (await db.one('SELECT count(*)::int AS n, COALESCE(sum(copies_total),0)::int AS copies FROM books WHERE active')),
 };
 

@@ -143,6 +143,25 @@ const MIGRATIONS = [
       );
     `,
   },
+  {
+    // Fields from the old WooCommerce library, and the background cover finder.
+    version: 2,
+    sql: `
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS legacy_id text;
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS call_number text;
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS series text;
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS subcategory text;
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS details jsonb;
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS cover_source_url text;
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS cover_status text NOT NULL DEFAULT 'none';
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS cover_attempts int NOT NULL DEFAULT 0;
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS cover_note text;
+      CREATE UNIQUE INDEX IF NOT EXISTS books_legacy_id ON books (legacy_id) WHERE legacy_id IS NOT NULL;
+      CREATE INDEX IF NOT EXISTS books_call_number ON books (call_number);
+      CREATE INDEX IF NOT EXISTS books_cover_pending ON books (id) WHERE cover_status = 'pending';
+      UPDATE books SET cover_status = 'done' WHERE cover_image IS NOT NULL AND cover_status = 'none';
+    `,
+  },
 ];
 
 async function migrate() {

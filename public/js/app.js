@@ -48,7 +48,7 @@
       (data.books || []).forEach(function (b) {
         var thumb = b.cover
           ? el('img', { class: 'ask-thumb', src: b.cover, alt: '' })
-          : el('span', { class: 'ask-thumb', style: '--spine:' + hashColor(b.category || b.title) });
+          : el('span', { class: 'ask-thumb', style: '--spine:' + hashColor(b.title) });
         var status = el('span', { class: 'avail ' + (b.available > 0 ? 'avail-yes' : 'avail-no'), text: b.available > 0 ? 'Available' : 'Checked out' });
         var text = el('span', {}, [el('span', { class: 't', text: b.title }), b.author ? el('span', { class: 'a', text: b.author }) : null]);
         list.appendChild(el('li', {}, [el('a', { href: '/books/' + b.id }, [thumb, text, status])]));
@@ -216,15 +216,46 @@
     });
   }
 
-  /* ---------- CSV import: read the chosen file into the text box ---------- */
+  /* ---------- CSV import: read the chosen file into the form ---------- */
   var csvFile = document.getElementById('csv-file');
   if (csvFile) {
     csvFile.addEventListener('change', function () {
       var f = csvFile.files && csvFile.files[0];
       if (!f) return;
+      var info = document.getElementById('csv-info');
+      info.textContent = 'Reading ' + f.name + '…';
       var r = new FileReader();
-      r.onload = function () { document.getElementById('csv-text').value = r.result; };
+      r.onload = function () {
+        var text = document.getElementById('csv-text');
+        text.value = r.result;
+        info.textContent = 'Ready: ' + f.name + ' (' + Math.max(1, Math.round(f.size / 1024)).toLocaleString() + ' KB). Press Import books.';
+        document.getElementById('csv-paste').hidden = true;
+      };
       r.readAsText(f);
     });
+    var importForm = document.getElementById('import-form');
+    importForm.addEventListener('submit', function () {
+      var btn = importForm.querySelector('button[type=submit]');
+      btn.disabled = true;
+      btn.textContent = 'Importing… this can take a minute';
+    });
+  }
+
+  /* ---------- Cover finder progress on the Books page ---------- */
+  var coverBox = document.querySelector('[data-cover-status][data-running]');
+  if (coverBox) {
+    var poll = function () {
+      fetch('/admin/covers/status', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (st) {
+          var set = function (k, v) { var n = coverBox.querySelector('[data-cv="' + k + '"]'); if (n) n.textContent = v; };
+          set('with', st.with_cover.toLocaleString());
+          set('pending', st.pending.toLocaleString());
+          if (st.lastTitle) set('last', 'Working on “' + st.lastTitle + '”');
+          if (st.running) setTimeout(poll, 5000); else window.location.reload();
+        })
+        .catch(function () { setTimeout(poll, 15000); });
+    };
+    setTimeout(poll, 5000);
   }
 })();

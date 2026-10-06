@@ -58,14 +58,14 @@ function landing({ s, recent, counts, categories, user }) {
   </section>`;
 }
 
-function catalog({ q, category, audience, format, available, rows, total, page, pages, categories, base }) {
-  const formats = ['Book', 'Large Print', 'Audiobook', 'DVD'];
+function catalog({ q, category, subcategory, audience, format, available, rows, total, page, pages, categories, subcategories = [], formats = [], base }) {
+  const chipBase = (sub) => `/catalog?${new URLSearchParams(Object.entries({ q, category, subcategory: sub, audience, format, available: available ? '1' : '' }).filter(([, v]) => v))}`;
   return html`
   <div class="page-head">
     ${audience === 'Children' ? html`<div class="audience-banner"><img src="/img/central-kids.webp" alt="Central Kids" width="640" height="312"></div>` : ''}
     ${audience === 'Youth' ? html`<div class="audience-banner"><img src="/img/central-teens.webp" alt="Central Teens" width="640" height="305"></div>` : ''}
     <h1>${audience === 'Children' ? 'Books for children' : audience === 'Youth' ? 'Books for teens' : 'Catalog'}</h1>
-    <p class="muted">${total.toLocaleString()} ${total === 1 ? 'title' : 'titles'}${q ? html` matching “${q}”` : ''}${category ? html` in ${category}` : ''}</p>
+    <p class="muted">${total.toLocaleString()} ${total === 1 ? 'title' : 'titles'}${q ? html` matching “${q}”` : ''}${category ? html` in ${category}${subcategory ? ` › ${subcategory}` : ''}` : ''}</p>
   </div>
   <form class="filters" method="get" action="/catalog">
     <div class="field grow"><label for="f-q">Title, author or subject</label><input id="f-q" type="search" name="q" value="${q || ''}"></div>
@@ -79,6 +79,12 @@ function catalog({ q, category, audience, format, available, rows, total, page, 
     <button class="btn" type="submit">Search</button>
     ${q || category || audience || format || available ? html`<a class="btn btn-quiet" href="/catalog">Clear</a>` : ''}
   </form>
+  ${subcategories.length > 1 ? html`<nav class="subcats" aria-label="Narrow ${category}">
+    <a href="${chipBase('')}"${!subcategory ? raw(' aria-current="page"') : ''}>All ${category}</a>
+    ${subcategories.slice(0, 12).map((sc) => html`<a href="${chipBase(sc.name)}"${subcategory === sc.name ? raw(' aria-current="page"') : ''}>${sc.name} <span class="muted">${sc.n}</span></a>`)}
+    ${subcategories.length > 12 ? html`<details class="more-subcats"${subcategories.slice(12).some((sc) => sc.name === subcategory) ? raw(' open') : ''}><summary>${subcategories.length - 12} more</summary>
+      ${subcategories.slice(12).map((sc) => html`<a href="${chipBase(sc.name)}"${subcategory === sc.name ? raw(' aria-current="page"') : ''}>${sc.name} <span class="muted">${sc.n}</span></a>`)}</details>` : ''}
+  </nav>` : ''}
   ${rows.length ? html`<ul class="book-grid">${rows.map(P.bookCard)}</ul>`
     : html`<div class="empty"><p>No books match those filters.</p><p><a href="/catalog">Show the whole catalog</a> or try the Ask bar at the top with a question like “books about prayer for teens”.</p></div>`}
   ${P.pager({ page, pages, base })}`;
@@ -86,8 +92,9 @@ function catalog({ q, category, audience, format, available, rows, total, page, 
 
 function bookPage({ book, user, s, myActive, canCheckout, reason }) {
   const details = [
-    ['Author', book.author], ['Subject', book.category], ['For', book.audience], ['Format', book.format],
-    ['Publisher', book.publisher], ['Published', book.published_year], ['Pages', book.pages], ['ISBN', book.isbn],
+    ['Author', book.author], ['Series', book.series], ['Subject', [book.category, book.subcategory].filter(Boolean).join(' › ')], ['For', book.audience], ['Format', book.format],
+    ...Object.entries(book.details || {}).filter(([k]) => k !== 'Artist' || book.author !== book.details.Artist),
+    ['Publisher', book.publisher], ['Published', book.published_year], ['Pages', book.pages], ['ISBN', book.isbn], ['Library no.', book.call_number],
   ].filter(([, v]) => v);
   return html`
   <p class="crumb"><a href="/catalog">Catalog</a>${book.category ? html` / <a href="/catalog?category=${encodeURIComponent(book.category)}">${book.category}</a>` : ''}</p>

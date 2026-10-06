@@ -16,7 +16,7 @@ function cover(book, size = 'md') {
     const v = book.updated_at ? new Date(book.updated_at).getTime() : 0;
     return html`<img class="cover cover-${size}" src="/covers/${book.id}?v=${v}" alt="" loading="lazy">`;
   }
-  return html`<div class="cover cover-${size} cover-gen" style="--spine:${hashColor(book.category || book.title)}" aria-hidden="true"><span class="cover-gen-title">${book.title}</span>${book.author ? html`<span class="cover-gen-author">${book.author}</span>` : ''}</div>`;
+  return html`<div class="cover cover-${size} cover-gen" style="--spine:${hashColor(book.title)}" aria-hidden="true"><span class="cover-gen-title">${book.title}</span>${book.author ? html`<span class="cover-gen-author">${book.author}</span>` : ''}</div>`;
 }
 
 function availability(book) {
@@ -47,7 +47,7 @@ function shelf(books) {
       const width = 34 + ((len * 3 + i * 5) % 18);
       const tilt = i === 5 && items.length > 8 ? ' spine-tilt' : '';
       const inner = html`<span class="spine-title">${b.title.length > 34 ? b.title.slice(0, 32) + '…' : b.title}</span>`;
-      const style = `--spine:${hashColor(b.category || b.title)};--h:${height}px;--w:${width}px`;
+      const style = `--spine:${hashColor(b.title)};--h:${height}px;--w:${width}px`;
       return b.id
         ? html`<a role="listitem" class="spine${tilt}" style="${style}" href="/books/${b.id}" title="${b.title}${b.author ? ' by ' + b.author : ''}">${inner}</a>`
         : html`<span role="listitem" class="spine${tilt}" style="${style}" aria-hidden="true">${inner}</span>`;

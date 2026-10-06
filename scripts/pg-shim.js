@@ -30,7 +30,8 @@ class Pool {
   async query(text, params = []) {
     const sql = text.replace(/\$(\d+)/g, (_, n) => literal(params[Number(n) - 1]));
     const trimmed = sql.trim().replace(/;\s*$/, '');
-    const returnsRows = /^\s*(SELECT|WITH)\b/i.test(trimmed) || /\bRETURNING\b/i.test(trimmed);
+    // Decide from the query text before values are filled in, so book text can't confuse it.
+    const returnsRows = /^\s*(SELECT|WITH)\b/i.test(text) || /\bRETURNING\b/i.test(text);
     const script = returnsRows
       ? `WITH __q AS (${trimmed}) SELECT coalesce(json_agg(__q), '[]') FROM __q;`
       : trimmed + ';';

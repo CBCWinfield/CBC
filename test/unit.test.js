@@ -96,3 +96,35 @@ test('Ask: topics, authors, typos, audiences and library questions', () => {
   assert.strictEqual(keep.books.length, 0);
   assert.match(ask('zzzz qqqq', books, DEFAULTS).answer, /couldn't find/);
 });
+
+// ---- Old library (WooCommerce) export ----
+const woo = require('../src/lib/woo');
+const oldCsv = fs.readFileSync(path.join(__dirname, 'fixtures/old-library-sample.csv'), 'utf8');
+
+test('old library export: detected, mapped and round-tripped', () => {
+  assert.ok(woo.isWooExport(oldCsv));
+  assert.ok(!woo.isWooExport('title,author\nA,B\n'));
+  const { books: rows } = woo.parseWoo(oldCsv);
+  assert.strictEqual(rows.length, 40);
+  const blotch = rows.find((b) => b.title === 'Blotch');
+  assert.strictEqual(blotch.author, 'Andy Addis');
+  assert.strictEqual(blotch.format, 'Hardback');
+  assert.strictEqual(blotch.audience, 'Children');
+  assert.strictEqual(blotch.publisher, 'B&H Publishing Group');
+  assert.strictEqual(blotch.published_year, 2016);
+  assert.strictEqual(blotch.call_number, null, 'Excel-mangled number is dropped');
+  assert.match(blotch.cover_source_url, /blotch-front-cover\.jpg$/);
+  assert.ok(!/<|\[embedyt|\\n/.test(blotch.description), 'HTML, shortcodes and \\n are cleaned out');
+  const princess = rows.find((b) => b.title === 'Blue Princess Takes The Stage');
+  assert.strictEqual(princess.category, 'Junior');
+  assert.strictEqual(princess.subcategory, 'Junior Fiction');
+  assert.strictEqual(princess.series, 'Perfectly Princess');
+  assert.strictEqual(princess.call_number, '6871');
+  assert.strictEqual(princess.details.Illustrator, 'Charlotte Alder');
+  // Export, then import the export: same books come back.
+  const out = woo.toWooCsv(rows.map((b, i) => ({ ...b, id: i + 1, available: 1 })), 'https://example.org');
+  const again = woo.parseWoo(out).books;
+  assert.strictEqual(again.length, 40);
+  assert.deepStrictEqual(again.map((b) => [b.legacy_id, b.title, b.author, b.call_number, b.format, b.series]),
+    rows.map((b) => [b.legacy_id, b.title, b.author, b.call_number, b.format, b.series]));
+});
