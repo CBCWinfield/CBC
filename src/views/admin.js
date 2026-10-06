@@ -402,9 +402,18 @@ function applicationsPage({ csrf, pending, recent, s }) {
     <ul class="line-list compact">${recent.map((u) => html`<li><a class="grow" href="/admin/patrons/${u.id}">${fullName(u)}</a>${P.statusBadge(u.status)}</li>`)}</ul></section>` : ''}`;
 }
 
-function patronsPage({ rows, q, status, counts }) {
+function patronsPage({ rows, q, status, counts, csrf, user }) {
   const tabs = [['', 'All'], ['approved', 'Approved'], ['pending', 'Waiting'], ['paused', 'Paused'], ['denied', 'Denied']];
   return html`
+  ${user && user.role === 'librarian' ? html`<details class="card add-patron"><summary><strong>Add a patron</strong> <span class="small muted">No application needed. They get an email with their library code and a link to set their password.</span></summary>
+    <form method="post" action="/admin/patrons/new" class="row">
+      <input type="hidden" name="_csrf" value="${csrf}">
+      <div class="field"><label for="np-first">First name</label><input id="np-first" name="first_name" required></div>
+      <div class="field"><label for="np-last">Last name</label><input id="np-last" name="last_name" required></div>
+      <div class="field"><label for="np-email">Email</label><input id="np-email" name="email" type="email" required></div>
+      <div class="field"><label for="np-phone">Phone <span class="muted">(optional)</span></label><input id="np-phone" name="phone" type="tel"></div>
+      <div class="field"><label>&nbsp;</label><button class="btn" type="submit">Add and email them</button></div>
+    </form></details>` : ''}
   <form class="filters" method="get" action="/admin/patrons">
     <div class="field grow"><label for="ap-q">Search name, email, phone or library code</label><input id="ap-q" type="search" name="q" value="${q || ''}"></div>
     <input type="hidden" name="status" value="${status || ''}">
@@ -432,7 +441,7 @@ function patronPage({ user, patron, items, csrf, tempPassword, now }) {
     <div><h1>${fullName(patron)}</h1><p>${P.statusBadge(patron.status)} ${patron.role !== 'patron' ? html`<span class="badge badge-info">${P.roleLabel(patron.role)}</span>` : ''}</p></div>
     ${patron.library_code ? html`<div class="code-card"><span>Library code</span><strong>${patron.library_code}</strong></div>` : ''}
   </div>
-  ${tempPassword ? html`<div class="card card-note" role="status"><h2>Temporary password</h2><p>Give ${patron.first_name} this password: <strong class="code-big">${tempPassword}</strong></p><p class="small">They can change it on their My Library page. This is the only time it's shown.</p></div>` : ''}
+  ${tempPassword ? html`<div class="card card-note" role="status"><h2>Temporary password</h2><p>Give ${patron.first_name} this password: <strong class="code-big">${tempPassword}</strong></p><p class="small">We also emailed ${patron.first_name} a link to choose their own password (good for 7 days). Share this temporary password only if the email doesn’t arrive. This is the only time it's shown.</p></div>` : ''}
   ${lib ? html`<div class="quick">
     ${patron.status === 'pending' || patron.status === 'denied' ? btnForm(`/admin/applications/${patron.id}/approve`, csrf, 'Approve', { cls: '' }) : ''}
     ${patron.status === 'approved' && patron.id !== user.id ? btnForm(`/admin/patrons/${patron.id}/pause`, csrf, 'Pause account', { cls: 'btn-quiet', confirm: `Pause ${patron.first_name}'s account? They won't be able to check out books until you resume it.` }) : ''}
@@ -479,7 +488,7 @@ function patronPage({ user, patron, items, csrf, tempPassword, now }) {
 function staffPage({ csrf, staff, user, tempPassword, created }) {
   return html`
   <p>Assistants can add and edit books and handle pickups, checkouts and returns. They can't approve applications, pause or delete accounts, or change settings.</p>
-  ${tempPassword ? html`<div class="card card-note" role="status"><h2>Account created</h2><p>${created}'s temporary password is <strong class="code-big">${tempPassword}</strong></p><p class="small">Give it to them in person. They can change it on their My Library page. This is the only time it's shown.</p></div>` : ''}
+  ${tempPassword ? html`<div class="card card-note" role="status"><h2>Account created</h2><p>${created}'s temporary password is <strong class="code-big">${tempPassword}</strong></p><p class="small">We emailed them a welcome with their library code and a link to set their own password (good for 7 days). Share this temporary password only if the email doesn’t arrive. This is the only time it's shown.</p></div>` : ''}
   <div class="table-wrap"><table class="table">
     <thead><tr><th>Name</th><th>Role</th><th>Email</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
     <tbody>${staff.map((u) => html`<tr>

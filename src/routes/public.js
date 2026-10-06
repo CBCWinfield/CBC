@@ -251,8 +251,8 @@ module.exports = (app) => {
     await req.regenerateSession();
     req.session.userId = u.id;
     security.flash(req, 'ok', 'Your password is saved and you’re logged in.');
-    const who = await db.one('SELECT checkin_role FROM users WHERE id = $1', [u.id]);
-    res.redirect(who && who.checkin_role ? '/checkin' : '/my');
+    const who = await db.one('SELECT checkin_role, role FROM users WHERE id = $1', [u.id]);
+    res.redirect(who && who.checkin_role ? '/checkin' : who && who.role !== 'patron' ? '/admin' : '/my');
   });
 
   // ---- Ask bar (self-contained) ----

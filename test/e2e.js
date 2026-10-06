@@ -171,6 +171,18 @@ class Browser {
   assert.match(r.body, /paused/);
   r = await lib.post(`/admin/patrons/${pid}/resume`, {});
 
+
+  // Librarian adds a patron directly: approved, library code, set-password link emailed
+  r = await lib.get('/admin/patrons');
+  assert.match(r.body, /Add a patron/);
+  r = await lib.post('/admin/patrons/new', { first_name: 'Naomi', last_name: 'Bell', email: 'naomi@example.com', phone: '620-555-0133' });
+  assert.match(r.location, /^\/admin\/patrons\/\d+$/);
+  r = await lib.follow(r);
+  assert.match(r.body, /We emailed them their code/);
+  // Librarian creates a staff account: welcome email with set-password link
+  r = await lib.post('/admin/staff/create', { first_name: 'Asa', last_name: 'Help', email: 'asa@example.com', role: 'assistant' });
+  assert.match(r.body, /We emailed them a welcome/);
+
   // Settings save
   await lib.get('/admin/settings');
   r = await lib.post('/admin/settings', {

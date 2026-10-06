@@ -120,6 +120,58 @@ module.exports = {
     });
   }),
 
+  // An account the librarian created. `link` lets them set their own password (7 days).
+  accountCreated: safe(async (user, { link, role, addedBy } = {}) => {
+    const s = await settingsStore.get();
+    const staff = role === 'librarian' || role === 'assistant';
+    await email({ ...user, notify_email: true, prefs: null }, {
+      subject: staff ? `You’ve been added to the ${s.library_name} team` : `Your ${s.library_name} account is ready`,
+      heading: `Welcome, ${esc(user.first_name)}!`,
+      paragraphs: [
+        `${addedBy ? `${esc(addedBy)} created` : 'We created'} a ${staff ? `library <strong>${role}</strong>` : 'library'} account for you at the ${esc(s.library_name)}.`,
+        `Your library code is <strong style="font-size:20px;letter-spacing:1px">${esc(user.library_code)}</strong>. You’ll use it to check out books.`,
+        'First, use the button below to set your password. The link works for 7 days.',
+        staff ? 'After you log in, you’ll find the library dashboard under <strong>Admin</strong> at the top of the page.'
+          : `Books are picked up ${esc(settingsStore.describeDays(s.pickup_days))}, ${t.fmtHm(s.pickup_start)}–${t.fmtHm(s.pickup_end)}. You can keep them for ${s.checkout_days} days.`,
+      ],
+      button: { label: 'Set my password', url: link },
+    });
+  }),
+
+  // An existing account was given library staff access.
+  staffRole: safe(async (user, role) => {
+    const s = await settingsStore.get();
+    await email({ ...user, notify_email: true, prefs: null }, {
+      subject: `You now have ${role} access to the ${s.library_name}`,
+      heading: `Hi ${esc(user.first_name)}`,
+      paragraphs: [
+        `You’ve been made a library <strong>${role}</strong>. Log in with your usual account and open <strong>Admin</strong> at the top of the page.`,
+        role === 'librarian' ? 'As a librarian you can approve applications, manage books, patrons, staff and settings.' : 'As an assistant you can check books in and out, manage pickups, and help patrons.',
+      ],
+      button: { label: 'Open the library dashboard', url: url('/admin') },
+    });
+  }),
+
+  resumed: safe(async (user) => {
+    await email(user, {
+      subject: 'Your library account is active again',
+      heading: `Hi ${esc(user.first_name)}`,
+      paragraphs: ['Good news: your library account is active again, and you can check out books.'],
+      button: { label: 'Browse the catalog', url: url('/catalog') },
+    });
+  }),
+
+  // The librarian reset someone's password: email them a link to choose a new one.
+  passwordSetByStaff: safe(async (user, link) => {
+    const s = await settingsStore.get();
+    await email({ ...user, notify_email: true, prefs: null }, {
+      subject: `Set a new password for your ${s.library_name} account`,
+      heading: `Hi ${esc(user.first_name)}`,
+      paragraphs: ['The librarian reset your password. Use the button below to choose a new one. The link works for 7 days.', 'If you didn’t ask for this, please contact the church office.'],
+      button: { label: 'Set a new password', url: link },
+    });
+  }),
+
   paused: safe(async (user) => {
     await email(user, {
       subject: 'Your library account is paused',

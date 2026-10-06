@@ -486,3 +486,6 @@ fieldset.card legend + * { clear: both; }
 @media print {
   .masthead, .site-foot, .admin-nav, .actions, .quick, form { display: none !important; }
 }
+.add-patron { margin-bottom: 18px; padding: 14px 18px; }
+.add-patron summary { cursor: pointer; }
+.add-patron form { margin-top: 12px; align-items: flex-end; }

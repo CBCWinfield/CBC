@@ -472,7 +472,30 @@ module.exports = (app) => {
     const countRows = await db.many('SELECT status, count(*)::int AS n FROM users GROUP BY status');
     const counts = { all: countRows.reduce((a, r) => a + r.n, 0) };
     for (const r of countRows) counts[r.status] = r.n;
-    await page(req, res, 'patrons', 'Patrons', A.patronsPage({ rows, q, status, counts }));
+    await page(req, res, 'patrons', 'Patrons', A.patronsPage({ rows, q, status, counts, csrf: res.locals.csrf, user: req.user }));
+  });
+
+  // Add a patron directly (no application needed). They get an email with their code and a set-password link.
+  app.post('/admin/patrons/new', requireLibrarian, async (req, res) => {
+    const first = clean(req.body.first_name, 120);
+    const last = clean(req.body.last_name, 120);
+    const email = clean(req.body.email, 200).toLowerCase();
+    if (!first || !last || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      security.flash(req, 'error', 'First name, last name and a valid email are required.');
+      return res.redirect('/admin/patrons');
+    }
+    if (await users.byEmail(email)) {
+      security.flash(req, 'error', 'That email already has an account.');
+      return res.redirect('/admin/patrons');
+    }
+    const tok = security.token(24);
+    const row = await db.one(`INSERT INTO users (email, password_hash, first_name, last_name, phone, role, status, library_code, approved_at, reset_token_hash, reset_expires)
+      VALUES ($1, $2, $3, $4, $5, 'patron', 'approved', $6, now(), $7, now() + interval '7 days') RETURNING id`,
+    [email, await security.hashPassword(security.tempPassword()), first, last, clean(req.body.phone, 40) || null, await users.nextCode(), security.sha256(tok)]);
+    const u = await users.get(row.id);
+    notify.accountCreated(u, { link: notify.url(`/reset/${tok}`), role: 'patron', addedBy: fullName(req.user) });
+    security.flash(req, 'ok', `Added ${fullName(u)} (library code ${u.library_code}). We emailed them their code and a link to set their password.`);
+    res.redirect(`/admin/patrons/${u.id}`);
   });
 
   async function patronView(req, res, id, extra = {}) {
@@ -515,15 +538,17 @@ module.exports = (app) => {
   app.post('/admin/patrons/:id/resume', requireLibrarian, async (req, res) => {
     const id = intParam(req.params.id);
     const u = await db.one("UPDATE users SET status = 'approved' WHERE id = $1 AND status = 'paused' RETURNING *", [id]);
-    if (u) security.flash(req, 'ok', `${fullName(u)}'s account is active again.`);
+    if (u) { notify.resumed(u); security.flash(req, 'ok', `${fullName(u)}'s account is active again. We emailed them.`); }
     res.redirect(`/admin/patrons/${id}`);
   });
 
   app.post('/admin/patrons/:id/reset-password', requireLibrarian, async (req, res) => {
     const id = intParam(req.params.id);
     const temp = security.tempPassword();
-    await db.query('UPDATE users SET password_hash = $2, reset_token_hash = NULL, reset_expires = NULL WHERE id = $1', [id, await security.hashPassword(temp)]);
+    const tok = security.token(24);
+    await db.query("UPDATE users SET password_hash = $2, reset_token_hash = $3, reset_expires = now() + interval '7 days' WHERE id = $1", [id, await security.hashPassword(temp), security.sha256(tok)]);
     await db.query("DELETE FROM sessions WHERE data->>'userId' = $1", [String(id)]);
+    notify.passwordSetByStaff(await users.get(id), notify.url(`/reset/${tok}`));
     await patronView(req, res, id, { tempPassword: temp });
   });
 
@@ -564,6 +589,7 @@ module.exports = (app) => {
     let updated = u;
     if (u.status !== 'approved') updated = await approve(u);
     await db.query('UPDATE users SET role = $2 WHERE id = $1', [u.id, role]);
+    if (u.role !== role) notify.staffRole(updated, role);
     security.flash(req, 'ok', `${fullName(updated)} is now ${role === 'librarian' ? 'a librarian' : 'an assistant'}.`);
     res.redirect('/admin/staff');
   });
@@ -583,8 +609,10 @@ module.exports = (app) => {
     }
     const temp = security.tempPassword();
     const code = await users.nextCode();
-    await db.query(`INSERT INTO users (email, password_hash, first_name, last_name, role, status, library_code, approved_at)
-      VALUES ($1,$2,$3,$4,$5,'approved',$6, now())`, [email, await security.hashPassword(temp), first, last, role, code]);
+    const tok = security.token(24);
+    const row = await db.one(`INSERT INTO users (email, password_hash, first_name, last_name, role, status, library_code, approved_at, reset_token_hash, reset_expires)
+      VALUES ($1,$2,$3,$4,$5,'approved',$6, now(), $7, now() + interval '7 days') RETURNING id`, [email, await security.hashPassword(temp), first, last, role, code, security.sha256(tok)]);
+    notify.accountCreated(await users.get(row.id), { link: notify.url(`/reset/${tok}`), role, addedBy: fullName(req.user) });
     await page(req, res, 'staff', 'Staff', A.staffPage({ csrf: res.locals.csrf, staff: await staffList(), user: req.user, tempPassword: temp, created: `${first} ${last}` }));
   });
 
