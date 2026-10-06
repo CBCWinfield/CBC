@@ -1,8 +1,11 @@
 'use strict';
-// The church website: layout and pages.
+// The church website, built from the "Central Baptist Redesign" homepage design.
+const fs = require('fs');
+const path = require('path');
 const { html, raw } = require('../lib/html');
 const t = require('../lib/time');
 const C = require('./content');
+const wheat = require('./wheat');
 
 const { CHURCH } = C;
 const appUrl = (p) => `${CHURCH.app}${p}`;
@@ -11,95 +14,77 @@ const when = (iso) => { const d = new Date(iso); return iso && !Number.isNaN(d.g
 const longDate = (key) => t.fmtLong(t.zoned(...key.split('-').map(Number), 12));
 const upcoming = () => C.EVENTS.filter((e) => e.date >= t.dateKey(new Date()));
 const years = () => new Date().getFullYear() - CHURCH.founded;
+const ARROW = raw('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>');
+const OUT = raw('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>');
+const PLAY = raw('<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>');
+const PIN = raw('<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E2BE66" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>');
 
-// A wheat field drawn along the bottom of the opening banner, swaying in a light wind.
-// Mostly even height, a few tall stalks and a few short ones. Deterministic, so it's the same every load.
-function wheatField() {
-  let seed = 11;
-  const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
-  const stalks = [];
-  const N = 96;
-  for (let i = 0; i < N; i++) {
-    const x = (i / N) * 1440 + (rnd() - 0.5) * 12;
-    const kind = rnd();
-    const h = kind < 0.1 ? 175 + rnd() * 30 : kind < 0.2 ? 72 + rnd() * 18 : 118 + rnd() * 16; // tall / short / most
-    const lean = 4 + rnd() * 6; // everything leans a little the same way, like a steady breeze
-    const top = 262 - h;
-    const n = h > 160 ? 8 : h < 95 ? 5 : 7;
-    const tipX = x + lean;
-    const grains = [];
-    for (let g = 0; g < n; g++) {
-      const gy = top + 6 + g * 7;
-      const gx = tipX - lean * (g / (n + 6));
-      grains.push(`<ellipse cx="${(gx - 3.1).toFixed(1)}" cy="${gy.toFixed(1)}" rx="2.5" ry="5.2" transform="rotate(-26 ${(gx - 3.1).toFixed(1)} ${gy.toFixed(1)})"/>`);
-      grains.push(`<ellipse cx="${(gx + 3.1).toFixed(1)}" cy="${(gy + 3).toFixed(1)}" rx="2.5" ry="5.2" transform="rotate(26 ${(gx + 3.1).toFixed(1)} ${(gy + 3).toFixed(1)})"/>`);
-    }
-    const awns = `<path class="awn" d="M${tipX.toFixed(1)} ${(top + 4).toFixed(1)} l${(lean * 0.3).toFixed(1)} -12"/>`;
-    const tone = rnd() > 0.55 ? 'w1' : rnd() > 0.5 ? 'w2' : 'w3';
-    const wave = ((x / 1440) * 2.6).toFixed(2); // the gust travels left to right across the field
-    const dur = (4.6 + rnd() * 1.6).toFixed(2);
-    stalks.push(`<g class="stalk ${tone}" style="--d:${(rnd() * 0.8).toFixed(2)}s"><g class="sway" style="--w:${wave}s;--t:${dur}s"><path d="M${x.toFixed(1)} 262 Q ${(x + lean * 0.25).toFixed(1)} ${(262 - h * 0.55).toFixed(1)} ${tipX.toFixed(1)} ${(top + 4).toFixed(1)}"/>${awns}${grains.join('')}</g></g>`);
-  }
-  return raw(`<svg class="wheat" viewBox="0 0 1440 262" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">${stalks.join('')}</svg>`);
+// Staff photo on disk? Returns a cache-busting stamp or 0. Photos go in public/img/staff/<key>.jpg.
+function staffPhoto(key) {
+  try { return Math.floor(fs.statSync(path.join(__dirname, '..', '..', 'public', 'img', 'staff', `${key}.jpg`)).mtimeMs / 1000); } catch { return 0; }
 }
 
 const NAV = [['/about', 'About'], ['/ministries', 'Ministries'], ['/sermons', 'Sermons'], ['/events', 'Events'], ['/staff', 'Staff'], ['/connect', 'Connect']];
-const MORE = [
-  [appUrl('/checkin/prayer'), 'Prayer Wall', 'Share a request and pray with your church family'],
-  [appUrl('/'), 'Church library', 'Borrow from more than 3,000 Christian books, Bibles and DVDs'],
-  ['/serve', 'Serve', 'Find your place on a team'],
-  [appUrl('/checkin/family'), 'Family check-in', 'Set up your family before Sunday'],
-];
 
-function layout({ title, desc, page, body, base = '' }) {
+// Page wrapper: the green banner (nav, heading, swaying wheat), the page, and the footer.
+function layout({ title, desc, page, body, base = '', head }) {
   const href = (p) => (p.startsWith('http') ? p : `${base}${p}`);
   const cur = (p) => (page === p ? raw(' aria-current="page"') : '');
+  const isHome = page === 'home';
   return html`<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${title ? `${title} | Central Baptist Church` : 'Central Baptist Church | Winfield, Kansas'}</title>
-<meta name="description" content="${desc || 'Central Baptist Church is a Southern Baptist church family on Wheat Road in Winfield, Kansas. Sundays at 9:30 and 10:45 AM, Wednesdays at 6:00 PM.'}">
-<meta name="theme-color" content="#173D22">
+<meta name="description" content="${desc || `Central Baptist Church is a Southern Baptist church family on Wheat Road in Winfield, Kansas, for ${years()} years. Sundays at 9:30 and 10:45 AM, Wednesdays at 6:00 PM.`}">
+<meta name="theme-color" content="#132F1F">
 <meta property="og:title" content="${title || 'Central Baptist Church'}">
 <meta property="og:description" content="${desc || `A church family on Wheat Road in Winfield, Kansas, for ${years()} years.`}">
 <meta property="og:type" content="website">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" href="/img/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
-<link rel="preload" href="/fonts/bricolage.woff" as="font" type="font/woff" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=9">
-<script src="/js/site.js?v=3" defer></script>
+<link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/site.css?v=11">
+<script src="/js/site.js?v=4" defer></script>
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
 <body class="page-${page}">
 <a class="skip" href="#main">Skip to content</a>
-<header class="top">
-  <div class="top-in">
+<header class="hero${isHome ? '' : ' hero-page'}">
+  <nav class="nav" aria-label="Main">
     <a class="brand" href="${href('/')}" aria-label="Central Baptist Church home"><img src="/img/logo-central-white.png" alt="Central Baptist Church" width="640" height="224"></a>
-    <nav class="nav" aria-label="Main">
-      ${NAV.map(([p, l]) => html`<a href="${href(p)}"${cur(p)}>${l}</a>`)}
-      <details class="nav-more"><summary>More</summary><div class="nav-pop">
-        ${MORE.map(([p, l, d]) => html`<a href="${href(p)}"><strong>${l}</strong><span>${d}</span></a>`)}
-      </div></details>
-    </nav>
-    <div class="top-cta">
-      <a class="btn btn-ghost" href="${CHURCH.give}" target="_blank" rel="noopener">Give</a>
-      <a class="btn btn-wheat" href="${href('/visit')}">Plan a visit</a>
+    <div class="navlinks">
+      ${NAV.map(([p, l]) => html`<a class="navlink" href="${href(p)}"${cur(p)}>${l}</a>`)}
+      <a class="navlink" href="${CHURCH.shop}" target="_blank" rel="noopener">Shop</a>
+    </div>
+    <div class="nav-cta">
+      <a class="btn btn-ghost btn-sm" href="${href('/give')}">Give</a>
+      <a class="btn btn-gold btn-sm" href="${href('/visit')}">Plan a visit</a>
     </div>
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu"><span class="menu-lines" aria-hidden="true"></span><span class="visually-hidden">Menu</span></button>
+  </nav>
+  <div class="hero-in" id="top">
+    ${head.kicker !== false ? html`<p class="hero-kicker">${head.kicker || 'Central Baptist Church'}</p>` : ''}
+    <h1>${head.title}</h1>
+    ${head.lead ? html`<p class="hero-lead">${head.lead}</p>` : ''}
+    ${head.actions ? html`<div class="hero-actions">${head.actions}</div>` : ''}
   </div>
+  <div class="field" aria-hidden="true"><div class="field-inner">${wheat()}</div></div>
 </header>
 <div class="menu" id="menu" hidden>
+  <div class="menu-top"><img src="/img/logo-central-white.png" alt="" width="640" height="224"><button class="menu-btn menu-close" type="button" aria-expanded="true" aria-controls="menu"><span class="menu-lines" aria-hidden="true"></span><span class="visually-hidden">Close menu</span></button></div>
   <nav aria-label="Menu">
     ${[['/', 'Home'], ...NAV, ['/serve', 'Serve'], ['/give', 'Give']].map(([p, l]) => html`<a class="menu-big" href="${href(p)}"${cur(p)}>${l}</a>`)}
     <div class="menu-small">
       <a href="${appUrl('/checkin/prayer')}">Prayer Wall</a>
       <a href="${appUrl('/')}">Church library</a>
+      <a href="${CHURCH.shop}" target="_blank" rel="noopener">Church shop</a>
       <a href="${appUrl('/checkin/family')}">Family check-in</a>
     </div>
-    <a class="btn btn-wheat menu-visit" href="${href('/visit')}">Plan a visit</a>
+    <div class="menu-cta"><a class="btn btn-gold" href="${href('/visit')}">Plan a visit</a><a class="btn btn-ghost" href="${href('/give')}">Give</a></div>
   </nav>
 </div>
 <main id="main">
@@ -107,274 +92,162 @@ ${body}
 </main>
 <footer class="foot">
   <div class="foot-in">
-    <div class="foot-id">
+    <div class="foot-brand">
       <img src="/img/logo-central-white.png" alt="Central Baptist Church" width="640" height="224">
       <p>A Southern Baptist church family on Wheat Road in Winfield, Kansas, since ${CHURCH.founded}.</p>
     </div>
     <div>
       <h2>Visit</h2>
-      <p><a href="${CHURCH.maps}" target="_blank" rel="noopener">${CHURCH.street}<br>${CHURCH.cityLine}</a></p>
-      <p><a href="${CHURCH.phoneHref}">${CHURCH.phone}</a><br><a href="mailto:${CHURCH.email}">${CHURCH.email}</a></p>
+      <a href="${CHURCH.maps}" target="_blank" rel="noopener">${CHURCH.street}<br>${CHURCH.cityLine}</a>
+      <a href="${CHURCH.phoneHref}">${CHURCH.phone}</a>
+      <a class="mail" href="mailto:${CHURCH.email}">${CHURCH.email}</a>
     </div>
     <div>
       <h2>Gather</h2>
-      <ul class="foot-times">${C.TIMES.map((x) => html`<li><span>${x.day} ${x.time}</span>${x.what}</li>`)}</ul>
+      <span>Sun 9:30 · Sunday School</span><span>Sun 10:45 · Worship</span><span>Mon 1:00 · Adult Bible Study</span><span>Wed 6:00 · Wednesday Night</span>
     </div>
     <div>
       <h2>Explore</h2>
-      <ul class="foot-links">
-        <li><a href="${href('/sermons')}">Sermons</a></li><li><a href="${href('/give')}">Give</a></li><li><a href="${href('/serve')}">Serve</a></li>
-        <li><a href="${appUrl('/checkin/prayer')}">Prayer Wall</a></li><li><a href="${appUrl('/')}">Library</a></li><li><a href="${href('/partners')}">Our partners</a></li>
-      </ul>
-      <p class="foot-social"><a href="${CHURCH.youtube}" target="_blank" rel="noopener">YouTube</a> <a href="${CHURCH.facebook}" target="_blank" rel="noopener">Facebook</a></p>
+      <a href="${href('/sermons')}">Sermons</a><a href="${href('/give')}">Give</a><a href="${appUrl('/checkin/prayer')}">Prayer Wall</a>
+      <a href="${CHURCH.shop}" target="_blank" rel="noopener">Church Shop</a><a href="${appUrl('/')}">Library</a>
+      <a href="${CHURCH.youtube}" target="_blank" rel="noopener">YouTube</a><a href="${CHURCH.facebook}" target="_blank" rel="noopener">Facebook</a>
     </div>
   </div>
-  <p class="foot-legal">© ${new Date().getFullYear()} Central Baptist Church <a href="/privacy">Privacy Policy</a> <a href="/terms">Terms of Service</a></p>
+  <div class="foot-bar"><span>© ${new Date().getFullYear()} Central Baptist Church <a href="/privacy">Privacy</a><a href="/terms">Terms</a></span><span>Celebrating ${years()} years · ${CHURCH.founded}–${new Date().getFullYear()}</span></div>
 </footer>
 </body>
 </html>`;
 }
 
 // ---------------------------------------------------------------- shared pieces
-function sermonPlayer(v, { big = false } = {}) {
-  if (!v) return html`<div class="player player-empty"><p>Watch Sunday’s message on <a href="${CHURCH.youtube}" target="_blank" rel="noopener">our YouTube channel</a>.</p></div>`;
-  return html`<figure class="player${big ? ' player-big' : ''}">
+function player(v, { small = false, caption = true } = {}) {
+  if (!v) return html`<figure class="player${small ? ' player-sm' : ''}"><a class="player-btn" href="${CHURCH.youtube}" target="_blank" rel="noopener"><span class="player-play"><span>${raw('<svg width="34" height="34" viewBox="0 0 24 24" fill="#10261A" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>')}</span></span><span class="player-cap">Watch on YouTube</span></a></figure>`;
+  return html`<figure class="player${small ? ' player-sm' : ''}">
     <button class="player-btn" type="button" data-video="${v.id}" aria-label="Play ${v.title}">
-      <img src="https://i.ytimg.com/vi/${v.id}/${big ? 'maxresdefault' : 'hqdefault'}.jpg" data-fallback="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="" loading="${big ? 'eager' : 'lazy'}" width="1280" height="720">
-      <span class="player-play" aria-hidden="true"><svg viewBox="0 0 68 48" width="68" height="48"><path d="M66.5 7.7c-.8-2.9-3-5.2-5.9-6C55.3.3 34 .3 34 .3s-21.3 0-26.6 1.4c-2.9.8-5.1 3.1-5.9 6C.1 13 .1 24 .1 24s0 11 1.4 16.3c.8 2.9 3 5.2 5.9 6 5.3 1.4 26.6 1.4 26.6 1.4s21.3 0 26.6-1.4c2.9-.8 5.1-3.1 5.9-6C67.9 35 67.9 24 67.9 24s0-11-1.4-16.3z" fill="#2E7D32"/><path d="M45 24 27 14v20z" fill="#fff"/></svg></span>
+      <img src="https://i.ytimg.com/vi/${v.id}/${small ? 'hqdefault' : 'maxresdefault'}.jpg" data-fallback="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="" loading="${small ? 'lazy' : 'eager'}" width="1280" height="720">
+      <span class="player-play"><span>${raw('<svg width="34" height="34" viewBox="0 0 24 24" fill="#10261A" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>')}</span></span>
+      ${!small && caption ? html`<span class="player-cap">${when(v.published)}</span>` : ''}
     </button>
-    <figcaption><strong>${v.title}</strong><span>${when(v.published)}</span></figcaption>
+    ${small ? html`<figcaption><strong>${v.title}</strong><span>${when(v.published)}</span></figcaption>` : ''}
   </figure>`;
 }
 
-function pageHead(title, lead, { kicker } = {}) {
-  return html`<section class="phead"><div class="wrap">
-    ${kicker ? html`<p class="phead-kicker">${kicker}</p>` : ''}
-    <h1>${title}</h1>${lead ? html`<p class="phead-lead">${lead}</p>` : ''}
+function timesBand() {
+  return html`<section class="times" aria-label="Service times"><div class="times-in">
+    <div class="time"><span class="time-day">Sunday</span><span class="time-at">9:30 AM</span><span class="time-what">Sunday School &amp; Adult Study</span></div>
+    <div class="time"><span class="time-day">Sunday</span><span class="time-at">10:45 AM</span><span class="time-what">Worship · Children’s Church</span></div>
+    <div class="time"><span class="time-day">Wednesday</span><span class="time-at">6:00 PM</span><span class="time-what">Wednesday Night · Teens &amp; Kids</span></div>
+    <a class="where" href="${CHURCH.maps}" target="_blank" rel="noopener"><span class="where-pin">${PIN}</span><span class="where-text"><strong>904 Wheat Rd.</strong><span>Winfield, KS 67156 · Directions</span></span></a>
   </div></section>`;
 }
 
-function eventBlock(e, base) {
+function eventCard(e, base, { detail = false } = {}) {
   const [y, m, d] = e.date.split('-').map(Number);
   const dt = t.zoned(y, m, d, 12);
-  return html`<article class="event">
-    <div class="event-date" aria-hidden="true"><span>${new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: t.TZ }).format(dt)}</span><strong>${d}</strong></div>
-    <div class="event-text">
-      <h3>${e.title}</h3>
-      <p class="event-when">${longDate(e.date)}, ${e.start} to ${e.end}<br>${e.where}</p>
-      <p>${e.body}</p>
-      <a class="link" href="${base}/connect?topic=${encodeURIComponent(e.title)}">Ask a question about this event</a>
-    </div>
-  </article>`;
-}
-
-// ---------------------------------------------------------------- pages
-function home({ latest, base }) {
-  const ev = upcoming();
-  return html`
-  <section class="hero">
-    <div class="hero-in wrap">
-      <p class="hero-place">Winfield, Kansas</p>
-      <h1 class="hero-title">A church family on Wheat Road for ${years()} years.</h1>
-      <p class="hero-lead">Central Baptist Church is a place to know Jesus, grow in His Word, and belong to a family that will pray for you by name. Come as you are this Sunday.</p>
-      <div class="hero-actions">
-        <a class="btn btn-wheat btn-lg" href="${base}/visit">Plan your visit</a>
-        <a class="btn btn-ghost btn-lg" href="#latest">Watch the latest sermon</a>
+  const mon = new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: t.TZ }).format(dt);
+  const wd = new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: t.TZ }).format(dt);
+  return html`<div class="event-card">
+    <div class="event-75" aria-hidden="true">${years()}</div>
+    <div class="event-main">
+      <div class="event-date" aria-hidden="true"><span class="m">${mon}</span><span class="d">${d}</span><span class="w">${wd}</span></div>
+      <div class="event-text">
+        <p class="event-kicker">${e.kicker || longDate(e.date)}</p>
+        <h2>${e.titleA ? html`${e.titleA} <span class="serif">${e.titleB}</span>` : e.title}</h2>
+        <p class="body">${detail ? html`${longDate(e.date)}, ${e.start} to ${e.end} at ${e.where}. ${e.body}` : e.short || `${e.start} to ${e.end}. ${e.body}`}</p>
       </div>
     </div>
-    ${wheatField()}
-  </section>
-
-  <section class="times" aria-labelledby="times-h">
-    <div class="wrap">
-      <h2 id="times-h" class="visually-hidden">Service times</h2>
-      <ul class="times-list">
-        ${C.TIMES.filter((x) => x.day !== 'Monday').map((x) => html`<li><span class="times-day">${x.day}</span><span class="times-time">${x.time}</span><span class="times-what">${x.what}</span></li>`)}
-      </ul>
-      <p class="times-where"><a href="${CHURCH.maps}" target="_blank" rel="noopener">${CHURCH.street} ${CHURCH.cityLine}</a></p>
+    <div class="event-actions">
+      ${detail ? html`<a class="btn btn-dark" href="${base}/connect?topic=${encodeURIComponent(e.title)}">Ask a question</a>` : html`<a class="btn btn-dark" href="${base}/events">See the details</a>`}
+      <a class="btn btn-line" href="${base}/events/${e.key}.ics">Add to calendar</a>
     </div>
-  </section>
-
-  ${ev.length ? html`<section class="band-wheat"><div class="wrap band-wheat-in">
-    <div><p class="band-kicker">${longDate(ev[0].date)}</p><h2>${ev[0].title}</h2><p>${ev[0].start} to ${ev[0].end} at the church. ${ev[0].body.split('. ')[0]}.</p></div>
-    <a class="btn btn-dark" href="${base}/events">See the details</a>
-  </div></section>` : ''}
-
-  <section class="latest" id="latest"><div class="wrap latest-in">
-    <div class="latest-text">
-      <h2>This week’s message</h2>
-      <p>Missed Sunday, or want to hear it again? Watch Pastor Blake’s latest message here, or join us live on YouTube.</p>
-      <p class="latest-links"><a class="btn btn-green" href="${base}/sermons">More sermons</a> <a class="link" href="${CHURCH.youtubeLive}" target="_blank" rel="noopener">Watch live on YouTube</a></p>
-    </div>
-    ${sermonPlayer(latest, { big: true })}
-  </div></section>
-
-  <section class="paths"><div class="wrap">
-    <h2 class="sec-title">There’s a place for you here</h2>
-    <div class="paths-grid">
-      <a class="path path-kids" href="${base}/ministries#kids">
-        <img src="/img/central-kids.webp" alt="Central Kids" width="640" height="320" loading="lazy">
-        <span class="path-text"><strong>Kids</strong><span>Sunday School at 9:30, Children’s Church at 10:45, and Wednesday nights. Safe check-in every time.</span></span>
-      </a>
-      <a class="path path-teens" href="${base}/ministries#students">
-        <img src="/img/central-teens.webp" alt="Central Teens" width="640" height="320" loading="lazy">
-        <span class="path-text"><strong>Central Teens</strong><span>Middle and high school students, Wednesday nights at 6:00.</span></span>
-      </a>
-      <a class="path path-adults" href="${base}/ministries#adults">
-        <span class="path-mark" aria-hidden="true">Adults</span>
-        <span class="path-text"><strong>Adults</strong><span>Sunday Adult Study, Monday afternoon Bible study, and friendships for every season of life.</span></span>
-      </a>
-    </div>
-  </div></section>
-
-  <section class="duo"><div class="wrap duo-in">
-    <a class="duo-card duo-prayer" href="${appUrl('/checkin/prayer')}">
-      <h2>Prayer Wall</h2>
-      <p>Share what’s on your heart, and let your church family pray with you. Tap “Pray” when you’ve prayed for someone, and we’ll let them know.</p>
-      <span class="link">Share a prayer request</span>
-    </a>
-    <a class="duo-card duo-library" href="${appUrl('/')}">
-      <h2>The church library</h2>
-      <p>More than 3,000 Christian books, Bibles, devotionals and DVDs, free to borrow. Reserve online and pick up at the church.</p>
-      <span class="link">Browse the library</span>
-    </a>
-  </div></section>
-
-  <section class="give-band"><div class="wrap give-in">
-    <h2>“Each one must give as he has decided in his heart, not reluctantly or under compulsion, for God loves a cheerful giver.”</h2>
-    <p class="give-ref">2 Corinthians 9:7</p>
-    <p><a class="btn btn-wheat btn-lg" href="${base}/give">Ways to give</a></p>
-  </div></section>`;
+  </div>`;
 }
 
-function visit({ csrf, base, sent }) {
-  return html`
-  ${pageHead('Plan your visit', 'We can’t wait to meet you. Here’s what to expect on your first Sunday at Central.')}
-  <section class="sec"><div class="wrap two">
-    <div class="prose">
-      <h2>When we gather</h2>
-      <ul class="sched">${C.TIMES.map((x) => html`<li><span class="sched-when">${x.day}<br><strong>${x.time}</strong></span><span><strong>${x.what}</strong><br>${x.note}</span></li>`)}</ul>
-      <h2>Where to go</h2>
-      <p>We’re at <a href="${CHURCH.maps}" target="_blank" rel="noopener">904 Wheat Rd. in Winfield</a>. When you arrive, someone will be glad to welcome you and help you find your way.</p>
-      <h2>Bringing kids?</h2>
-      <p>Children are welcome in worship, and Children’s Church meets during the 10:45 service. At the welcome desk we’ll check your kids in, print their name tags and a matching pickup tag for you. Only you, or the people you list, can pick them up.</p>
-      <p>Want to skip the line? <a href="${appUrl('/checkin/family')}">Set up your family online</a> before you come.</p>
-      <h2>Questions before you come?</h2>
-      <p>Call the church office at <a href="${CHURCH.phoneHref}">${CHURCH.phone}</a>, or send us a note and we’ll get back to you.</p>
-    </div>
-    <aside class="form-card">
-      <h2>Let us know you’re coming</h2>
-      <p>We’ll watch for you and help you get settled. No pressure, and we won’t add you to any lists.</p>
-      ${sent ? html`<p class="ok" role="status">Thank you! We’ve got your note and look forward to seeing you.</p>` : contactForm({ csrf, base, topic: 'Planning a visit', button: 'Send', compact: true })}
-    </aside>
-  </div></section>`;
-}
+const pageHead = (title, lead, kicker) => ({ kicker, title, lead });
 
-function about({ base }) {
-  return html`
-  ${pageHead('A community rooted in faith, hope, and love in Winfield, Kansas', `For ${years()} years, Central Baptist Church has been a cornerstone of the Winfield community, sharing the message of Christ’s love through worship, fellowship, and service.`)}
-  <section class="sec"><div class="wrap two">
-    <div class="prose">
-      <h2>Who we are</h2>
-      <p>We are a Southern Baptist congregation committed to sound doctrine and to a warm, welcoming place where people of every age can know Jesus and grow in Him.</p>
-      <p>Our mission is simple: to make disciples of Jesus Christ here in Winfield and beyond, as a body of believers unified to worship God, to show Christ-like love for each other, and to serve our community and our world through the power of the Holy Spirit.</p>
-      <h2>What we value</h2>
-      <dl class="values">
-        <div><dt>God’s Word</dt><dd>The Bible is our authority, and we open it together every week.</dd></div>
-        <div><dt>Worship</dt><dd>We gather to praise the God who has been faithful to us for ${years()} years.</dd></div>
-        <div><dt>Family</dt><dd>Kids, teens, and adults growing together and caring for each other.</dd></div>
-        <div><dt>Mission</dt><dd>From Winfield to Juárez and around the world, we go and give.</dd></div>
-      </dl>
-    </div>
-    <aside class="aside-75">
-      <p class="big-75">${years()}</p>
-      <p>years of God’s faithfulness on Wheat Road, ${CHURCH.founded} to ${new Date().getFullYear()}.</p>
-      <a class="btn btn-wheat" href="${base}/visit">Come see for yourself</a>
-    </aside>
-  </div></section>`;
-}
-
-function ministries({ base }) {
-  return html`
-  ${pageHead('Ministries', 'Kids, teens, and adults growing in Christ together, and a church that serves Winfield and the world.')}
-  ${C.MINISTRIES.map((m, i) => html`<section class="sec ministry${i % 2 ? ' alt' : ''}" id="${m.key}"><div class="wrap ministry-in">
-    <div class="ministry-art">${m.key === 'kids' ? html`<img src="/img/central-kids.webp" alt="Central Kids" width="640" height="320">` : m.key === 'students' ? html`<img src="/img/central-teens.webp" alt="Central Teens" width="640" height="320">` : html`<span class="path-mark" aria-hidden="true">Adults</span>`}</div>
-    <div class="prose">
-      <h2>${m.name}</h2>
-      <p class="ministry-ages">${m.ages}</p>
-      <p>${m.body}</p>
-      <ul class="ticks">${m.times.map((x) => html`<li>${x}</li>`)}</ul>
-      ${m.safe ? html`<p class="note">${m.safe}</p>` : ''}
-      ${m.key === 'kids' ? html`<p><a class="btn btn-green" href="${appUrl('/checkin/family')}">Set up your family for check-in</a></p>` : ''}
-    </div>
-  </div></section>`)}
-  <section class="sec outreach"><div class="wrap">
-    <h2 class="sec-title">Serving beyond our walls</h2>
-    <div class="out-grid">${C.OUTREACH.map((o) => html`<article class="out"><h3>${o.name}</h3><p>${o.body}</p><a class="link" href="${o.url}" target="_blank" rel="noopener">Learn more</a>${o.url2 ? html` <a class="link" href="${o.url2}" target="_blank" rel="noopener">IMB</a>` : ''}</article>`)}</div>
-    <p class="center"><a class="btn btn-green" href="${base}/serve">Find a place to serve</a></p>
-  </div></section>`;
-}
-
-function sermons({ videos }) {
-  const [latest, ...rest] = videos;
-  return html`
-  ${pageHead('Sermons', 'Messages from Sunday worship at Central. Watch here, or join us live on YouTube.')}
-  <section class="sec"><div class="wrap">
-    ${sermonPlayer(latest, { big: true })}
-    <p class="center sermon-links"><a class="btn btn-green" href="${CHURCH.youtubeLive}" target="_blank" rel="noopener">Watch live on YouTube</a> <a class="link" href="${CHURCH.youtube}" target="_blank" rel="noopener">Subscribe to our channel</a></p>
-  </div></section>
-  ${rest.length ? html`<section class="sec alt"><div class="wrap">
-    <h2 class="sec-title">Recent messages</h2>
-    <div class="sermon-grid">${rest.map((v) => sermonPlayer(v))}</div>
-  </div></section>` : ''}`;
-}
-
-function events({ base }) {
+// ---------------------------------------------------------------- home (the design, section by section)
+function home({ latest, base }) {
   const ev = upcoming();
-  return html`
-  ${pageHead('Events', 'What’s coming up at Central, and our weekly rhythm.')}
-  <section class="sec"><div class="wrap">
-    ${ev.length ? html`<h2 class="sec-title">Coming up</h2>${ev.map((e) => eventBlock(e, base))}` : html`<p class="lead-p">No special events on the calendar right now. Join us for our weekly gatherings below.</p>`}
-    <h2 class="sec-title">Every week</h2>
-    <ul class="sched sched-wide">${C.TIMES.map((x) => html`<li><span class="sched-when">${x.day}<br><strong>${x.time}</strong></span><span><strong>${x.what}</strong><br>${x.note}</span></li>`)}</ul>
-  </div></section>`;
-}
+  const orr = staffPhoto('orr');
+  const body = html`
+  ${timesBand()}
+  ${ev.length ? html`<section id="events" class="wrap sec-tight">${eventCard(ev[0], base)}</section>` : ''}
 
-// A staff photo exists? Returns a cache-busting stamp (file time) or 0.
-function staffPhoto(key) {
-  try { return Math.floor(require('fs').statSync(require('path').join(__dirname, '..', '..', 'public', 'img', 'staff', `${key}.jpg`)).mtimeMs / 1000); } catch { return 0; }
-}
-
-function staff() {
-  const initials = (n) => (n.trim().split(/\s+/).pop() || '?')[0]; // family last-name initial
-  return html`
-  ${pageHead('Our staff & leaders', 'The people who serve our church family week in and week out.')}
-  <section class="sec"><div class="wrap">
-    <div class="staff-grid">${C.STAFF.map((s, i) => html`<article class="staff${i === 0 ? ' staff-lead' : ''}">
-      ${s.key && staffPhoto(s.key) ? html`<img class="staff-photo" src="/img/staff/${s.key}.jpg?v=${staffPhoto(s.key)}" alt="${s.names}" width="400" height="400" loading="lazy">` : html`<span class="staff-mono" aria-hidden="true">${initials(s.names)}</span>`}
-      <div><h2>${s.names}</h2><p class="staff-role">${s.role}</p><p>${s.body}</p></div>
-    </article>`)}</div>
-    <div class="deacons"><h2>Deacons</h2><p>${C.DEACONS.join(', ')}</p></div>
-  </div></section>`;
-}
-
-function give({ base }) {
-  return html`
-  ${pageHead('Give', 'Your generosity supports the ministry of Central Baptist Church in Winfield, and missions around the world.')}
-  <section class="sec"><div class="wrap two">
-    <div class="give-online">
-      <h2>Give online</h2>
-      <p>Give once or set up recurring giving through Vanco, our secure online giving partner. You can use a bank account or card.</p>
-      <p><a class="btn btn-wheat btn-lg" href="${CHURCH.give}" target="_blank" rel="noopener">Give online now</a></p>
-      <p class="note">You’ll leave this site for Vanco’s secure giving page.</p>
+  <section id="sermons" class="wrap sec"><div class="sermon">
+    <div class="sermon-text">
+      <p class="eyebrow">This week’s message</p>
+      <h2>${latest ? latest.title : 'Sunday’s message'}</h2>
+      <p class="lead">Pastor Blake Orr${latest ? ` · ${when(latest.published)}` : ''}. Missed Sunday, or want to hear it again? Catch up from anywhere.</p>
+      <div class="btn-row"><a class="btn btn-dark" href="#sermon-player" data-play-latest>Watch now</a><a class="btn btn-line" href="${base}/sermons">All sermons</a></div>
     </div>
-    <div class="prose">
-      <h2>Other ways to give</h2>
-      <h3>During worship</h3><p>Place your gift in the offering on Sunday morning.</p>
-      <h3>By mail</h3><p>Make checks payable to Central Baptist Church and mail them to<br>904 Wheat Rd., Winfield, KS 67156.</p>
-      <h3>Questions</h3><p>Our treasurers are glad to help. Call <a href="${CHURCH.phoneHref}">${CHURCH.phone}</a> or <a href="${base}/connect?topic=Giving">send us a note</a>.</p>
+    <div class="player" id="sermon-player">${player(latest)}</div>
+  </div></section>
+
+  <section id="visit" class="wrap sec">
+    <div class="sec-head">
+      <div><p class="eyebrow">Your first Sunday</p><h2 class="h-sec" style="max-width:14ch">We saved you a seat.</h2></div>
+      <a class="btn btn-dark" href="${base}/visit">Let us know you’re coming</a>
     </div>
-  </div></section>`;
+    <div class="grid3">
+      <div class="card step"><span class="step-n">01</span><h3>Someone will meet you</h3><p>Pull in at 904 Wheat Rd. A greeter at the door will help you find your way, grab coffee, and get settled.</p></div>
+      <div class="card step"><span class="step-n">02</span><h3>Your kids are in good hands</h3><p>Each child gets a printed name tag and matching pickup code. Only you, or people you list, can pick them up.</p></div>
+      <div class="card step"><span class="step-n">03</span><h3>Come exactly as you are</h3><p>Worship runs about an hour. Wear what’s comfortable. No pressure, and we won’t add you to any lists.</p></div>
+    </div>
+  </section>
+
+  <section id="ministries" class="wrap sec">
+    <p class="eyebrow">Ministries</p>
+    <h2 class="h-sec" style="max-width:18ch">Every age, growing in Christ together.</h2>
+    <div class="grid3">
+      <a class="card min-card" href="${base}/ministries#kids"><div class="min-art min-kids"><span>Kids</span></div><div class="min-body"><p class="tag">Nursery – 5th grade</p><p>A safe, fun place to learn about Jesus. Sundays at 9:30 and 10:45, and Wednesday nights.</p></div></a>
+      <a class="card min-card" href="${base}/ministries#students"><div class="min-art min-teens"><span>Teens</span></div><div class="min-body"><p class="tag">Middle &amp; high school</p><p>Central Teens meets Wednesdays at 6:00 to dig into Scripture and build real friendships.</p></div></a>
+      <a class="card min-card" href="${base}/ministries#adults"><div class="min-art min-adults"><span>Adults</span></div><div class="min-body"><p class="tag">Study &amp; fellowship</p><p>Sunday School at 9:30 and Monday Adult Bible Study at 1:00, working through Scripture together.</p></div></a>
+    </div>
+  </section>
+
+  <section id="about" class="wrap sec"><div class="pastor">
+    <div class="pastor-photo">${orr ? html`<img src="/img/staff/orr.jpg?v=${orr}" alt="Pastor Blake and Ruth Orr" width="800" height="800" loading="lazy">` : html`<span class="pastor-mono" aria-hidden="true">B &amp; R</span>`}</div>
+    <div class="pastor-text">
+      <p class="eyebrow eyebrow-gold">A word from our pastor</p>
+      <p class="pastor-quote">“For seventy-five years, this church has been a place where people are known by name. We’d love for you to be one of them.”</p>
+      <div class="pastor-by"><span class="av" aria-hidden="true">BR</span><span><strong>Blake &amp; Ruth Orr</strong><em>Senior Pastor · 17th year at Central</em></span></div>
+      <a class="u" href="${base}/staff">Meet our staff &amp; leaders</a>
+    </div>
+  </div></section>
+
+  <section id="shop" class="wrap sec">
+    <div class="sec-head">
+      <div><p class="eyebrow">Central Gear</p><h2 class="h-sec" style="max-width:16ch">Wear the family name <span class="serif" style="color:#B08A2E;font-size:1.06em">proudly.</span></h2>
+        <p class="lead">Tees, hoodies, mugs and more for Central Kids, Central Teens, and the whole church family. Printed to order and shipped to your door.</p></div>
+      <a class="btn btn-dark" href="${CHURCH.shop}" target="_blank" rel="noopener">Shop all gear ${OUT}</a>
+    </div>
+    <div class="shopgrid">
+      ${C.SHOP.map((p) => html`<a class="card shop-card${p.feature ? ' shop-feature' : ''}${p.back ? ' hatcard' : ''}" href="${CHURCH.shop}/products/${p.slug}" target="_blank" rel="noopener">
+        <div class="shop-img"><img src="/img/shop/${p.img}" alt="${p.name}, ${p.sub}" loading="lazy" class="${p.mult ? 'mult' : ''}${p.back ? ' hat-front' : ''}" width="820" height="900">${p.back ? html`<img src="/img/shop/${p.back}" alt="" aria-hidden="true" loading="lazy" class="hat-back" width="820" height="900">` : ''}</div>
+        <div class="shop-meta"><span>${p.name}<small>${p.sub}</small></span><span class="shop-price">${p.price}</span></div>
+      </a>`)}
+      <a class="shop-all" href="${CHURCH.shop}" target="_blank" rel="noopener"><span class="eyebrow eyebrow-gold">34 items · Printed to order</span><strong>Jackets, hats, mugs, bottles, journals &amp; more.</strong><span class="go">Browse the full shop ${OUT}</span></a>
+    </div>
+  </section>
+
+  <section id="give" class="wrap sec sec-last grid2">
+    <div class="card pad-card"><p class="eyebrow">Give</p><h2>Generosity that reaches Winfield and the world.</h2><p class="body">Give once or set up recurring giving through Vanco, our secure online giving partner. You can also give during worship or by mail.</p><a class="btn btn-dark" href="${base}/give">Give online</a></div>
+    <div id="connect" class="card pad-card"><p class="eyebrow">Prayer</p><h2>How can we pray for you?</h2><p class="body">Share a request on our prayer wall, or call the church office. Someone here will pray for you this week, by name.</p><a class="btn btn-line" href="${appUrl('/checkin/prayer')}">Share a prayer request</a></div>
+  </section>`;
+  return {
+    head: {
+      kicker: `Winfield, Kansas · Since ${CHURCH.founded}`,
+      title: html`A church family on Wheat Road for <span class="serif">${years()} years.</span>`,
+      lead: 'A place to know Jesus, grow in His Word, and belong to a family that will pray for you by name. Come as you are this Sunday.',
+      actions: html`<a class="btn btn-gold" href="${base}/visit">Plan your visit ${ARROW}</a><a class="btn btn-ghost" href="#sermons">${PLAY} Watch the latest sermon</a>`,
+    },
+    body,
+  };
+}
+
+// ---------------------------------------------------------------- inner pages
+function schedule() {
+  return html`<ul class="sched">${C.TIMES.map((x) => html`<li><div><span class="sched-day">${x.day}</span><span class="sched-at">${x.time}</span></div><div><strong>${x.what}</strong><p>${x.note}</p></div></li>`)}</ul>`;
 }
 
 function contactForm({ csrf, base, topic = '', button = 'Send message', compact = false, values = {}, error }) {
@@ -384,70 +257,203 @@ function contactForm({ csrf, base, topic = '', button = 'Send message', compact 
     <div class="row2"><label>Name<input name="name" required autocomplete="name" value="${values.name || ''}"></label>
     <label>Phone <span class="opt">(optional)</span><input name="phone" type="tel" autocomplete="tel" value="${values.phone || ''}"></label></div>
     <label>Email<input name="email" type="email" required autocomplete="email" value="${values.email || ''}"></label>
-    <label>${compact ? 'Anything we should know? ' : 'How can we help?'}${compact ? html`<span class="opt">(optional)</span>` : ''}<textarea name="message" rows="${compact ? 3 : 5}" ${compact ? '' : raw('required')}>${values.message || ''}</textarea></label>
+    <label>${compact ? html`Anything we should know? <span class="opt">(optional)</span>` : 'How can we help?'}<textarea name="message" rows="${compact ? 3 : 5}" ${compact ? '' : raw('required')}>${values.message || ''}</textarea></label>
     <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-    <button class="btn btn-green btn-block" type="submit">${button}</button>
+    <button class="btn btn-dark btn-block" type="submit">${button}</button>
   </form>`;
 }
 
+function visit({ csrf, base, sent }) {
+  return {
+    head: { kicker: 'Your first Sunday', title: html`We saved you a <span class="serif">seat.</span>`, lead: 'Here’s what to expect when you visit Central Baptist Church. We can’t wait to meet you.' },
+    body: html`${timesBand()}
+    <section class="wrap sec sec-last"><div class="two">
+      <div class="prose">
+        <h2>When we gather</h2>
+        ${schedule()}
+        <h2>When you arrive</h2>
+        <p>Pull in at <a href="${CHURCH.maps}" target="_blank" rel="noopener">904 Wheat Rd.</a> A greeter at the door will help you find your way, grab coffee, and get settled. Worship runs about an hour. Wear what’s comfortable.</p>
+        <h2>Bringing kids?</h2>
+        <p>Children are welcome in worship, and Children’s Church meets during the 10:45 service. At the welcome desk we’ll check your kids in and print their name tags with a matching pickup code for you. Only you, or the people you list, can pick them up.</p>
+        <p>Want to skip the line? <a href="${appUrl('/checkin/family')}">Set up your family online</a> before you come.</p>
+      </div>
+      <aside class="card form-card">
+        <h2>Let us know you’re coming</h2>
+        <p>We’ll watch for you and help you get settled. No pressure, and we won’t add you to any lists.</p>
+        ${sent ? html`<p class="ok" role="status">Thank you! We’ve got your note and look forward to seeing you Sunday.</p>` : contactForm({ csrf, base, topic: 'Planning a visit', button: 'Send', compact: true })}
+      </aside>
+    </div></section>`,
+  };
+}
+
+function about({ base }) {
+  return {
+    head: { kicker: 'About Central', title: html`Rooted in faith, hope, and <span class="serif">love.</span>`, lead: `For ${years()} years, Central Baptist Church has been a cornerstone of the Winfield community, sharing the message of Christ’s love through worship, fellowship, and service.` },
+    body: html`<section class="wrap sec sec-last"><div class="two">
+      <div class="prose">
+        <p class="eyebrow">Who we are</p>
+        <h2 style="margin-top:14px">A Southern Baptist church family in Winfield, Kansas.</h2>
+        <p>We are a Southern Baptist congregation committed to sound doctrine and to a warm, welcoming place where people of every age can know Jesus and grow in Him.</p>
+        <p>Our mission is simple: to make disciples of Jesus Christ here in Winfield and beyond, as a body of believers unified to worship God, to show Christ-like love for each other, and to serve our community and our world through the power of the Holy Spirit.</p>
+        <div class="values">
+          <div class="card value"><h3>God’s Word</h3><p>The Bible is our authority, and we open it together every week.</p></div>
+          <div class="card value"><h3>Worship</h3><p>We gather to praise the God who has been faithful to us for ${years()} years.</p></div>
+          <div class="card value"><h3>Family</h3><p>Kids, teens, and adults growing together and caring for each other.</p></div>
+          <div class="card value"><h3>Mission</h3><p>From Winfield to Juárez and around the world, we go and give.</p></div>
+        </div>
+      </div>
+      <aside class="aside-gold"><p class="eyebrow" style="color:#10261A">1951 — ${new Date().getFullYear()}</p><p class="big">${years()}</p><p>years of God’s faithfulness on Wheat Road.</p><a class="btn btn-dark" href="${base}/visit">Come see for yourself</a></aside>
+    </div></section>`,
+  };
+}
+
+function ministries({ base }) {
+  const art = { kids: html`<div class="card"><img src="/img/central-kids.webp" alt="Central Kids" width="640" height="320"></div>`, students: html`<div class="card"><img src="/img/central-teens.webp" alt="Central Teens" width="640" height="320"></div>`, adults: html`<div class="min-art min-adults"><span>Adults</span></div>` };
+  return {
+    head: { kicker: 'Ministries', title: html`Every age, growing in Christ <span class="serif">together.</span>`, lead: 'Kids, teens, and adults growing in faith side by side, and a church that serves Winfield and the world.' },
+    body: html`${C.MINISTRIES.map((m, i) => html`<section class="wrap sec" id="${m.key}"><div class="min-row${i % 2 ? ' flip' : ''}">
+      <div class="min-logo">${art[m.key]}</div>
+      <div class="prose">
+        <p class="eyebrow">${m.ages}</p>
+        <h2 style="margin-top:14px">${m.name}</h2>
+        <p>${m.body}</p>
+        <ul class="ticks">${m.times.map((x) => html`<li>${x}</li>`)}</ul>
+        ${m.safe ? html`<p class="note">${m.safe}</p>` : ''}
+        ${m.key === 'kids' ? html`<a class="btn btn-dark" href="${appUrl('/checkin/family')}">Set up your family for check-in</a>` : ''}
+      </div>
+    </div></section>`)}
+    <section class="wrap sec sec-last">
+      <div class="sec-head"><div><p class="eyebrow">Missions &amp; outreach</p><h2 class="h-sec" style="max-width:16ch">Serving beyond our walls.</h2></div><a class="btn btn-dark" href="${base}/serve">Find a place to serve</a></div>
+      <div class="grid3">${C.OUTREACH.map((o) => html`<div class="card out-card"><h3>${o.name}</h3><p>${o.body}</p><span><a href="${o.url}" target="_blank" rel="noopener" class="u">Learn more</a>${o.url2 ? html` · <a href="${o.url2}" target="_blank" rel="noopener" class="u">IMB</a>` : ''}</span></div>`)}</div>
+    </section>`,
+  };
+}
+
+function sermons({ videos }) {
+  const [latest, ...rest] = videos;
+  return {
+    head: { kicker: 'Sermons', title: html`This week’s <span class="serif">message.</span>`, lead: 'Messages from Sunday worship at Central. Watch here, or join us live on YouTube.' },
+    body: html`<section class="wrap sec-tight"><div class="sermon">
+      <div class="sermon-text">
+        <p class="eyebrow">Latest</p>
+        <h2>${latest ? latest.title : 'Sunday’s message'}</h2>
+        <p class="lead">Pastor Blake Orr${latest ? ` · ${when(latest.published)}` : ''}.</p>
+        <div class="btn-row"><a class="btn btn-dark" href="${CHURCH.youtubeLive}" target="_blank" rel="noopener">Watch live on YouTube</a><a class="btn btn-line" href="${CHURCH.youtube}" target="_blank" rel="noopener">Subscribe</a></div>
+      </div>
+      <div class="player">${player(latest)}</div>
+    </div></section>
+    ${rest.length ? html`<section class="wrap sec sec-last"><p class="eyebrow">Recent messages</p><h2 class="h-sec">Catch up from anywhere.</h2>
+      <div class="grid3" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:36px 24px">${rest.map((v) => player(v, { small: true }))}</div></section>` : html`<div class="sec-last"></div>`}`,
+  };
+}
+
+function events({ base }) {
+  const ev = upcoming();
+  return {
+    head: { kicker: 'Events', title: html`What’s happening at <span class="serif">Central.</span>`, lead: 'Special days coming up, and the rhythm of every week.' },
+    body: html`${ev.length ? html`<section class="wrap sec-tight">${eventCard(ev[0], base, { detail: true })}</section>` : ''}
+    ${ev.length > 1 ? html`<section class="wrap sec-tight event-list">${ev.slice(1).map((e) => eventCard(e, base, { detail: true }))}</section>` : ''}
+    <section class="wrap sec sec-last"><div class="two">
+      <div><p class="eyebrow">Every week</p><h2 class="h-sec" style="margin-bottom:24px">Join us any week.</h2>${schedule()}</div>
+      <aside class="card form-card"><h2>Questions about an event?</h2><p>Call <a href="${CHURCH.phoneHref}">${CHURCH.phone}</a> or send us a note and we’ll get back to you.</p><p style="margin-top:22px"><a class="btn btn-dark" href="${base}/connect">Contact us</a></p></aside>
+    </div></section>`,
+  };
+}
+
+function staff() {
+  const initial = (n) => (n.trim().split(/\s+/).pop() || '?')[0];
+  return {
+    head: { kicker: 'Staff & leaders', title: html`The people who <span class="serif">serve.</span>`, lead: 'Our pastors, staff, and deacons, serving our church family week in and week out.' },
+    body: html`<section class="wrap sec-tight sec-last">
+      <div class="staff-grid">${C.STAFF.map((s, i) => { const ph = staffPhoto(s.key); return html`<article class="card staff-card${i === 0 ? ' staff-lead' : ''}">
+        <span class="staff-av">${ph ? html`<img src="/img/staff/${s.key}.jpg?v=${ph}" alt="${s.names}" width="400" height="400" loading="lazy">` : html`<span aria-hidden="true">${initial(s.names)}</span>`}</span>
+        <div><h2>${s.names}</h2><p class="tag staff-role">${s.role}</p><p class="body">${s.body}</p></div>
+      </article>`; })}</div>
+      <div class="card pad-card" style="margin-top:20px"><p class="eyebrow">Deacons</p><h2 style="font-size:clamp(26px,2.6vw,34px)">${C.DEACONS.join(', ')}</h2></div>
+    </section>`,
+  };
+}
+
+function give({ base }) {
+  return {
+    head: { kicker: 'Give', title: html`Generosity that reaches Winfield and the <span class="serif">world.</span>`, lead: '“Each one must give as he has decided in his heart, not reluctantly or under compulsion, for God loves a cheerful giver.” 2 Corinthians 9:7' },
+    body: html`<section class="wrap sec-tight sec-last grid2">
+      <div class="card pad-card dark-card"><p class="eyebrow eyebrow-gold">Give online</p><h2>Give once, or set up recurring giving.</h2><p class="body">Through Vanco, our secure online giving partner. You can use a bank account or card. You’ll leave this site for Vanco’s secure giving page.</p><a class="btn btn-gold" href="${CHURCH.give}" target="_blank" rel="noopener">Give online now ${OUT}</a></div>
+      <div class="card pad-card"><p class="eyebrow">Other ways to give</p><h2>In worship or by mail.</h2>
+        <p class="body"><strong>During worship:</strong> place your gift in the offering on Sunday morning.</p>
+        <p class="body"><strong>By mail:</strong> make checks payable to Central Baptist Church and mail them to 904 Wheat Rd., Winfield, KS 67156.</p>
+        <p class="body"><strong>Questions?</strong> Call <a href="${CHURCH.phoneHref}">${CHURCH.phone}</a> or <a href="${base}/connect?topic=Giving">send us a note</a>.</p></div>
+    </section>`,
+  };
+}
+
 function connect({ csrf, base, sent, values, error, topic }) {
-  return html`
-  ${pageHead('We’d love to hear from you', 'Whether you have a question about our services, want to learn more about our church, or just need someone to talk to, our doors and hearts are always open.')}
-  <section class="sec"><div class="wrap two">
-    <div class="form-card">
-      <h2>Send us a message</h2>
-      ${sent ? html`<p class="ok" role="status">Thank you! Your message is on its way to the church office. We’ll get back to you soon.</p>` : contactForm({ csrf, base, topic, values, error })}
-    </div>
-    <div class="prose find">
-      <h2>Find us</h2>
-      <p><a href="${CHURCH.maps}" target="_blank" rel="noopener">${CHURCH.street}<br>${CHURCH.cityLine}</a></p>
-      <p><a class="btn btn-ghost-dark" href="${CHURCH.maps}" target="_blank" rel="noopener">Get directions</a></p>
-      <h2>Call or email</h2>
-      <p><a href="${CHURCH.phoneHref}">${CHURCH.phone}</a><br><a href="mailto:${CHURCH.email}">${CHURCH.email}</a></p>
-      <h2>Service times</h2>
-      <p>Sundays at 9:30 AM (Sunday School) and 10:45 AM (Worship)<br>Wednesdays at 6:00 PM</p>
-      <h2>Need prayer?</h2>
-      <p><a href="${appUrl('/checkin/prayer')}">Share a request on the Prayer Wall</a>, or tell us in your message and our pastors will pray for you.</p>
-    </div>
-  </div></section>`;
+  return {
+    head: { kicker: 'Connect', title: html`We’d love to hear from <span class="serif">you.</span>`, lead: 'Whether you have a question about our services, want to learn more about our church, or just need someone to talk to, our doors and hearts are always open.' },
+    body: html`<section class="wrap sec-tight sec-last"><div class="two">
+      <div class="card form-card"><h2>Send us a message</h2>${sent ? html`<p class="ok" role="status">Thank you! Your message is on its way to the church office. We’ll get back to you soon.</p>` : contactForm({ csrf, base, topic, values, error })}</div>
+      <div class="prose find">
+        <h2>Find us</h2><p><a href="${CHURCH.maps}" target="_blank" rel="noopener">${CHURCH.street}<br>${CHURCH.cityLine}</a></p>
+        <p><a class="btn btn-line" href="${CHURCH.maps}" target="_blank" rel="noopener">Get directions</a></p>
+        <h2>Call or email</h2><p><a href="${CHURCH.phoneHref}">${CHURCH.phone}</a><br><a href="mailto:${CHURCH.email}">${CHURCH.email}</a></p>
+        <h2>Need prayer?</h2><p><a href="${appUrl('/checkin/prayer')}">Share a request on the Prayer Wall</a>, or tell us in your message and our pastors will pray for you.</p>
+      </div>
+    </div></section>`,
+  };
 }
 
 function serve({ csrf, base, sent, values = {}, error }) {
-  return html`
-  ${pageHead('Get involved', '“For God is not unjust so as to overlook your work and the love that you have shown for his name in serving the saints, as you still do.” Hebrews 6:10')}
-  <section class="sec"><div class="wrap two">
-    <div class="prose">
-      <h2>Find your place</h2>
-      <p>Every Sunday and Wednesday happens because people like you use their gifts. Tell us where you’d like to help, and someone from that team will reach out.</p>
-      <ul class="ticks">${C.SERVE_AREAS.slice(0, -1).map((a) => html`<li>${a}</li>`)}</ul>
-      <p class="note">Anyone serving with kids or teens completes our child-safety training before serving.</p>
-    </div>
-    <div class="form-card">
-      <h2>I’d like to serve</h2>
-      ${sent ? html`<p class="ok" role="status">Thank you for offering to serve! Someone from that team will contact you soon.</p>` : html`<form method="post" action="${base}/serve" class="form" novalidate>
-        ${csrfField(csrf)}
-        ${error ? html`<p class="err" role="alert">${error}</p>` : ''}
-        <div class="row2"><label>Name<input name="name" required autocomplete="name" value="${values.name || ''}"></label>
-        <label>Phone <span class="opt">(optional)</span><input name="phone" type="tel" autocomplete="tel" value="${values.phone || ''}"></label></div>
-        <label>Email<input name="email" type="email" required autocomplete="email" value="${values.email || ''}"></label>
-        <label>Where would you like to serve?<select name="topic">${C.SERVE_AREAS.map((a) => html`<option${values.topic === a ? raw(' selected') : ''}>${a}</option>`)}</select></label>
-        <label>Anything else? <span class="opt">(optional)</span><textarea name="message" rows="3">${values.message || ''}</textarea></label>
-        <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-        <button class="btn btn-green btn-block" type="submit">Send</button>
-      </form>`}
-    </div>
-  </div></section>`;
+  return {
+    head: { kicker: 'Serve', title: html`Find your place on the <span class="serif">team.</span>`, lead: '“For God is not unjust so as to overlook your work and the love that you have shown for his name in serving the saints, as you still do.” Hebrews 6:10' },
+    body: html`<section class="wrap sec-tight sec-last"><div class="two">
+      <div class="prose">
+        <h2>Every Sunday happens because someone serves.</h2>
+        <p>Tell us where you’d like to help, and someone from that team will reach out.</p>
+        <ul class="ticks">${C.SERVE_AREAS.slice(0, -1).map((a) => html`<li>${a}</li>`)}</ul>
+        <p class="note">Anyone serving with kids or teens completes our child-safety training before serving.</p>
+      </div>
+      <div class="card form-card"><h2>I’d like to serve</h2>
+        ${sent ? html`<p class="ok" role="status">Thank you for offering to serve! Someone from that team will contact you soon.</p>` : html`<form method="post" action="${base}/serve" class="form" novalidate>
+          ${csrfField(csrf)}
+          ${error ? html`<p class="err" role="alert">${error}</p>` : ''}
+          <div class="row2"><label>Name<input name="name" required autocomplete="name" value="${values.name || ''}"></label>
+          <label>Phone <span class="opt">(optional)</span><input name="phone" type="tel" autocomplete="tel" value="${values.phone || ''}"></label></div>
+          <label>Email<input name="email" type="email" required autocomplete="email" value="${values.email || ''}"></label>
+          <label>Where would you like to serve?<select name="topic">${C.SERVE_AREAS.map((a) => html`<option${values.topic === a ? raw(' selected') : ''}>${a}</option>`)}</select></label>
+          <label>Anything else? <span class="opt">(optional)</span><textarea name="message" rows="3">${values.message || ''}</textarea></label>
+          <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <button class="btn btn-dark btn-block" type="submit">Send</button>
+        </form>`}
+      </div>
+    </div></section>`,
+  };
 }
 
 function partners() {
-  return html`
-  ${pageHead('Our partners', 'We cooperate with Southern Baptists across Kansas, the nation, and the world.')}
-  <section class="sec"><div class="wrap"><ul class="partner-list">${C.PARTNERS.map(([n, u]) => html`<li><a href="${u}" target="_blank" rel="noopener">${n}</a></li>`)}</ul></div></section>`;
+  return {
+    head: { kicker: 'Our partners', title: html`Cooperating for the <span class="serif">Gospel.</span>`, lead: 'We work together with Southern Baptists across Kansas, the nation, and the world.' },
+    body: html`<section class="wrap sec-tight sec-last"><div class="partner-list">${C.PARTNERS.map(([n, u]) => html`<a class="card partner" href="${u}" target="_blank" rel="noopener"><span>${n}</span>${OUT}</a>`)}</div></section>`,
+  };
 }
 
 function notFound({ base }) {
-  return html`${pageHead('We couldn’t find that page', 'It may have moved when we updated our website.')}
-  <section class="sec"><div class="wrap"><p><a class="btn btn-green" href="${base}/">Go to the home page</a> <a class="link" href="${base}/connect">Contact us</a></p></div></section>`;
+  return {
+    head: { kicker: false, title: html`We couldn’t find that <span class="serif">page.</span>`, lead: 'It may have moved when we updated our website.', actions: html`<a class="btn btn-gold" href="${base}/">Go to the home page</a><a class="btn btn-ghost" href="${base}/connect">Contact us</a>` },
+    body: html`<div class="sec-last"></div>`,
+  };
 }
 
-module.exports = { layout, home, visit, about, ministries, sermons, events, staff, give, connect, serve, partners, notFound };
+// Calendar file for "Add to calendar".
+function ics(e) {
+  const [y, m, d] = e.date.split('-').map(Number);
+  const stamp = (date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const start = t.zoned(y, m, d, ...(e.startHm || [10, 0]));
+  const end = t.zoned(y, m, d, ...(e.endHm || [12, 0]));
+  const esc = (s) => String(s).replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Central Baptist Church//Website//EN', 'BEGIN:VEVENT',
+    `UID:${e.key}-${e.date}@cbcwinfield.org`, `DTSTAMP:${stamp(new Date())}`, `DTSTART:${stamp(start)}`, `DTEND:${stamp(end)}`,
+    `SUMMARY:${esc(e.title)}`, `LOCATION:${esc('Central Baptist Church, 904 Wheat Rd, Winfield, KS 67156')}`, `DESCRIPTION:${esc(e.body)}`,
+    'END:VEVENT', 'END:VCALENDAR', ''].join('\r\n');
+}
+
+module.exports = { layout, home, visit, about, ministries, sermons, events, staff, give, connect, serve, partners, notFound, ics };

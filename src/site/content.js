@@ -14,6 +14,7 @@ const CHURCH = {
   youtubeLive: 'https://www.youtube.com/@cbcwinfield/streams',
   facebook: 'https://www.facebook.com/cbcwinfield/',
   give: 'https://secure.myvanco.com/YGQD/home',
+  shop: 'https://cbc-shop.fourthwall.com/en-usd',
   app: process.env.APP_URL || 'https://admin.cbcwinfield.org',
   founded: 1951,
 };
@@ -68,6 +69,8 @@ const EVENTS = [
   {
     key: '75th', title: '75th Anniversary of God’s Faithfulness', date: '2026-10-18', start: '10:00 AM', end: '4:00 PM',
     where: '904 Wheat Rd, Winfield', body: 'There will be fun for the kids, adults, and everyone. Come join us for a day of fellowship and fun as we celebrate 75 years of God’s faithfulness to Central.',
+    short: '10:00 AM to 4:00 PM at the church. Worship, a meal, and fun for kids, adults, and everyone in between.',
+    kicker: '1951 — 2026 · You’re invited', titleA: '75th Anniversary of', titleB: 'God’s faithfulness', startHm: [10, 0], endHm: [16, 0],
   },
 ];
 
@@ -78,6 +81,17 @@ const PARTNERS = [
   ['Baptist Press', 'https://www.baptistpress.com/'],
 ];
 
+// Central Gear (Fourthwall shop), as featured on the homepage design.
+const SHOP = [
+  { name: 'Black Hoodie', sub: 'White drawstring · Central Baptist', price: '$34.06', img: 'hoodie.webp', slug: 'black-hoodie-white-string-central-baptist-church', feature: true },
+  { name: 'Black T-Shirt', sub: 'Central Teens', price: '$14.75', img: 'tee-teens.webp', slug: 'black-t-shirt-central-teens', mult: true },
+  { name: 'Black T-Shirt', sub: 'Central Kids', price: '$14.75', img: 'tee-kids.webp', slug: 'black-t-shirt-central-kids', mult: true },
+  { name: 'Black T-Shirt', sub: 'Central Baptist Church', price: '$14.75', img: 'tee-central.webp', slug: 'black-t-shirt-central-baptist-church' },
+  { name: 'Adidas Polo', sub: 'Central Baptist Church', price: '$43.80', img: 'polo.webp', slug: 'polo-shirt-adidas-central-baptist-church' },
+  { name: 'Baby Outfit', sub: 'Central Kids', price: '$16.52', img: 'baby.webp', slug: 'central-kids-baby-outfit', mult: true },
+  { name: 'Under Armour Hat', sub: 'Central Baptist Church', price: '$28.99', img: 'hat-front.webp', back: 'hat-back.webp', slug: 'underarmour-hat' },
+];
+
 const SERVE_AREAS = ['Nursery & Kids', 'Central Teens', 'Worship & music', 'Sound, video & livestream', 'Greeting & hospitality', 'Building & grounds', 'Church library', 'Missions & outreach', 'Wherever I’m needed'];
 
-module.exports = { CHURCH, TIMES, MINISTRIES, OUTREACH, STAFF, DEACONS, EVENTS, PARTNERS, SERVE_AREAS };
+module.exports = { CHURCH, TIMES, MINISTRIES, OUTREACH, STAFF, DEACONS, EVENTS, PARTNERS, SHOP, SERVE_AREAS };

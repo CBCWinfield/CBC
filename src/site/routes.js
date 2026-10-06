@@ -15,10 +15,10 @@ const SITE_HOSTS = (process.env.SITE_HOSTS || 'cbcwinfield.org,www.cbcwinfield.o
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const baseFor = (req) => (SITE_HOSTS.includes(String(req.headers.host || '').split(':')[0].toLowerCase()) ? '' : '/site');
 
-function show(req, res, page, body, { title, desc, status = 200 } = {}) {
+function show(req, res, page, view, { title, desc, status = 200 } = {}) {
   res.status(status);
   res.setHeader('Cache-Control', 'no-cache');
-  res.send(V.layout({ title, desc, page, body, base: baseFor(req) }).toString());
+  res.send(V.layout({ title, desc, page, body: view.body, head: view.head, base: baseFor(req) }).toString());
 }
 
 async function saveInquiry(kind, v) {
@@ -63,6 +63,14 @@ module.exports = (app) => {
   for (const [from, to] of Object.entries(OLD)) {
     app.get(`/site${from}`, async (req, res) => res.redirect(to === null ? `${C.CHURCH.app}/checkin/prayer` : `${baseFor(req)}${to}` || '/'));
   }
+  // "Add to calendar"
+  app.get('/site/events/:file', async (req, res) => {
+    const e = C.EVENTS.find((x) => `${x.key}.ics` === req.params.file);
+    if (!e) return show(req, res, '404', V.notFound({ base: baseFor(req) }), { title: 'Page not found', status: 404 });
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="central-${e.key}.ics"`);
+    res.send(V.ics(e));
+  });
   app.get('/site/event-details/:slug', async (req, res) => res.redirect(`${baseFor(req)}/events`));
 
   app.post('/site/connect', security.rateLimit('site-connect', { max: 10, windowMs: 3600000 }), async (req, res) => {
