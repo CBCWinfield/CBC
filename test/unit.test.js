@@ -160,3 +160,13 @@ test('check-in: Easter dates, allergy detection, greeting paragraphs, privacy de
   assert.strictEqual(P.wants({ prefs: { email_checkin: false } }, 'email_checkin'), false);
   assert.strictEqual(P.wants({ prefs: {}, notify_email: false }, 'email_messages'), false);
 });
+
+test('automatic check-out reads service times', () => {
+  require.cache[require.resolve('../src/db')] = { exports: {} };
+  const { parseTime } = require('../src/checkin/autocheckout');
+  assert.deepStrictEqual(parseTime('9:30 AM'), [9, 30]);
+  assert.deepStrictEqual(parseTime('6:00 PM'), [18, 0]);
+  assert.deepStrictEqual(parseTime('12 PM'), [12, 0]);
+  assert.deepStrictEqual(parseTime('12:15 am'), [0, 15]);
+  assert.strictEqual(parseTime('soon'), null);
+});

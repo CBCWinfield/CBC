@@ -10,7 +10,8 @@ const NOTIFY = [
   { key: 'push_pickup', label: 'App notification when my children are picked up', group: 'Check-in', def: true },
   { key: 'email_messages', label: 'Email me about new messages I haven’t read', group: 'Inbox', def: true },
   { key: 'push_messages', label: 'App notification for new messages', group: 'Inbox', def: true },
-  { key: 'email_greetings', label: 'Birthday, Christmas and Easter greetings from the church', group: 'Church', def: true },
+  { key: 'push_prayer', label: 'App notification when someone prays for or comments on my prayer request', group: 'Prayer wall', def: true },
+  { key: 'email_greetings', label: 'Birthday, anniversary, Christmas and Easter greetings from the church', group: 'Church', def: true },
   { key: 'email_library', label: 'Library emails: pickup times, due dates and reminders', group: 'Church', def: true },
 ];
 

@@ -93,8 +93,9 @@ async function conversationFor(req, id, { allowReview = true } = {}) {
   return { c, me, reviewing, members };
 }
 
-const messagesSQL = `SELECT m.id, m.user_id, m.body, m.created_at, m.deleted_at, u.first_name, u.last_name, u.checkin_role
-  FROM messages m LEFT JOIN users u ON u.id = m.user_id`;
+const messagesSQL = `SELECT m.id, m.user_id, m.body, m.created_at, m.deleted_at, m.broadcast_id, u.first_name, u.last_name, u.checkin_role,
+    b.kind AS b_kind, b.title AS b_title, b.yes_label AS b_yes, b.no_label AS b_no
+  FROM messages m LEFT JOIN users u ON u.id = m.user_id LEFT JOIN broadcasts b ON b.id = m.broadcast_id`;
 
 const messageJSON = (m, meId) => ({
   id: m.id, mine: m.user_id === meId, name: m.user_id ? fullName(m) : 'Someone', initials: m.user_id ? initials(m) : '?',
@@ -127,12 +128,27 @@ async function notifyMembers(conversation, sender, body) {
   } catch (err) { console.error('Message notice failed:', err.message); }
 }
 
-async function sendMessage(conversation, sender, body) {
-  const m = await db.one('INSERT INTO messages (conversation_id, user_id, body) VALUES ($1, $2, $3) RETURNING *', [conversation.id, sender.id, body]);
+async function sendMessage(conversation, sender, body, { broadcastId = null } = {}) {
+  const m = await db.one('INSERT INTO messages (conversation_id, user_id, body, broadcast_id) VALUES ($1, $2, $3, $4) RETURNING *', [conversation.id, sender.id, body, broadcastId]);
   await db.query('UPDATE conversations SET last_message_at = now() WHERE id = $1', [conversation.id]);
   await db.query('UPDATE conversation_members SET last_read_at = now() WHERE conversation_id = $1 AND user_id = $2', [conversation.id, sender.id]);
   notifyMembers(conversation, sender, body);
   return m;
+}
+
+// The one-to-one conversation between two people, created if needed.
+async function directConversation(a, b) {
+  let conv = await db.one(`SELECT c.* FROM conversations c WHERE NOT c.is_group
+    AND EXISTS (SELECT 1 FROM conversation_members x WHERE x.conversation_id = c.id AND x.user_id = $1)
+    AND EXISTS (SELECT 1 FROM conversation_members y WHERE y.conversation_id = c.id AND y.user_id = $2)
+    AND (SELECT count(*) FROM conversation_members z WHERE z.conversation_id = c.id) = 2 LIMIT 1`, [a, b]);
+  if (conv) {
+    await db.query('UPDATE conversation_members SET left_at = NULL WHERE conversation_id = $1', [conv.id]);
+    return conv;
+  }
+  conv = await db.one('INSERT INTO conversations (is_group, created_by) VALUES (false, $1) RETURNING *', [a]);
+  await db.query('INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2), ($1, $3) ON CONFLICT DO NOTHING', [conv.id, a, b]);
+  return conv;
 }
 
 // ---------------------------------------------------------------- views
@@ -180,7 +196,17 @@ function newMessagePage({ csrf, people, q, to = [], error, body = '' }) {
   </form>`;
 }
 
-function threadPage({ csrf, user, c, me, reviewing, members, messages, reportedIds }) {
+function broadcastBlock(m, j, csrf, responses) {
+  if (!m.broadcast_id || m.b_kind !== 'confirm' || j.body == null) return '';
+  if (j.mine) return html`<a class="ci-bc-link" href="/checkin/broadcast/${m.broadcast_id}">See who confirmed</a>`;
+  const r = responses.get(m.broadcast_id);
+  return html`<form method="post" action="/checkin/broadcast/${m.broadcast_id}/respond" class="ci-bc-actions">${csrfField(csrf)}
+    <button class="btn btn-small${r === 'yes' ? '' : ' btn-quiet'}" type="submit" name="response" value="yes">${r === 'yes' ? '✓ ' : ''}${m.b_yes || 'Confirm'}</button>
+    <button class="btn btn-small${r === 'no' ? '' : ' btn-quiet'}" type="submit" name="response" value="no">${r === 'no' ? '✓ ' : ''}${m.b_no || 'Can’t make it'}</button>
+  </form>`;
+}
+
+function threadPage({ csrf, user, c, me, reviewing, members, messages, reportedIds, responses = new Map() }) {
   const others = members.filter((m) => m.id !== user.id && !m.left_at);
   const name = c.is_group && c.title ? c.title : others.map(fullName).join(', ') || 'Conversation';
   const direct = !c.is_group && others.length === 1 ? others[0] : null;
@@ -201,7 +227,7 @@ function threadPage({ csrf, user, c, me, reviewing, members, messages, reportedI
       const j = messageJSON(m, user.id);
       return html`<div class="ci-msg${j.mine ? ' is-mine' : ''}" data-msg="${m.id}">
         ${j.mine ? '' : html`<span class="ci-msg-who">${j.name}${j.team ? html` <span class="badge badge-info">${j.team}</span>` : ''}</span>`}
-        <div class="ci-bubble">${j.body == null ? html`<em class="muted">Message removed</em>` : j.body}</div>
+        <div class="ci-bubble${m.broadcast_id ? ' is-broadcast' : ''}">${m.broadcast_id && m.b_title && j.body != null ? html`<strong class="ci-bc-title">${m.b_title}</strong>` : ''}${j.body == null ? html`<em class="muted">Message removed</em>` : j.body}${broadcastBlock(m, j, csrf, responses)}</div>
         <span class="ci-msg-meta">${j.at}
           ${j.body != null && (j.mine || D.can(user, 'coadmin')) ? html` · <form method="post" action="/checkin/inbox/messages/${m.id}/delete" class="inline" data-confirm="Remove this message?">${csrfField(csrf)}<button class="linklike" type="submit">Remove</button></form>` : ''}
           ${j.body != null && !j.mine && me ? (reportedIds.has(m.id) ? ' · Reported' : html` · <form method="post" action="/checkin/inbox/messages/${m.id}/report" class="inline" data-confirm="Report this message to the church admins?">${csrfField(csrf)}<button class="linklike" type="submit">Report</button></form>`) : ''}
@@ -329,12 +355,7 @@ function routes(app, { render, needLogin, needRole, currentEvent }) {
       return render(req, res, newMessagePage({ csrf: res.locals.csrf, people: await directory(req.user, ''), to: ids, error, body }), { title: 'New message', tab: 'inbox' });
     }
     let conv = null;
-    if (reachable.length === 1) {
-      conv = await db.one(`SELECT c.* FROM conversations c WHERE NOT c.is_group
-        AND EXISTS (SELECT 1 FROM conversation_members a WHERE a.conversation_id = c.id AND a.user_id = $1)
-        AND EXISTS (SELECT 1 FROM conversation_members b WHERE b.conversation_id = c.id AND b.user_id = $2) LIMIT 1`, [req.user.id, reachable[0].id]);
-      if (conv) await db.query('UPDATE conversation_members SET left_at = NULL WHERE conversation_id = $1', [conv.id]);
-    }
+    if (reachable.length === 1) conv = await directConversation(req.user.id, reachable[0].id);
     if (!conv) {
       conv = await db.tx(async (c) => {
         const row = await c.one('INSERT INTO conversations (title, is_group, created_by) VALUES ($1, $2, $3) RETURNING *',
@@ -369,13 +390,14 @@ function routes(app, { render, needLogin, needRole, currentEvent }) {
     const ctx = await conversationFor(req, intParam(req.params.id));
     const messages = (await db.many(`${messagesSQL} WHERE m.conversation_id = $1 ORDER BY m.id DESC LIMIT 300`, [ctx.c.id])).reverse();
     const reportedIds = new Set((await db.many('SELECT message_id FROM message_reports WHERE user_id = $1', [req.user.id])).map((r) => r.message_id));
+    const responses = new Map((await db.many(`SELECT broadcast_id, response FROM broadcast_recipients WHERE user_id = $1 AND broadcast_id IN (SELECT broadcast_id FROM messages WHERE conversation_id = $2 AND broadcast_id IS NOT NULL)`, [req.user.id, ctx.c.id])).map((r) => [r.broadcast_id, r.response]));
     if (ctx.me) {
       await db.query('UPDATE conversation_members SET last_read_at = now() WHERE conversation_id = $1 AND user_id = $2', [ctx.c.id, req.user.id]);
       req.ciUnread = await unreadCount(req.user.id);
     } else {
       D.audit(req.user, 'review_conversation', { detail: `conversation ${ctx.c.id}` });
     }
-    render(req, res, threadPage({ csrf: res.locals.csrf, user: req.user, ...ctx, messages, reportedIds }), { title: 'Inbox', tab: 'inbox' });
+    render(req, res, threadPage({ csrf: res.locals.csrf, user: req.user, ...ctx, messages, reportedIds, responses }), { title: 'Inbox', tab: 'inbox' });
   });
 
   // New messages since `after` (the thread page checks every few seconds).
@@ -506,4 +528,4 @@ function routes(app, { render, needLogin, needRole, currentEvent }) {
   });
 }
 
-module.exports = { routes, unreadCount, directory, canReach };
+module.exports = { routes, unreadCount, directory, canReach, sendMessage, directConversation };

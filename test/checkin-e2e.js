@@ -117,7 +117,7 @@ class Browser {
   assert.strictEqual(r.location, '/checkin/roster');
   // Then "check out all"
   r = await admin.follow(await admin.post('/checkin/checkout-all', { event_id: eventId }));
-  assert.match(r.body, /2 children checked out/);
+  assert.match(r.body, /2 children and 1 adult checked out/, "parents check out with the kids");
 
   // Parent invite → account → onboarding wizard → signed forms
   const tok = crypto.randomBytes(16).toString('base64url');
@@ -150,7 +150,42 @@ class Browser {
   r = await admin.post('/checkin/staff/create', { first_name: 'Val', last_name: 'Helper', email: 'val@example.com', role: 'volunteer' });
   const temp = /code-big">([a-z]+-[a-z]+-\d+)</.exec(r.body)[1];
   const vol = new Browser();
+  // Admin adds a required, written policy
+  await admin.post('/checkin/policies', { title: 'Child Safety Policy', body: '# Two adults\n\nTwo adults in every room.\n\n- Doors open\n- No one-on-one', audience: 'team', requires_ack: '1' });
+  const polId = sql(`SELECT id FROM policies WHERE title = 'Child Safety Policy'`);
   await vol.login('val@example.com', temp);
+  // New team members are locked until training + policies are done
+  r = await vol.go('/checkin');
+  assert.strictEqual(r.location, '/checkin/training', 'locked volunteer goes to training');
+  r = await vol.go('/checkin/roster');
+  assert.strictEqual(r.location, '/checkin/training');
+  r = await vol.go('/checkin/training');
+  assert.match(r.body, /Welcome to the team/);
+  assert.match(r.body, /0 of 6 complete/);
+  r = await vol.go(`/checkin/policies/${polId}`);
+  assert.match(r.body, /<h3>Two adults<\/h3>/);
+  assert.match(r.body, /<li>Doors open<\/li>/);
+  await vol.post(`/checkin/policies/${polId}/ack`, {});
+  assert.strictEqual(sql(`SELECT count(*) FROM policy_acks WHERE policy_id = ${polId}`), '0', 'must tick the box');
+  await vol.post(`/checkin/policies/${polId}/ack`, { confirm: '1' });
+  for (const key of ['recognize', 'prevent', 'respond', 'conduct', 'words']) {
+    r = await vol.go(`/checkin/training/${key}`);
+    assert.match(r.body, /Sources/);
+    const boxes = [...r.body.matchAll(/name="(c\d+)"/g)].map((m) => m[1]);
+    assert.ok(boxes.length >= 3);
+    if (key === 'recognize') {
+      r = await vol.post(`/checkin/training/${key}`, { c0: '1' });
+      assert.strictEqual(r.location, `/checkin/training/${key}`, 'every box required');
+    }
+    r = await vol.post(`/checkin/training/${key}`, Object.fromEntries(boxes.map((b) => [b, '1'])));
+  }
+  assert.strictEqual(r.location, '/checkin', 'unlocked after the last lesson');
+  r = await vol.go('/checkin/training');
+  assert.match(r.body, /All done/);
+  r = await admin.go('/checkin/admin');
+  assert.match(r.body, /Team training and policies/);
+  assert.match(r.body, /Val Helper/);
+  assert.match(r.body, /Unlocked/);
   assert.strictEqual((await vol.go('/checkin')).status, 200);
   assert.strictEqual((await vol.go('/checkin/staff')).status, 403);
   assert.strictEqual((await vol.go(`/checkin/families/${famId}`)).status, 403);
@@ -301,6 +336,73 @@ class Browser {
   r = await vol.go('/checkin/scan');
   assert.match(r.body, /Scan a pickup tag/);
   assert.match(r.body, /scan128\.js/);
+
+
+  // Incident report: volunteer files; admin sees and reviews; volunteer can't see others'
+  r = await vol.go('/checkin/incidents/new');
+  assert.match(r.body, /1-800-922-5330/);
+  r = await vol.post('/checkin/incidents', { occurred_at: '2026-10-04T10:15', category: 'Injury or accident', severity: 'minor', location: 'Gym', people_text: 'Emma Miller', person_ids: emmaId, description: 'Emma tripped and scraped her knee.', action_taken: 'Cleaned and bandaged', first_aid: '1', parent_notified: '1', parent_notified_how: 'Told Dana at pickup' });
+  const incId = /\/checkin\/incidents\/(\d+)/.exec(r.location)[1];
+  r = await admin.go('/checkin/incidents');
+  assert.match(r.body, /Injury or accident/);
+  await admin.post(`/checkin/incidents/${incId}`, { status: 'closed', admin_notes: 'Spoke with Dana.' });
+  assert.strictEqual(sql(`SELECT status FROM incidents WHERE id = ${incId}`), 'closed');
+  assert.strictEqual((await parent.go(`/checkin/incidents/${incId}`)).status, 403, 'families can’t see incident reports');
+
+  // Group message with click-to-confirm
+  r = await admin.go('/checkin/broadcast');
+  assert.match(r.body, /Team meeting/);
+  r = await admin.post('/checkin/broadcast', { title: 'Team meeting', body: 'Meeting at 5:30 PM. Click to confirm.', kind: 'confirm', yes_label: 'I’ll be there', no_label: 'Can’t make it', 'groups[]': 'team', 'people[]': danaId });
+  const bcId = /\/checkin\/broadcast\/(\d+)/.exec(r.location)[1];
+  assert.strictEqual(sql(`SELECT count(*) FROM broadcast_recipients WHERE broadcast_id = ${bcId}`), '2', 'Val (team) and Dana; not the sender');
+  const vconv = sql(`SELECT m.conversation_id FROM messages m JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = ${valId} WHERE m.broadcast_id = ${bcId}`);
+  r = await vol.go(`/checkin/inbox/${vconv}`);
+  assert.match(r.body, /Meeting at 5:30 PM/);
+  assert.match(r.body, /I’ll be there/);
+  await vol.post(`/checkin/broadcast/${bcId}/respond`, { response: 'yes' });
+  r = await admin.go(`/checkin/broadcast/${bcId}`);
+  assert.match(r.body, /Val Helper/);
+  assert.match(r.body, /badge-ok">I’ll be there/);
+
+  // Prayer wall: post, pray (toggle), comment, answered; team-only hidden from families
+  r = await parent.post('/checkin/prayer', { body: 'Please pray for my grandmother’s surgery on Friday.' });
+  const prId = sql(`SELECT id FROM prayers ORDER BY id DESC LIMIT 1`);
+  await vol.post(`/checkin/prayer/${prId}/pray`, {});
+  await admin.post(`/checkin/prayer/${prId}/pray`, {});
+  r = await other.go('/checkin/prayer');
+  assert.match(r.body, /grandmother’s surgery/);
+  assert.match(r.body, /2 people are praying/);
+  await admin.post(`/checkin/prayer/${prId}/pray`, {});
+  assert.strictEqual(sql(`SELECT count(*) FROM prayer_praying WHERE prayer_id = ${prId}`), '1', 'second click un-prays');
+  await other.post(`/checkin/prayer/${prId}/comments`, { body: 'Praying for her!' });
+  r = await parent.go(`/checkin/prayer?open=${prId}`);
+  assert.match(r.body, /Praying for her!/);
+  await parent.post(`/checkin/prayer/${prId}/answered`, { note: 'Surgery went well!' });
+  r = await other.go('/checkin/prayer?f=answered');
+  assert.match(r.body, /Surgery went well!/);
+  await vol.post('/checkin/prayer', { body: 'Pray for our volunteers', team_only: '1', anonymous: '1' });
+  r = await other.go('/checkin/prayer');
+  assert.ok(!/Pray for our volunteers/.test(r.body), 'team-only request hidden from families');
+  r = await admin.go('/checkin/prayer');
+  assert.match(r.body, /Pray for our volunteers/);
+
+  // Anniversary on the parent's family step
+  r = await parent.go('/checkin/welcome/family');
+  assert.match(r.body, /Wedding anniversary/);
+  // Names open the edit screen; test print works
+  r = await admin.go('/checkin/roster?show=all');
+  assert.match(r.body, /href="\/checkin\/people\/\d+\?back=%2Fcheckin%2Froster"/);
+  r = await admin.go('/checkin/print/test');
+  assert.match(r.body, /class="label child-label"/);
+  assert.match(r.body, /TEST/);
+
+  // Releasing a family's last child at pickup checks their parents out too
+  sql(`UPDATE attendance SET checked_out_at = NULL WHERE family_id = ${famId}`);
+  const codeNow = sql(`SELECT security_code FROM attendance WHERE family_id = ${famId} LIMIT 1`);
+  r = await admin.post('/checkin/scan', { event_id: eventId, code: codeNow });
+  const att2 = [...r.body.matchAll(/name="attendance\[\]" value="(\d+)" checked/g)].map((m) => m[1]);
+  await admin.post('/checkin/release', { event_id: eventId, 'attendance[]': att2, to: 'Dana Miller (Mother)' });
+  assert.strictEqual(sql(`SELECT count(*) FROM attendance a JOIN people p ON p.id = a.person_id WHERE a.family_id = ${famId} AND a.checked_out_at IS NULL AND p.kind = 'adult'`), '0');
 
   // Greeting automation: a child's birthday today sends once
   sql(`UPDATE people SET birthdate = (CURRENT_DATE - interval '8 years')::date WHERE first_name = 'Lily'`);

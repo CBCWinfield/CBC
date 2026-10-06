@@ -154,6 +154,7 @@ function headers() {
       "font-src 'self' https://fonts.gstatic.com",
       "script-src 'self'",
       "connect-src 'self'",
+      "frame-src 'self' https://player.vimeo.com",
       "frame-ancestors 'self'",
       "form-action 'self'",
       "base-uri 'self'",

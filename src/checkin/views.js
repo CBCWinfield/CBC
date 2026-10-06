@@ -25,7 +25,10 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
   ] : [];
   // Everything else lives in the "More" menu.
   const more = [];
-  if (staff) more.push(['/checkin/serve', 'Serving calendar', 'serve']);
+  if (D.can(user, 'coadmin')) more.push(['/checkin/admin', 'Admin dashboard', 'admin']);
+  if (user) more.push(['/checkin/prayer', 'Prayer Wall', 'prayer']);
+  if (staff) more.push(['/checkin/serve', 'Serving calendar', 'serve'], ['/checkin/incidents', 'Incident reports', 'incidents']);
+  if (D.isTeam(user)) more.push(['/checkin/training', user.checkinLocked ? 'Training (to do)' : 'Training', 'training']);
   if (D.can(user, 'leader')) more.push(['/checkin/events', 'Events', 'events']);
   if (user) more.push(['/checkin/policies', 'Policies', 'policies']);
   if (D.can(user, 'coadmin')) more.push(['/checkin/reports', 'Reports', 'reports'], ['/checkin/staff', 'Team', 'staff'], ['/checkin/automations', 'Automations', 'automations']);
@@ -48,9 +51,9 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="/css/style.css?v=6">
-<link rel="stylesheet" href="/css/checkin.css?v=6">
+<link rel="stylesheet" href="/css/checkin.css?v=7">
 <script src="/js/app.js?v=7" defer></script>
-<script src="/js/checkin.js?v=5" defer></script>
+<script src="/js/checkin.js?v=6" defer></script>
 </head>
 <body class="ci${bare ? ' ci-bare' : ''}">
 <a class="skip" href="#main">Skip to content</a>
@@ -93,6 +96,7 @@ ${user ? html`<div class="ci-ask-panel" id="ci-ask-panel" hidden aria-live="poli
   </div>
 </div>` : ''}
 <main id="main" class="ci-main">
+${user && user.checkinLocked && tab !== 'training' ? html`<div class="ci-alert ci-alert-warn ci-lock-banner"><strong>Your check-in account is almost ready.</strong> Finish your policy reading and training to unlock it. <a class="btn btn-small" href="/checkin/training">Continue training</a></div>` : ''}
 ${flash.length ? html`<div class="flashes">${flash.map((f) => html`<p class="flash flash-${f.type}" role="${f.type === 'error' ? 'alert' : 'status'}">${f.message}</p>`)}</div>` : ''}
 ${body}
 </main>
@@ -120,6 +124,15 @@ function avatar(p) {
   const initials = `${(p.preferred_name || p.first_name || '?')[0]}${(p.last_name || '')[0] || ''}`;
   return html`<span class="ci-avatar ci-avatar-${p.kind}" aria-hidden="true">${initials}</span>`;
 }
+
+// Clicking a name opens that person's edit screen (leaders and admins), from any page.
+function personHref(p, user, back) {
+  const id = p.person_id || p.id;
+  if (D.can(user, 'leader')) return `/checkin/people/${id}${back ? `?back=${encodeURIComponent(back)}` : ''}`;
+  if (D.can(user, 'volunteer')) return `/checkin/f/${p.family_id}`;
+  return '/checkin/welcome/kids';
+}
+const nameLink = (p, user, back, extra = '') => html`<a class="ci-person-name ci-name-link" href="${personHref(p, user, back)}">${D.displayName(p)}${extra}</a>`;
 
 // Add or change a person's photo. On phones and tablets this opens the camera or the photo library;
 // the picture is shrunk on the device before it's sent.
@@ -190,7 +203,7 @@ function familyCheckin({ csrf, user, full, event, attendance }) {
         <input type="checkbox" name="people[]" value="${p.id}"${checked(!a)}${isIn ? raw(' disabled') : ''}>
         ${avatar(p)}
         <span class="ci-person-text">
-          <span class="ci-person-name">${D.displayName(p)}</span>
+          ${nameLink({ ...p, family_id: family.id }, user, `/checkin/f/${family.id}`)}
           <span class="ci-person-meta">${p.kind === 'child' ? [D.ageLabel(p.birthdate), p.grade, D.groupFor(p)].filter(Boolean).join(' · ') : p.relationship || 'Adult'}</span>
           ${alertsFor(p, user).length ? html`<span class="ci-flags">${alertsFor(p, user)}</span>` : ''}
         </span>
@@ -273,6 +286,7 @@ function printQueue({ csrf, jobs, isPrinter }) {
   <div class="ci-section-head"><div><h1>Printing</h1><p class="muted">Name tags from every check-in device wait here for the printer.</p></div></div>
   <section class="ci-card ci-printer-card${isPrinter ? ' is-on' : ''}" data-tour="printer">
     <label class="ci-switch"><input type="checkbox" data-printer-toggle${checked(isPrinter)}><span><strong>This device is the printer</strong><br><span class="small muted">Turn this on for the laptop or computer connected to the Brother QL-810W. Keep this page open and tags print automatically.</span></span></label>
+    <p class="ci-test-print"><a class="btn btn-quiet btn-small" href="/checkin/print/test?return=/checkin/print-queue">Print a test tag</a> <a class="btn btn-quiet btn-small" href="/checkin/print/test?one=1&return=/checkin/print-queue">Test one name tag only</a> <span class="small muted">Prints a sample name tag (with allergy and medical symbols) and parent tag. No one is checked in.</span></p>
     <p class="ci-printer-status small" data-printer-status>${isPrinter ? 'Watching for new name tags…' : 'Off. Tags checked in on this device go to the printer device.'}</p>
   </section>
   <section class="ci-section" data-tour="queue">
@@ -369,14 +383,14 @@ function newFamilyFlow({ csrf, name = '', error, v = {} }) {
   </div>`;
 }
 
-function newKidsFlow({ csrf, full, error }) {
+function newKidsFlow({ csrf, full, error, user }) {
   const { family, kids } = full;
   return html`<div class="ci-narrow">
     <p class="crumb"><a href="/checkin">Back to search</a></p>
     <h1>${family.name}</h1>
     <ol class="ci-steps"><li class="done"><a>Family & emergency contact</a></li><li class="current"><a>Kids</a></li><li><a>Check in</a></li></ol>
     ${error ? html`<p class="flash flash-error" role="alert">${error}</p>` : ''}
-    ${kids.length ? html`<ul class="ci-person-cards">${kids.map((k) => html`<li class="ci-person-card">${avatar(k)}<div class="ci-person-text"><span class="ci-person-name">${D.displayName(k)}</span><span class="ci-person-meta">${[D.ageLabel(k.birthdate), D.groupFor(k)].filter(Boolean).join(' · ')}</span>${alertsFor(k, null).length ? html`<span class="ci-flags">${alertsFor(k, null)}</span>` : ''}</div>${photoButton(k, csrf, `/checkin/new/${family.id}/kids`)}</li>`)}</ul>` : ''}
+    ${kids.length ? html`<ul class="ci-person-cards">${kids.map((k) => html`<li class="ci-person-card">${avatar(k)}<div class="ci-person-text">${D.can(user, 'leader') ? nameLink(k, user, `/checkin/new/${family.id}/kids`) : html`<span class="ci-person-name">${D.displayName(k)}</span>`}<span class="ci-person-meta">${[D.ageLabel(k.birthdate), D.groupFor(k)].filter(Boolean).join(' · ')}</span>${alertsFor(k, null).length ? html`<span class="ci-flags">${alertsFor(k, null)}</span>` : ''}</div>${photoButton(k, csrf, `/checkin/new/${family.id}/kids`)}</li>`)}</ul>` : ''}
     <section class="box"><h2 class="box-head">${kids.length ? 'Add another child' : 'Add a child'}</h2><div class="box-body">
       <form method="post" action="/checkin/new/${family.id}/kids" class="stack ci-form" data-tour="new-kid">
         ${csrfField(csrf)}
@@ -432,7 +446,7 @@ function roster({ csrf, user, event, rows, q, show }) {
     <div><h1>Checked in</h1><p class="muted">${event.name} · ${plural(inCount.filter((r) => r.kind === 'child').length, 'kid')} and ${plural(inCount.filter((r) => r.kind === 'adult').length, 'adult')} here now</p></div>
     <div class="ci-family-tools">
       <a class="btn btn-quiet btn-small" href="/checkin/roster?show=${show === 'all' ? 'here' : 'all'}">${show === 'all' ? 'Only who’s here' : 'Include picked up'}</a>
-      ${inCount.some((r) => r.kind === 'child') ? html`<form method="post" action="/checkin/checkout-all" class="inline" data-confirm="Check out every child still checked in for ${event.name}? Parents get a pickup notice.">${csrfField(csrf)}<input type="hidden" name="event_id" value="${event.id}"><button class="btn btn-small" type="submit">Check out all kids</button></form>` : ''}
+      ${inCount.some((r) => r.kind === 'child') ? html`<form method="post" action="/checkin/checkout-all" class="inline" data-confirm="Check out every child and parent still checked in for ${event.name}? Parents get a pickup notice.">${csrfField(csrf)}<input type="hidden" name="event_id" value="${event.id}"><button class="btn btn-small" type="submit">Check out everyone (kids and parents)</button></form>` : ''}
     </div>
   </div>
   <form class="ci-filter" method="get" action="/checkin/roster"><input type="search" name="q" value="${q || ''}" placeholder="Filter by name or code" data-live-filter="#roster-list"><input type="hidden" name="show" value="${show || ''}"></form>
@@ -442,7 +456,7 @@ function roster({ csrf, user, event, rows, q, show }) {
     <ul class="ci-roster">${groups.get(g).map((r) => html`<li class="ci-roster-row${r.checked_out_at ? ' is-out' : ''}" data-filter-text="${`${r.first_name} ${r.last_name} ${r.preferred_name || ''} ${r.security_code} ${r.family_name}`}">
       ${avatar(r)}
       <div class="ci-person-text">
-        <a class="ci-person-name" href="/checkin/f/${r.family_id}">${D.displayName(r)}</a>
+        ${nameLink(r, user, '/checkin/roster')}
         <span class="ci-person-meta">${r.kind === 'child' ? [D.ageLabel(r.birthdate), r.grade].filter(Boolean).join(' · ') : r.family_name} · in ${t.fmtTime(r.checked_in_at)}${r.checked_out_at ? ` · out ${t.fmtTime(r.checked_out_at)}` : ''}</span>
         ${alertsFor(r, user, { full: true }).length ? html`<span class="ci-flags">${alertsFor(r, user, { full: true })}</span>` : ''}
       </div>
@@ -489,7 +503,7 @@ function scanPage({ csrf, event, match, code, error, user }) {
       <input type="hidden" name="event_id" value="${event.id}">
       <ul class="ci-people">${match.rows.map((r) => html`<li class="ci-person${r.checked_out_at ? ' is-in' : ''}"><label class="ci-person-check">
         <input type="checkbox" name="attendance[]" value="${r.id}"${checked(!r.checked_out_at)}${r.checked_out_at ? raw(' disabled') : ''}>
-        ${avatar(r)}<span class="ci-person-text"><span class="ci-person-name">${D.displayName(r)}</span><span class="ci-person-meta">${D.groupFor(r)}${r.checked_out_at ? ` · picked up ${t.fmtTime(r.checked_out_at)}` : ''}</span></span>
+        ${avatar(r)}<span class="ci-person-text">${nameLink(r, user, `/checkin/scan?code=${match.code}`)}<span class="ci-person-meta">${D.groupFor(r)}${r.checked_out_at ? ` · picked up ${t.fmtTime(r.checked_out_at)}` : ''}</span></span>
       </label></li>`)}</ul>
       <div class="field"><label for="rel-to">Picked up by</label>
         <select id="rel-to" name="to">${[...match.adults.map((a) => `${a.first_name} ${a.last_name} (${a.relationship || 'parent'})`), ...match.allowed.map((a) => `${a.name} (${a.relationship || 'approved pickup'})`)].map((n) => html`<option>${n}</option>`)}<option value="">Someone else (approved by a leader)</option></select></div>
@@ -528,6 +542,7 @@ function personFields(p = {}, { kind = p.kind || 'child', user, parentView = fal
       <div class="row">
         <div class="field"><label for="p-contact">Best way to reach</label><select id="p-contact" name="contact_method">${[['app', 'App notification and email'], ['email', 'Email'], ['phone', 'Phone call']].map(([k, l]) => html`<option value="${k}"${selected(k, p.contact_method || 'app')}>${l}</option>`)}</select></div>
         ${f('birthdate', 'Birthday', { type: 'date', hint: 'Optional. We’d love to wish you a happy birthday.' })}
+        ${f('anniversary', 'Wedding anniversary', { type: 'date', value: p.anniversary ? dateKeyOf(p.anniversary) : '', hint: 'Optional' })}
       </div>
       <label class="check"><input type="checkbox" name="is_primary" value="1"${checked(p.is_primary)}> Primary contact for this family</label>`
     : html`
@@ -553,7 +568,7 @@ function familyAdmin({ csrf, user, full, invites = [] }) {
   const personCard = (p) => html`<li class="ci-person-card">
     ${avatar(p)}
     <div class="ci-person-text">
-      <span class="ci-person-name">${D.displayName(p)}${p.is_primary ? html` <span class="badge badge-info">Primary</span>` : ''}${p.user_id ? html` <span class="badge badge-ok">Has app login</span>` : ''}</span>
+      ${nameLink(p, user, `/checkin/families/${family.id}`, html`${p.is_primary ? html` <span class="badge badge-info">Primary</span>` : ''}${p.user_id ? html` <span class="badge badge-ok">Has app login</span>` : ''}`)}
       <span class="ci-person-meta">${p.kind === 'child' ? [p.birthdate ? `${D.ageLabel(p.birthdate)} · born ${t.fmtDateYear(t.zoned(...dateKeyOf(p.birthdate).split('-').map(Number), 12))}` : '', p.grade].filter(Boolean).join(' · ') : [p.relationship, p.email, p.phone].filter(Boolean).join(' · ')}</span>
       ${alertsFor(p, user, { full: true }).length ? html`<span class="ci-flags">${alertsFor(p, user, { full: true })}</span>` : ''}
     </div>
@@ -611,12 +626,13 @@ function familyAdmin({ csrf, user, full, invites = [] }) {
   </div>`;
 }
 
-function personPage({ csrf, user, person, family, isNew }) {
+function personPage({ csrf, user, person, family, isNew, back }) {
   return html`
-  <p class="crumb"><a href="/checkin/families/${family.id}">${family.name}</a></p>
+  <p class="crumb">${back ? html`<a href="${back}">Back</a> · ` : ''}<a href="/checkin/families/${family.id}">${family.name}</a></p>
   <h1>${isNew ? (person.kind === 'adult' ? 'Add an adult' : 'Add a child') : D.displayName(person)}</h1>
   <form method="post" action="${isNew ? `/checkin/families/${family.id}/people` : `/checkin/people/${person.id}`}" class="stack ci-form">
-    ${csrfField(csrf)}
+    ${csrfField(csrf)}${back ? html`<input type="hidden" name="back" value="${back}">` : ''}
+    ${!isNew ? html`<div class="ci-person-edit-head">${avatar(person)}${photoButton(person, csrf, `/checkin/people/${person.id}${back ? `?back=${encodeURIComponent(back)}` : ''}`)}</div>` : ''}
     ${personFields(person, { kind: person.kind, user })}
     <div class="form-actions"><button class="btn" type="submit">${isNew ? 'Add' : 'Save'}</button><a class="btn btn-quiet" href="/checkin/families/${family.id}">Cancel</a></div>
   </form>
@@ -727,7 +743,7 @@ function policiesPage({ csrf, user, rows, acks, ackReport }) {
   return html`
   <div class="ci-section-head"><div><h1>Policies</h1><p class="muted">Child safety, check-in procedures and other documents for ${admin ? 'the team and families' : 'you to read'}.</p></div></div>
   ${rows.length ? html`<ul class="ci-policy-list">${rows.map((p) => html`<li class="ci-card ci-policy">
-    <div class="ci-policy-icon" aria-hidden="true">${/pdf/.test(p.mime || '') ? 'PDF' : /word|doc/.test(p.mime || '') ? 'DOC' : /image/.test(p.mime || '') ? 'IMG' : 'TXT'}</div>
+    <div class="ci-policy-icon" aria-hidden="true">${p.has_body ? 'TXT' : /pdf/.test(p.mime || '') ? 'PDF' : /word|doc/.test(p.mime || '') ? 'DOC' : /image/.test(p.mime || '') ? 'IMG' : 'TXT'}</div>
     <div class="ci-person-text">
       <span class="ci-person-name">${p.title}</span>
       ${p.description ? html`<span class="ci-person-meta">${p.description}</span>` : ''}
@@ -736,9 +752,8 @@ function policiesPage({ csrf, user, rows, acks, ackReport }) {
         <p>${ackReport[p.id].missing.length ? html`Still to read: ${ackReport[p.id].missing.join(', ')}` : 'Everyone on the team has read it.'}</p></details>` : ''}
     </div>
     <div class="ci-row-actions">
-      ${p.filename ? html`<a class="btn btn-small" href="/checkin/policies/${p.id}/file" target="_blank" rel="noopener">Open</a>` : ''}
-      ${p.requires_ack ? (acks.has(p.id) ? html`<span class="badge badge-ok">You read this</span>`
-        : html`<form method="post" action="/checkin/policies/${p.id}/ack" class="inline">${csrfField(csrf)}<button class="btn btn-quiet btn-small" type="submit">I've read this</button></form>`) : ''}
+      <a class="btn btn-small" href="/checkin/policies/${p.id}">Read</a>
+      ${p.requires_ack ? (acks.has(p.id) ? html`<span class="badge badge-ok">You read this</span>` : html`<span class="badge badge-warn">${D.isTeam(user) ? 'Required: read and confirm' : 'Please read'}</span>`) : ''}
       ${admin ? html`<form method="post" action="/checkin/policies/${p.id}/delete" class="inline" data-confirm="Delete “${p.title}”?">${csrfField(csrf)}<button class="btn btn-quiet btn-small" type="submit">Delete</button></form>` : ''}
     </div>
   </li>`)}</ul>` : html`<div class="empty"><p>No policies have been added yet.</p></div>`}
@@ -747,12 +762,13 @@ function policiesPage({ csrf, user, rows, acks, ackReport }) {
       ${csrfField(csrf)}
       <div class="field"><label for="po-title">Title</label><input id="po-title" name="title" required placeholder="e.g. Child Safety Policy"></div>
       <div class="field"><label for="po-desc">Short description <span class="muted">(optional)</span></label><input id="po-desc" name="description"></div>
+      <div class="field"><label for="po-body">Policy text <span class="muted">(type or paste it here, or attach a file below, or both)</span></label><textarea id="po-body" name="body" rows="10" placeholder="Paste the policy here. Leave a blank line between paragraphs. Start a line with # for a heading or - for a bullet."></textarea></div>
       <div class="field"><label for="po-file">File (PDF, Word document or picture, up to 15 MB)</label><input id="po-file" type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt" data-policy-file><p class="hint" data-policy-info></p></div>
       <input type="hidden" name="file_name" data-file-name><input type="hidden" name="file_data" data-file-data>
       <div class="row">
         <div class="field"><label for="po-aud">Who can see it</label><select id="po-aud" name="audience"><option value="team">Check-in team only</option><option value="everyone">Team and families</option></select></div>
       </div>
-      <label class="check"><input type="checkbox" name="requires_ack" value="1"> Team members must confirm they've read it</label>
+      <label class="check"><input type="checkbox" name="requires_ack" value="1" checked> Required: team members must read it and confirm before their account unlocks</label>
       <button class="btn" type="submit">Add policy</button>
     </form></div></section>` : ''}`;
 }
@@ -892,6 +908,7 @@ function wizard({ step, csrf, user, full, error }) {
       <div class="row">
         <div class="field"><label for="w-contact">Best way to reach you</label><select id="w-contact" name="contact_method">${[['app', 'App notification and email'], ['email', 'Email'], ['phone', 'Phone call']].map(([k, l]) => html`<option value="${k}"${selected(k, me.contact_method || 'app')}>${l}</option>`)}</select></div>
         <div class="field"><label for="w-bday">Your birthday <span class="muted">(optional)</span></label><input id="w-bday" name="birthdate" type="date" value="${me.birthdate ? dateKeyOf(me.birthdate) : ''}"></div>
+        <div class="field"><label for="w-anniv">Wedding anniversary <span class="muted">(optional)</span></label><input id="w-anniv" name="anniversary" type="date" value="${me.anniversary ? dateKeyOf(me.anniversary) : ''}"><p class="hint">We’d love to celebrate with you.</p></div>
       </div>
       <h2>Another parent or guardian <span class="muted small">(optional)</span></h2>
       <input type="hidden" name="other_id" value="${other.id || ''}">
@@ -973,7 +990,7 @@ function familyHome({ csrf, user, full, recent, pushEnabled }) {
     <h1>${family.name}</h1>
     ${missing.length ? html`<div class="ci-alert ci-alert-warn"><strong>Almost done:</strong> please sign the permission forms so your kids can check in. <a href="/checkin/welcome/agreements">Sign now</a></div>` : ''}
     <section class="box"><h2 class="box-head">Your family</h2><div class="box-body">
-      <ul class="ci-person-cards">${[...kids, ...adults].map((k) => html`<li class="ci-person-card">${avatar(k)}<div class="ci-person-text"><span class="ci-person-name">${D.displayName(k)}</span><span class="ci-person-meta">${k.kind === 'child' ? [D.ageLabel(k.birthdate), k.grade].filter(Boolean).join(' · ') : k.relationship || 'Parent'}</span>${alertsFor(k, user, { full: true }).length ? html`<span class="ci-flags">${alertsFor(k, user, { full: true })}</span>` : ''}</div>${photoButton(k, csrf, '/checkin/family')}</li>`)}</ul>
+      <ul class="ci-person-cards">${[...kids, ...adults].map((k) => html`<li class="ci-person-card">${avatar(k)}<div class="ci-person-text">${D.can(user, 'leader') ? nameLink(k, user, '/checkin/family') : html`<a class="ci-person-name ci-name-link" href="${k.kind === 'child' ? '/checkin/welcome/kids' : '/checkin/welcome/family'}">${D.displayName(k)}</a>`}<span class="ci-person-meta">${k.kind === 'child' ? [D.ageLabel(k.birthdate), k.grade].filter(Boolean).join(' · ') : k.relationship || 'Parent'}</span>${alertsFor(k, user, { full: true }).length ? html`<span class="ci-flags">${alertsFor(k, user, { full: true })}</span>` : ''}</div>${photoButton(k, csrf, '/checkin/family')}</li>`)}</ul>
       <p class="small muted">A photo helps volunteers recognize each child at pickup. Only the church team and your family can see it.</p>
       <p><a href="/checkin/welcome/kids">Add or edit children</a> · <a href="/checkin/welcome/health">Health & safety</a></p></div></section>
     <section class="box"><h2 class="box-head">Recent check-ins</h2><div class="box-body">

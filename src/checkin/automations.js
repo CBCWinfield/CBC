@@ -55,6 +55,16 @@ Your church family at Central is thankful for you and praying God's blessing ove
 "The LORD bless you and keep you; the LORD make his face to shine upon you and be gracious to you." (Numbers 6:24-25)`,
   },
   {
+    key: 'anniversary', title: 'Happy anniversary', when: 'Morning of a couple’s wedding anniversary (when it’s on file).',
+    editable: true, placeholders: ['first_name', 'years'],
+    subject: 'Happy anniversary from Central!',
+    body: `Happy anniversary, {first_name}!
+
+Congratulations on {years} years of marriage. Your church family at Central is celebrating with you and thanking God for your marriage.
+
+"Therefore what God has joined together, let no one separate." (Mark 10:9)`,
+  },
+  {
     key: 'christmas', title: 'Merry Christmas', when: 'Christmas morning, December 25.',
     editable: true, placeholders: ['first_name'],
     subject: 'Merry Christmas from Central Baptist Church',
@@ -142,7 +152,7 @@ async function welcome(user, { link = '/checkin/family' } = {}) {
 
 async function sendTest(key, user) {
   const a = await get(key);
-  const vars = { first_name: user.first_name, child_name: 'Emma', age: 7, account_link: url('/checkin/family') };
+  const vars = { first_name: user.first_name, child_name: 'Emma', age: 7, years: 10, account_link: url('/checkin/family') };
   await sendAutomation({ ...a, subject: `[Test] ${a.subject}` }, user.email, vars, a.key === 'welcome_signup' ? { button: { label: DEF.welcome_signup.button, url: vars.account_link } } : {});
 }
 
@@ -172,7 +182,7 @@ async function daily(now = new Date()) {
   if (p.hour < 8) return { skipped: 'before 8am' };
   const key = t.dateKey(now);
   const md = key.slice(5);
-  const sent = { birthday_child: 0, birthday_adult: 0, christmas: 0, easter: 0 };
+  const sent = { birthday_child: 0, birthday_adult: 0, anniversary: 0, christmas: 0, easter: 0 };
   const list = await settings();
   const on = Object.fromEntries(list.map((a) => [a.key, a]));
 
@@ -196,6 +206,16 @@ async function daily(now = new Date()) {
       if (!(await once('birthday_adult', `${a.email.toLowerCase()}-${p.year}`, a.email, a.user_id))) continue;
       await sendAutomation(on.birthday_adult, a.email, { first_name: a.first_name });
       sent.birthday_adult++;
+    }
+  }
+  if (on.anniversary.enabled) {
+    const couples = await db.many(`SELECT DISTINCT ON (lower(p.email)) p.email, p.first_name, p.family_id, p.anniversary::text AS anniversary, u.id AS user_id, u.prefs, u.notify_email
+      FROM people p LEFT JOIN users u ON u.id = p.user_id
+      WHERE p.kind = 'adult' AND p.active AND p.email IS NOT NULL AND to_char(p.anniversary, 'MM-DD') = $1`, [md]);
+    for (const a of couples.filter((x) => !x.user_id || prefs.wants(x, 'email_greetings'))) {
+      if (!(await once('anniversary', `${a.email.toLowerCase()}-${p.year}`, a.email, a.user_id))) continue;
+      await sendAutomation(on.anniversary, a.email, { first_name: a.first_name, years: p.year - Number(a.anniversary.slice(0, 4)) });
+      sent.anniversary++;
     }
   }
   const holiday = md === '12-25' ? 'christmas' : key === easterKey(p.year) ? 'easter' : null;

@@ -8,6 +8,8 @@ const RANK = { volunteer: 1, leader: 2, coadmin: 3, admin: 4 };
 const ROLE_LABEL = { admin: 'Primary admin', coadmin: 'Co-admin', leader: 'Ministry leader', volunteer: 'Volunteer' };
 const rank = (user) => (user && user.checkin_role ? RANK[user.checkin_role] || 0 : 0);
 const can = (user, role) => rank(user) >= RANK[role];
+// On the check-in team, even while their account is locked for training.
+const isTeam = (user) => Boolean(user && (user.checkin_role || user.realRole));
 
 // Security codes avoid look-alike characters (0/O, 1/I, 5/S, 8/B, 2/Z).
 const CODE_CHARS = 'ACDEFGHJKLMNPQRTUVWXY34679';
@@ -153,6 +155,6 @@ const familyForUser = (userId) => db.one(
 );
 
 module.exports = {
-  RANK, ROLE_LABEL, rank, can, newCode, ageOn, ageLabel, groupFor, GROUP_ORDER, CLASSES, displayName,
+  RANK, ROLE_LABEL, rank, can, isTeam, newCode, ageOn, ageLabel, groupFor, GROUP_ORDER, CLASSES, displayName,
   defaultEventName, eventFor, saveEventName, BUILT_IN_EVENTS, knownEventNames, familyPeople, familyFull, agreementStatus, searchFamilies, audit, familyForUser,
 };

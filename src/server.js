@@ -132,7 +132,7 @@ if (require.main === module) {
   bootstrap()
     .then(() => {
       app.listen(PORT, () => console.log(`Library running on port ${PORT}`));
-      if (process.env.DISABLE_REMINDERS !== '1') { reminders.start(); require('./checkin/automations').start(); }
+      if (process.env.DISABLE_REMINDERS !== '1') { reminders.start(); require('./checkin/automations').start(); require('./checkin/autocheckout').start(); }
       if (process.env.DISABLE_COVERS !== '1') covers.start();
     })
     .catch((err) => {

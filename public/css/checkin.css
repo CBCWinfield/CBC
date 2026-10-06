@@ -386,3 +386,95 @@ img.ci-avatar-photo { object-fit: cover; padding: 0; background: #ddd; }
 .ci-photo-btn { cursor: pointer; }
 .ci-card-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .ci-person-card .ci-photo-form { margin-left: auto; }
+
+/* Names open the edit screen */
+a.ci-name-link { color: var(--green-deep); text-decoration: none; }
+a.ci-name-link:hover { text-decoration: underline; }
+.ci-person-edit-head { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.ci-person-edit-head .ci-avatar { width: 72px; height: 72px; font-size: 1.4rem; }
+
+/* Training + lessons */
+.ci-progress { height: 12px; background: #E3EADF; border-radius: 6px; overflow: hidden; margin-top: 12px; }
+.ci-progress span { display: block; height: 100%; background: var(--green); border-radius: 6px; }
+.ci-train-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ci-train-item { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: center; padding: 14px 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); text-decoration: none; color: var(--ink); }
+.ci-train-item.is-done { background: var(--sage); border-color: var(--green); }
+.ci-train-check { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 700; color: #fff; }
+.ci-train-item.is-done .ci-train-check { background: var(--green); border-color: var(--green); }
+.ci-lesson { line-height: 1.6; }
+.ci-lede { font-size: 1.15rem; color: var(--ink-soft); }
+.ci-lesson-sec { margin-top: 26px; }
+.ci-lesson-sec h2 { font-size: 1.3rem; }
+.ci-lesson-sec li { margin-bottom: 6px; }
+.ci-video { position: relative; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: #000; }
+.ci-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.ci-sources li { font-size: 0.92rem; }
+.ci-confirm { margin-top: 28px; display: grid; gap: 6px; }
+.ci-confirm h2 { margin: 0 0 4px; }
+.ci-confirm input:disabled + span { color: var(--ink-soft); }
+.ci-policy-body { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; }
+.ci-policy-body h3 { margin-top: 18px; }
+.ci-pdf { height: 70vh; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.ci-pdf iframe { width: 100%; height: 100%; border: 0; }
+.ci-policy-img { max-width: 100%; border-radius: 12px; border: 1px solid var(--line); }
+.ci-lock-banner { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+
+/* Incidents + admin */
+.ci-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.ci-chip { padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); text-decoration: none; color: var(--ink); font-size: 0.92rem; }
+.ci-chip.is-on { background: var(--green); border-color: var(--green); color: #fff; }
+.ci-table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; }
+.ci-table th, .ci-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); font-size: 0.94rem; vertical-align: top; }
+.ci-table th { background: #EEF3EA; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--green-deep); }
+.ci-compliance td.yes { color: var(--green-deep); font-weight: 700; white-space: nowrap; }
+.ci-compliance td.no { color: #B23A2A; text-align: center; }
+.ci-compliance small { font-weight: 400; color: var(--ink-soft); }
+.ci-table tr.sev-serious td:first-child { box-shadow: inset 4px 0 0 #D0021B; }
+.badge-danger { background: #D0021B; color: #fff; }
+.ci-detail { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; }
+.ci-detail th { text-align: left; width: 30%; padding: 10px 14px; color: var(--ink-soft); font-weight: 600; vertical-align: top; border-bottom: 1px solid var(--line); }
+.ci-detail td { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Group messages */
+.ci-templates { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; position: relative; }
+.ci-template { display: grid; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font: inherit; color: var(--ink); }
+.ci-template span { font-size: 0.82rem; color: var(--ink-soft); }
+.ci-template.is-on { border-color: var(--green); background: var(--sage); }
+.ci-template-del { position: relative; margin-top: -8px; }
+.ci-inline-date { margin-left: 6px; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--line); font: inherit; }
+.ci-pick-people summary { cursor: pointer; font-weight: 700; color: var(--green-deep); margin: 8px 0; }
+.ci-filter-input { width: 100%; height: 40px; border-radius: 8px; border: 1px solid var(--line); padding: 0 10px; font: inherit; margin-bottom: 8px; }
+.ci-dir-compact { max-height: 340px; overflow: auto; }
+.ci-dir-compact .ci-dir-row { grid-template-columns: 26px minmax(0, 1fr); padding: 8px 12px; }
+.ci-bubble .ci-bc-title { display: block; margin-bottom: 2px; }
+.ci-bubble form, .ci-bubble .ci-bc-link { white-space: normal; }
+.ci-bc-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.ci-msg:not(.is-mine) .ci-bubble.is-broadcast { border-color: var(--green); background: #F6FAF2; }
+.ci-bc-link { display: block; margin-top: 6px; color: #fff; font-size: 0.85rem; }
+
+/* Prayer wall */
+.ci-prayers { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 12px; }
+.ci-prayer { display: grid; gap: 8px; }
+.ci-prayer.is-answered { border-color: var(--gilt); }
+.ci-prayer-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.ci-prayer-head .ci-avatar { width: 40px; height: 40px; }
+.ci-prayer-head .badge { margin-left: auto; }
+.ci-prayer-body { margin: 0; font-size: 1.05rem; }
+.ci-prayer-praise { margin: 0; padding: 10px 12px; background: #F3F9E8; border-radius: 10px; }
+.ci-prayer-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 8px; }
+.ci-pray-btn { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; font: inherit; font-weight: 700; cursor: pointer; color: var(--green-deep); }
+.ci-pray-btn.is-on { background: var(--green); border-color: var(--green); color: #fff; }
+.ci-pray-count { color: var(--ink-soft); font-size: 0.92rem; }
+.ci-comment-link { margin-left: auto; text-decoration: none; color: var(--green-deep); font-size: 0.92rem; }
+.ci-comments { display: grid; gap: 8px; background: #F6F8F4; border-radius: 10px; padding: 10px 12px; }
+.ci-comment p { margin: 2px 0 0; }
+.ci-comment-form { position: static; background: transparent; border: 0; padding: 0; }
+.ci-prayer-opts { display: flex; gap: 16px; flex-wrap: wrap; }
+.ci-prayer-manage summary { cursor: pointer; color: var(--ink-soft); }
+.ci-test-print { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0; }
+@media print {
+  .ci-top, .ci-tabbar, .crumb, form, .btn, .ci-install { display: none !important; }
+  .ci-main { padding: 0; }
+}
+.ci-broadcast { margin-top: 22px; }

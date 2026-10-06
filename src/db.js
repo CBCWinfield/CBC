@@ -455,6 +455,111 @@ const MIGRATIONS = [
       );
     `,
   },
+  {
+    // Training, required policies, incident reports, group messages, prayer wall, anniversaries.
+    version: 6,
+    sql: `
+      ALTER TABLE people ADD COLUMN IF NOT EXISTS anniversary date;
+      -- New library welcome wording (only if the librarian hadn't already changed it).
+      UPDATE settings SET value = to_jsonb('Borrow Christian books, Bibles, devotionals and family reading at no cost. Our library consists of over 3000 offerings. All of which have been lovingly, meticulously, and diligently selected for its quality moral content. You will not find immoral books in our library. We thank God for the opportunity to offer the public such a rich selection of Christian work. Apply for a free library account, reserve books online, and pick them up during library hours.'::text)
+        WHERE key = 'welcome_message' AND value = to_jsonb('Borrow Christian books, Bibles, devotionals and family reading at no cost. Apply for a free library account, reserve books online, and pick them up during library hours.'::text);
+      ALTER TABLE policies ADD COLUMN IF NOT EXISTS body text;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS training_waived_at timestamptz;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS training_waived_by int REFERENCES users(id) ON DELETE SET NULL;
+
+      CREATE TABLE IF NOT EXISTS training_completions (
+        user_id int NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        module text NOT NULL,
+        version text NOT NULL,
+        completed_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, module)
+      );
+
+      CREATE TABLE IF NOT EXISTS incidents (
+        id serial PRIMARY KEY,
+        occurred_at timestamptz NOT NULL,
+        event_id int REFERENCES events(id) ON DELETE SET NULL,
+        location text,
+        category text NOT NULL,
+        severity text NOT NULL DEFAULT 'minor' CHECK (severity IN ('minor','moderate','serious')),
+        person_ids text,
+        people_text text,
+        description text NOT NULL,
+        action_taken text,
+        first_aid boolean NOT NULL DEFAULT false,
+        witnesses text,
+        parent_notified boolean NOT NULL DEFAULT false,
+        parent_notified_how text,
+        authorities_contacted boolean NOT NULL DEFAULT false,
+        authorities_detail text,
+        follow_up text,
+        status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','reviewed','closed')),
+        admin_notes text,
+        reported_by int REFERENCES users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        reviewed_by int REFERENCES users(id) ON DELETE SET NULL,
+        reviewed_at timestamptz
+      );
+      CREATE INDEX IF NOT EXISTS incidents_status ON incidents (status, occurred_at DESC);
+
+      CREATE TABLE IF NOT EXISTS broadcasts (
+        id serial PRIMARY KEY,
+        title text,
+        body text NOT NULL,
+        kind text NOT NULL DEFAULT 'info' CHECK (kind IN ('info','confirm')),
+        yes_label text,
+        no_label text,
+        audience text,
+        created_by int REFERENCES users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS broadcast_recipients (
+        broadcast_id int NOT NULL REFERENCES broadcasts(id) ON DELETE CASCADE,
+        user_id int NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        response text CHECK (response IN ('yes','no')),
+        responded_at timestamptz,
+        PRIMARY KEY (broadcast_id, user_id)
+      );
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS broadcast_id int REFERENCES broadcasts(id) ON DELETE SET NULL;
+      CREATE TABLE IF NOT EXISTS message_templates (
+        id serial PRIMARY KEY,
+        title text NOT NULL,
+        body text NOT NULL,
+        kind text NOT NULL DEFAULT 'info' CHECK (kind IN ('info','confirm')),
+        yes_label text,
+        no_label text,
+        created_by int REFERENCES users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS prayers (
+        id serial PRIMARY KEY,
+        user_id int REFERENCES users(id) ON DELETE CASCADE,
+        body text NOT NULL,
+        anonymous boolean NOT NULL DEFAULT false,
+        audience text NOT NULL DEFAULT 'everyone' CHECK (audience IN ('everyone','team')),
+        status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','answered','hidden')),
+        answered_note text,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS prayers_recent ON prayers (status, created_at DESC);
+      CREATE TABLE IF NOT EXISTS prayer_praying (
+        prayer_id int NOT NULL REFERENCES prayers(id) ON DELETE CASCADE,
+        user_id int NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (prayer_id, user_id)
+      );
+      CREATE TABLE IF NOT EXISTS prayer_comments (
+        id serial PRIMARY KEY,
+        prayer_id int NOT NULL REFERENCES prayers(id) ON DELETE CASCADE,
+        user_id int REFERENCES users(id) ON DELETE SET NULL,
+        body text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        deleted_at timestamptz
+      );
+    `,
+  },
 ];
 
 async function migrate() {

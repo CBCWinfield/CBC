@@ -365,6 +365,101 @@
     });
   });
 
+  /* ---------- Lessons and policies: scroll to the end to unlock the boxes ---------- */
+  var gate = document.querySelector('[data-scroll-gate]');
+  if (gate) {
+    var gated = Array.prototype.slice.call(document.querySelectorAll('[data-gated]'));
+    var note = document.querySelector('[data-gate-note]');
+    var needsOpen = gate.hasAttribute('data-needs-open');
+    var opened = !needsOpen;
+    var scrolled = false;
+    var unlock = function () {
+      if (!(scrolled && opened)) return;
+      gated.forEach(function (g) { g.disabled = false; });
+      if (note) note.textContent = 'Thanks for reading. Tick each box to finish.';
+    };
+    var boxes = gated.filter(function (g) { return g.type === 'checkbox'; });
+    if (boxes.length && boxes.some(function (b) { return !b.checked; })) {
+      gated.forEach(function (g) { g.disabled = true; });
+      var form = document.querySelector('[data-confirm-form]');
+      var check = function () {
+        var rect = form.getBoundingClientRect();
+        if (rect.top < window.innerHeight - 40) { scrolled = true; unlock(); window.removeEventListener('scroll', check); }
+      };
+      window.addEventListener('scroll', check, { passive: true });
+      setTimeout(check, 1500);
+      document.querySelectorAll('[data-open-file]').forEach(function (a) { a.addEventListener('click', function () { opened = true; setTimeout(unlock, 300); }); });
+    }
+  }
+
+  /* ---------- Group message: templates, buttons, people filter ---------- */
+  var bform = document.querySelector('[data-broadcast-form]');
+  if (bform) {
+    var labels = bform.querySelector('[data-confirm-labels]');
+    var syncKind = function () { var c = bform.querySelector('input[name=kind]:checked'); labels.hidden = !(c && c.value === 'confirm'); };
+    bform.addEventListener('change', syncKind);
+    syncKind();
+    document.querySelectorAll('[data-template]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var d = JSON.parse(b.getAttribute('data-template'));
+        bform.querySelector('[name=title]').value = d.title || '';
+        bform.querySelector('[name=body]').value = d.body || '';
+        bform.querySelector('input[name=kind][value="' + (d.kind === 'confirm' ? 'confirm' : 'info') + '"]').checked = true;
+        if (d.yes) bform.querySelector('[name=yes_label]').value = d.yes;
+        if (d.no) bform.querySelector('[name=no_label]').value = d.no;
+        syncKind();
+        document.querySelectorAll('[data-template]').forEach(function (x) { x.classList.toggle('is-on', x === b); });
+        bform.querySelector('[name=body]').focus();
+      });
+    });
+    var pf = bform.querySelector('[data-filter-people]');
+    if (pf) pf.addEventListener('input', function () {
+      var q = pf.value.trim().toLowerCase();
+      bform.querySelectorAll('.ci-dir li').forEach(function (li) { li.hidden = q && li.getAttribute('data-name').indexOf(q) < 0; });
+    });
+    var sdate = bform.querySelector('[name=serving_date]');
+    if (sdate) sdate.addEventListener('change', function () { var cb = sdate.closest('label').querySelector('input[type=checkbox]'); if (cb && sdate.value) cb.checked = true; });
+  }
+
+  /* ---------- Incident report: pick people on file ---------- */
+  var pSearch = document.querySelector('[data-people-search]');
+  if (pSearch) {
+    var pIds = document.querySelector('[data-people-ids]');
+    var pRes = document.querySelector('[data-people-results]');
+    var pt = null;
+    pSearch.addEventListener('input', function () {
+      clearTimeout(pt);
+      var last = pSearch.value.split(',').pop().trim();
+      if (last.length < 2) { pRes.innerHTML = ''; return; }
+      pt = setTimeout(function () {
+        fetch('/checkin/api/people?q=' + encodeURIComponent(last), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+          .then(function (r) { return r.json(); })
+          .then(function (list) {
+            pRes.innerHTML = '';
+            if (!list.length) return;
+            var ul = el('ul', { class: 'ci-family-list' });
+            list.forEach(function (pp) {
+              var b = el('button', { type: 'button', class: 'ci-family-row' }, [el('span', { class: 'ci-family-name', text: pp.name }), el('span', { class: 'ci-family-members', text: pp.sub })]);
+              b.addEventListener('click', function () {
+                var parts = pSearch.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+                parts.pop();
+                parts.push(pp.name);
+                pSearch.value = parts.join(', ') + ', ';
+                pIds.value = (pIds.value ? pIds.value + ',' : '') + pp.id;
+                pRes.innerHTML = '';
+                pSearch.focus();
+              });
+              ul.appendChild(el('li', {}, [b]));
+            });
+            pRes.appendChild(ul);
+          }).catch(function () {});
+      }, 150);
+    });
+  }
+
+  /* ---------- Print this page ---------- */
+  document.querySelectorAll('[data-print-page]').forEach(function (b) { b.addEventListener('click', function () { window.print(); }); });
+
   /* ---------- Live family search on the station ---------- */
   var search = document.querySelector('[data-family-search]');
   if (search) {

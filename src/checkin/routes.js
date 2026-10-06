@@ -16,6 +16,8 @@ const allergens = require('./allergens');
 const assist = require('./assist');
 const A = require('./automations');
 const social = require('./social');
+const safety = require('./safety');
+const community = require('./community');
 const { intParam, clean, safeNext } = require('../routes/guards');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -32,6 +34,10 @@ function needLogin(req, res) {
 }
 const needRole = (role) => async (req, res, next) => {
   if (needLogin(req, res)) return;
+  if (req.user.checkinLocked) {
+    security.flash(req, 'error', 'Finish your training and policy reading first. Your check-in account unlocks as soon as everything is checked off.');
+    return res.redirect('/checkin/training');
+  }
   if (!D.can(req.user, role)) throw new HttpError(403, role === 'volunteer' ? 'This page is for the check-in team. Ask the church office to add you.' : 'You need a higher check-in role for this page.');
   await next();
 };
@@ -128,6 +134,10 @@ module.exports = (app) => {
   // Everything under /checkin uses the check-in look.
   app.use(async (req, res, next) => {
     req.originalUrl = req.url;
+    // New team members are locked (treated like a family account) until training is done.
+    if (req.user && req.user.checkin_role && req.path.startsWith('/checkin') && await safety.isLocked(req.user)) {
+      req.user = { ...req.user, realRole: req.user.checkin_role, checkin_role: null, checkinLocked: true };
+    }
     // Unread message count for the Inbox badge on check-in pages.
     if (req.user && req.method === 'GET' && req.path.startsWith('/checkin') && !req.path.startsWith('/checkin/api/')) {
       req.ciUnread = await social.unreadCount(req.user.id).catch(() => 0);
@@ -138,6 +148,7 @@ module.exports = (app) => {
   // ---------------------------------------------------------------- station
   app.get('/checkin', async (req, res) => {
     if (needLogin(req, res)) return;
+    if (req.user.checkinLocked) return res.redirect('/checkin/training');
     if (!D.can(req.user, 'volunteer')) return res.redirect('/checkin/family');
     const event = req.query.change ? null : await currentEvent(req);
     req.ciEvent = event;
@@ -265,7 +276,7 @@ module.exports = (app) => {
     const full = await D.familyFull(intParam(req.params.id));
     if (!full) throw new HttpError(404, 'That family was not found.');
     req.ciEvent = await currentEvent(req);
-    render(req, res, V.newKidsFlow({ csrf: res.locals.csrf, full }), { title: full.family.name, tab: 'station' });
+    render(req, res, V.newKidsFlow({ user: req.user, csrf: res.locals.csrf, full }), { title: full.family.name, tab: 'station' });
   });
 
   app.post('/checkin/new/:id/kids', needRole('volunteer'), async (req, res) => {
@@ -279,7 +290,7 @@ module.exports = (app) => {
       allergies: clean(b.allergies, 500) || null, medical_notes: clean(b.medical_notes, 500) || null,
     };
     if (!v.first_name || !v.last_name || (!v.birthdate && !v.class_override)) {
-      return render(req, res, V.newKidsFlow({ csrf: res.locals.csrf, full, error: 'Enter the child’s name and either a birthday or a class.' }), { title: full.family.name, tab: 'station' });
+      return render(req, res, V.newKidsFlow({ user: req.user, csrf: res.locals.csrf, full, error: 'Enter the child’s name and either a birthday or a class.' }), { title: full.family.name, tab: 'station' });
     }
     await savePerson(id, 'child', v);
     res.redirect(`/checkin/new/${id}/kids`);
@@ -348,6 +359,19 @@ module.exports = (app) => {
     res.send(V.labelsPage({ labels, returnTo: back, embed: req.query.embed === '1' }).toString());
   });
 
+  // Test tags: check the printer, paper and colors without checking anyone in.
+  app.get('/checkin/print/test', needRole('volunteer'), async (req, res) => {
+    const at = new Date();
+    const when = `${t.fmtDate(at)} · ${t.fmtTime(at)}`;
+    const labels = [
+      { kind: 'child', first: 'Test', cls: 'Kids', allergies: ['peanut', 'milk'], allergyText: 'Peanuts, milk (sample)', medical: true, code: 'TEST', when },
+      { kind: 'parent', family: 'Test print', kids: 'This is a sample pickup tag', code: 'TEST', when: `Test print · ${when}` },
+    ];
+    if (req.query.one === '1') labels.pop();
+    D.audit(req.user, 'test_print');
+    res.send(V.labelsPage({ labels, returnTo: safeNext(req.query.return) || '/checkin/print-queue', embed: req.query.embed === '1' }).toString());
+  });
+
   // Reprint from the roster (goes through the queue like any other print).
   app.post('/checkin/reprint', needRole('volunteer'), async (req, res) => {
     const event = await eventById(req.body.event_id);
@@ -405,9 +429,12 @@ module.exports = (app) => {
 
   app.post('/checkin/checkout-all', needRole('volunteer'), async (req, res) => {
     const event = await eventById(req.body.event_id);
-    const rows = await db.many(`${ROSTER_SQL} WHERE a.event_id = $1 AND a.checked_out_at IS NULL AND p.kind = 'child'`, [event.id]);
+    // Kids and the parents who checked in with them all go out together.
+    const rows = await db.many(`${ROSTER_SQL} WHERE a.event_id = $1 AND a.checked_out_at IS NULL`, [event.id]);
     await checkout(rows, req.user.id, 'Check out all', event);
-    security.flash(req, 'ok', `${rows.length} ${rows.length === 1 ? 'child' : 'children'} checked out.`);
+    const kids = rows.filter((r) => r.kind === 'child').length;
+    const adults = rows.length - kids;
+    security.flash(req, 'ok', `${kids} ${kids === 1 ? 'child' : 'children'}${adults ? ` and ${adults} ${adults === 1 ? 'adult' : 'adults'}` : ''} checked out.`);
     res.redirect('/checkin/roster');
   });
 
@@ -447,6 +474,11 @@ module.exports = (app) => {
     const ids = [].concat(req.body.attendance || []).map(Number).filter(Boolean);
     const rows = ids.length ? await db.many(`${ROSTER_SQL} WHERE a.id = ANY($1::int[]) AND a.event_id = $2 AND a.checked_out_at IS NULL`, [ids, event.id]) : [];
     await checkout(rows, req.user.id, clean(req.body.to, 120) || 'Approved by a leader', event);
+    // When a family's last child goes home, their parents are checked out too.
+    for (const familyId of new Set(rows.map((r) => r.family_id))) {
+      const kidsLeft = await db.one(`SELECT count(*)::int AS n FROM attendance a JOIN people p ON p.id = a.person_id WHERE a.event_id = $1 AND a.family_id = $2 AND a.checked_out_at IS NULL AND p.kind = 'child'`, [event.id, familyId]);
+      if (!kidsLeft.n) await db.query(`UPDATE attendance a SET checked_out_at = now(), checked_out_by = $3, checked_out_to = 'With their children' FROM people p WHERE p.id = a.person_id AND p.kind = 'adult' AND a.event_id = $1 AND a.family_id = $2 AND a.checked_out_at IS NULL`, [event.id, familyId, req.user.id]);
+    }
     security.flash(req, rows.length ? 'ok' : 'error', rows.length ? `Released ${rows.map((r) => r.preferred_name || r.first_name).join(', ')}.` : 'No children were selected.');
     res.redirect('/checkin/scan');
   });
@@ -475,6 +507,7 @@ module.exports = (app) => {
       Object.assign(v, {
         relationship: clean(b.relationship, 40) || null, email: clean(b.email, 200).toLowerCase() || null, phone: clean(b.phone, 40) || null,
         contact_method: ['app', 'email', 'phone'].includes(b.contact_method) ? b.contact_method : 'app', is_primary: yes(b.is_primary),
+        anniversary: dateOrNull(b.anniversary),
       });
     } else {
       Object.assign(v, {
@@ -549,7 +582,7 @@ module.exports = (app) => {
     if (!person) throw new HttpError(404, 'That person was not found.');
     const family = await db.one('SELECT * FROM families WHERE id = $1', [person.family_id]);
     D.audit(req.user, 'view_person', { familyId: family.id, personId: person.id });
-    render(req, res, V.personPage({ csrf: res.locals.csrf, user: req.user, family, person, isNew: false }), { title: D.displayName(person), tab: 'families' });
+    render(req, res, V.personPage({ csrf: res.locals.csrf, user: req.user, family, person, isNew: false, back: safeNext(req.query.back) || null }), { title: D.displayName(person), tab: 'families' });
   });
 
   app.post('/checkin/people/:id', needRole('leader'), async (req, res) => {
@@ -560,7 +593,7 @@ module.exports = (app) => {
     await savePerson(person.family_id, person.kind, v, person.id);
     D.audit(req.user, 'edit_person', { familyId: person.family_id, personId: person.id });
     security.flash(req, 'ok', 'Saved.');
-    res.redirect(`/checkin/families/${person.family_id}`);
+    res.redirect(safeNext(req.body.back) || `/checkin/families/${person.family_id}`);
   });
 
   // ---- Photos (one per person). The check-in team can add them at the desk; parents for their own family.
@@ -733,8 +766,10 @@ module.exports = (app) => {
       [fid, clean(b.family_name, 120) || full.family.name, clean(b.address, 200) || null, clean(b.city, 80) || null, clean(b.state, 20) || null, clean(b.zip, 20) || null]);
     const me = full.adults.find((a) => a.user_id === req.user.id);
     if (me) {
-      await db.query('UPDATE people SET relationship = $2, phone = $3, contact_method = $4, birthdate = $5, email = COALESCE(email, $6), updated_at = now() WHERE id = $1',
-        [me.id, clean(b.relationship, 40) || 'Parent', clean(b.phone, 40) || null, ['app', 'email', 'phone'].includes(b.contact_method) ? b.contact_method : 'app', dateOrNull(b.birthdate), req.user.email]);
+      await db.query('UPDATE people SET relationship = $2, phone = $3, contact_method = $4, birthdate = $5, email = COALESCE(email, $6), anniversary = $7, updated_at = now() WHERE id = $1',
+        [me.id, clean(b.relationship, 40) || 'Parent', clean(b.phone, 40) || null, ['app', 'email', 'phone'].includes(b.contact_method) ? b.contact_method : 'app', dateOrNull(b.birthdate), req.user.email, dateOrNull(b.anniversary)]);
+      // A spouse in the family shares the anniversary unless they've set their own.
+      if (dateOrNull(b.anniversary)) await db.query(`UPDATE people SET anniversary = $2 WHERE family_id = $1 AND kind = 'adult' AND id <> $3 AND anniversary IS NULL AND relationship IN ('Mother', 'Father', 'Parent', 'Stepparent')`, [fid, dateOrNull(b.anniversary), me.id]);
     }
     const ofirst = nameCase(b.other_first_name);
     if (ofirst) {
@@ -957,7 +992,7 @@ module.exports = (app) => {
 
   app.get('/checkin/api/help', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
-    res.json(assist.topicsFor(req.user).filter((tp) => !tp.page || !/\/(events|staff|reports|automations)/.test(tp.page) || D.can(req.user, /staff|reports|automations/.test(tp.page) ? 'coadmin' : 'leader'))
+    res.json(assist.topicsFor(req.user).filter((tp) => !tp.page || !/\/(events|staff|reports|automations|broadcast)/.test(tp.page) || D.can(req.user, /staff|reports|automations|broadcast/.test(tp.page) ? 'coadmin' : 'leader'))
       .map((tp) => ({ id: tp.id, title: tp.title, steps: tp.steps, keys: tp.keys, url: tp.page && !/\/f$/.test(tp.page) ? tp.page : null, tour: tp.tour || null })));
   });
 
@@ -1054,8 +1089,8 @@ module.exports = (app) => {
 
   app.get('/checkin/policies', async (req, res) => {
     if (needLogin(req, res)) return;
-    const staff = D.can(req.user, 'volunteer');
-    const rows = await db.many(`SELECT id, title, description, filename, mime, size, audience, requires_ack, updated_at FROM policies
+    const staff = D.isTeam(req.user);
+    const rows = await db.many(`SELECT id, title, description, filename, mime, size, audience, requires_ack, updated_at, (body IS NOT NULL AND body <> '') AS has_body FROM policies
       ${staff ? '' : "WHERE audience = 'everyone'"} ORDER BY title`);
     const acks = new Set((await db.many('SELECT policy_id FROM policy_acks WHERE user_id = $1', [req.user.id])).map((r) => r.policy_id));
     const ackReport = {};
@@ -1067,7 +1102,7 @@ module.exports = (app) => {
         ackReport[p.id] = { total: team.length, done: team.filter((u) => done.has(u.id)), missing: team.filter((u) => !done.has(u.id)).map((u) => `${u.first_name} ${u.last_name}`) };
       }
     }
-    req.ciEvent = staff ? await currentEvent(req) : null;
+    req.ciEvent = D.can(req.user, 'volunteer') ? await currentEvent(req) : null;
     render(req, res, V.policiesPage({ csrf: res.locals.csrf, user: req.user, rows, acks, ackReport }), { title: 'Policies', tab: 'policies' });
   });
 
@@ -1083,10 +1118,12 @@ module.exports = (app) => {
       if (data.length > 15 * 1024 * 1024) { security.flash(req, 'error', 'That file is over 15 MB.'); return res.redirect('/checkin/policies'); }
       file = { name, mime: POLICY_TYPES[ext], data };
     }
+    const body = String(req.body.body || '').replace(/\r/g, '').trim().slice(0, 100000);
     if (!title) { security.flash(req, 'error', 'Give the policy a title.'); return res.redirect('/checkin/policies'); }
-    await db.query(`INSERT INTO policies (title, description, filename, mime, data, size, audience, requires_ack, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    if (!file && !body) { security.flash(req, 'error', 'Attach a file or type the policy text.'); return res.redirect('/checkin/policies'); }
+    await db.query(`INSERT INTO policies (title, description, filename, mime, data, size, audience, requires_ack, created_by, body) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [title, clean(req.body.description, 300) || null, file && file.name, file && file.mime, file && file.data, file ? file.data.length : null,
-        req.body.audience === 'everyone' ? 'everyone' : 'team', yes(req.body.requires_ack), req.user.id]);
+        req.body.audience === 'everyone' ? 'everyone' : 'team', yes(req.body.requires_ack), req.user.id, body || null]);
     security.flash(req, 'ok', `Added “${title}”.`);
     res.redirect('/checkin/policies');
   });
@@ -1094,7 +1131,7 @@ module.exports = (app) => {
   app.get('/checkin/policies/:id/file', async (req, res) => {
     if (needLogin(req, res)) return;
     const p = await db.one('SELECT * FROM policies WHERE id = $1', [intParam(req.params.id)]);
-    if (!p || !p.data || (p.audience !== 'everyone' && !D.can(req.user, 'volunteer'))) throw new HttpError(404, 'That document was not found.');
+    if (!p || !p.data || (p.audience !== 'everyone' && !D.isTeam(req.user))) throw new HttpError(404, 'That document was not found.');
     res.setHeader('Content-Type', p.mime || 'application/octet-stream');
     res.setHeader('Content-Disposition', `${/pdf|image|text/.test(p.mime) ? 'inline' : 'attachment'}; filename="${p.filename.replace(/"/g, '')}"`);
     res.setHeader('Cache-Control', 'private, max-age=300');
@@ -1103,9 +1140,10 @@ module.exports = (app) => {
 
   app.post('/checkin/policies/:id/ack', async (req, res) => {
     if (needLogin(req, res)) return;
+    if (req.body.confirm !== '1') { security.flash(req, 'error', 'Tick the box to confirm you read it.'); return res.redirect(`/checkin/policies/${intParam(req.params.id)}`); }
     await db.query('INSERT INTO policy_acks (policy_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [intParam(req.params.id), req.user.id]);
     security.flash(req, 'ok', 'Thank you. Marked as read.');
-    res.redirect('/checkin/policies');
+    res.redirect(req.user.checkinLocked ? '/checkin/training' : '/checkin/policies');
   });
 
   app.post('/checkin/policies/:id/delete', needRole('coadmin'), async (req, res) => {
@@ -1264,4 +1302,8 @@ module.exports = (app) => {
 
   // Inbox, Settings and Automations.
   social.routes(app, { render, needLogin, needRole, currentEvent });
+  // Training, required policies, incident reports and the admin dashboard.
+  safety.routes(app, { render, needLogin, needRole, currentEvent });
+  // Group messages and the Prayer Wall.
+  community.routes(app, { render, needLogin, needRole, currentEvent });
 };

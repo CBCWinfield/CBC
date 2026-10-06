@@ -119,7 +119,23 @@ Check-in lives in the same Render service as the library, at `/checkin`, and ins
 
 **Automations (co-admins):** welcome email on sign-up (with a link to their account and the church's address, phone and email), check-in and pickup notices, unread-message emails, and birthday, Christmas and Easter greetings. Each can be turned off, reworded and test-sent.
 
-**Policies** (upload PDFs/Word docs), **Serving calendar** (Nursery, Toddlers, Kids, Teens and Adults for every service; admins can import a CSV), **Ask** (search bar) and **HELP** (guides with "Show me" tours) are in the header and More menu.
+**Training and required policies:** new team members are locked out of check-in (they see only family features) until they read every policy marked *Required* and finish five short lessons: recognizing abuse and neglect; preventing sexual abuse and grooming; responding to a disclosure and reporting in Kansas; conduct and boundaries; and what to say and what not to say. Lessons draw on HHS/Child Welfare Information Gateway, the CDC, Darkness to Light, Committee for Children, RAINN, Kansas DCF and Southern Baptist resources (ERLC Caring Well videos, embedded from Vimeo; SBC Abuse Prevention). Each page must be scrolled to the end and every box ticked. The primary admin is exempt; admins can *Waive* someone trained elsewhere. Lesson text lives in `src/checkin/training.js` (bump a lesson's `version` to make everyone retake it).
+
+**Admin dashboard (co-admins):** a table of every team member's policy and lesson completion with dates, recent incident reports, group-message responses, and counts of reported messages and prayer requests.
+
+**Incident reports:** any team member files one (type, severity, who, what happened, action taken, first aid, parent notified, authorities contacted). Admins are notified, can add private notes and mark reports reviewed or closed. The form shows Kansas reporting steps (911; Kansas Protection Report Center 1-800-922-5330).
+
+**Group messages (co-admins):** pick groups (whole team, volunteers, leaders, admins, parents, everyone, or people serving on a date) and/or individuals, start from a ready-made message (e.g. "Team meeting at 5:30 PM, click to confirm") or save your own, and send. Each person gets it in their Inbox with confirm/decline buttons; responses are tallied, with a one-tap reminder for those who haven't answered.
+
+**Prayer Wall:** anyone with an account can post a request (optionally anonymous or team-only), tap 🙏 "I'm praying" (with a running count), comment, and mark it answered with a praise report.
+
+**Check-out:** "Check out everyone" releases kids and their parents. Releasing a family's last child at pickup checks their parents out too. Anyone still checked in 6 hours after the service started (Sunday School 9:30, Children's Church 10:45, Wednesday 6:00 PM, or the first check-in for other events) is checked out automatically.
+
+**Anniversaries:** adults can add a wedding anniversary (family setup or the person page); the Happy anniversary automation emails them.
+
+**Names:** clicking a person's name anywhere (roster, check-in, pickup, family pages) opens their edit screen for leaders and admins, and returns you to where you were after saving. The Printing page has **Print a test tag**.
+
+**Policies** (upload PDFs/Word docs or type the text), **Serving calendar** (Nursery, Toddlers, Kids, Teens and Adults for every service; admins can import a CSV), **Ask** (search bar) and **HELP** (guides with "Show me" tours) are in the header and More menu.
 
 **Families sign up from home:** Families › Email a sign-up link. The parent creates a login and walks through five steps: family, children, health & safety, emergency contacts & pickups, and permission forms. Each signature is stored with the exact wording, date, time and signer. Have a Kansas attorney or the church's insurer review the wording in `src/checkin/agreements.js`.
 
