@@ -149,6 +149,8 @@ class Browser {
   // Team: create a volunteer; volunteer can check in but not manage families or team
   r = await admin.post('/checkin/staff/create', { first_name: 'Val', last_name: 'Helper', email: 'val@example.com', role: 'volunteer' });
   const temp = /code-big">([a-z]+-[a-z]+-\d+)</.exec(r.body)[1];
+  assert.match(r.body, /emailed them a welcome message/);
+  assert.strictEqual(sql(`SELECT (reset_expires > now() + interval '6 days')::text FROM users WHERE email = 'val@example.com'`), 'true', 'set-password link good for 7 days');
   const vol = new Browser();
   // Admin adds a required, written policy
   await admin.post('/checkin/policies', { title: 'Child Safety Policy', body: '# Two adults\n\nTwo adults in every room.\n\n- Doors open\n- No one-on-one', audience: 'team', requires_ack: '1' });

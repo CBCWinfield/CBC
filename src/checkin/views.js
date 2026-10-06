@@ -666,7 +666,7 @@ function staffPage({ csrf, user, staff, tempPassword, created }) {
   return html`
   <h1>Check-in team</h1>
   <p class="muted">Volunteers check families in and out and see allergy and medical notes. Leaders also edit families and see custody details. Co-admins manage the team and reports. The primary admin can do everything.</p>
-  ${tempPassword ? html`<div class="card card-note" role="status"><h2>Account created</h2><p>${created}'s temporary password: <strong class="code-big">${tempPassword}</strong></p><p class="small">They can change it after logging in. This is the only time it's shown.</p></div>` : ''}
+  ${tempPassword ? html`<div class="card card-note" role="status"><h2>Account created</h2><p>${created}'s temporary password: <strong class="code-big">${tempPassword}</strong></p><p class="small">We emailed them a welcome message with a link to set their own password (good for 7 days). Share this temporary password only if the email doesn’t arrive. This is the only time it’s shown.</p></div>` : ''}
   <div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Role</th><th>Email</th><th></th></tr></thead><tbody>
   ${staff.map((s) => html`<tr><td>${s.first_name} ${s.last_name}</td><td>${D.ROLE_LABEL[s.checkin_role]}</td><td>${s.email}</td>
     <td class="actions">${s.id !== user.id && (D.can(user, 'admin') || D.RANK[s.checkin_role] < D.RANK.coadmin) ? html`

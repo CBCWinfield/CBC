@@ -76,6 +76,24 @@ module.exports = {
     });
   }),
 
+  // New or existing person added to the check-in team. `link` sets their password (new accounts).
+  staffWelcome: safe(async ({ email, firstName, role, link, invitedBy, isNew }) => {
+    await mailer.send({
+      to: email,
+      libraryName: CHURCH,
+      footer: FOOTER,
+      subject: 'Welcome to the Central Kids & Teens team',
+      heading: `Welcome to the team, ${esc(firstName)}!`,
+      paragraphs: [
+        `${invitedBy ? `${esc(invitedBy)} added you` : 'You’ve been added'} to the Central Baptist Church check-in team as a <strong>${esc(role)}</strong>. Thank you for serving our kids and teens!`,
+        isNew ? 'First, use the button below to set your password. The link works for 7 days.' : 'Log in with your existing Central account (the same one you use for the library).',
+        'Before you can check kids in, please read the Teens &amp; Kids Ministry Manual and complete the short child-protection and CPR lessons under <strong>More › Training</strong>. Your check-in access unlocks automatically when everything is checked off.',
+        'Tip: add the Central app to your phone’s home screen so you get messages and notifications.',
+      ],
+      button: { label: isNew ? 'Set my password' : 'Open Central Check-In', url: link },
+    });
+  }),
+
   welcome: safe(async ({ user, familyName }) => {
     await mailer.send({
       to: user.email,

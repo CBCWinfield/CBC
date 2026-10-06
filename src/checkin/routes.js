@@ -900,8 +900,10 @@ module.exports = (app) => {
     const u = await users.byEmail(clean(req.body.email, 200));
     if (!u) { security.flash(req, 'error', 'No account has that email. Use “Create a new account”.'); return res.redirect('/checkin/staff'); }
     if (!roleAllowed(req.user, req.body.role)) throw new HttpError(403, 'You can’t give that role.');
+    const wasStaff = Boolean(u.checkin_role);
     await db.query('UPDATE users SET checkin_role = $2 WHERE id = $1', [u.id, req.body.role]);
     D.audit(req.user, 'set_role', { detail: `${u.email} -> ${req.body.role}` });
+    if (!wasStaff) N.staffWelcome({ email: u.email, firstName: u.first_name, role: D.ROLE_LABEL[req.body.role], link: url('/checkin'), invitedBy: `${req.user.first_name} ${req.user.last_name}`, isNew: false });
     security.flash(req, 'ok', `${u.first_name} ${u.last_name} is now a ${D.ROLE_LABEL[req.body.role].toLowerCase()}.`);
     res.redirect('/checkin/staff');
   });
@@ -912,8 +914,11 @@ module.exports = (app) => {
     if (!EMAIL_RE.test(email) || !nameCase(req.body.first_name) || !nameCase(req.body.last_name)) { security.flash(req, 'error', 'Name and a valid email are required.'); return res.redirect('/checkin/staff'); }
     if (await users.byEmail(email)) { security.flash(req, 'error', 'That email already has an account. Use “Add someone who already has an account”.'); return res.redirect('/checkin/staff'); }
     const temp = security.tempPassword();
-    await db.query(`INSERT INTO users (email, password_hash, first_name, last_name, status, library_code, approved_at, checkin_role) VALUES ($1, $2, $3, $4, 'approved', $5, now(), $6)`,
-      [email, await security.hashPassword(temp), nameCase(req.body.first_name), nameCase(req.body.last_name), await users.nextCode(), req.body.role]);
+    const tok = security.token(24);
+    await db.query(`INSERT INTO users (email, password_hash, first_name, last_name, status, library_code, approved_at, checkin_role, reset_token_hash, reset_expires) VALUES ($1, $2, $3, $4, 'approved', $5, now(), $6, $7, now() + interval '7 days')`,
+      [email, await security.hashPassword(temp), nameCase(req.body.first_name), nameCase(req.body.last_name), await users.nextCode(), req.body.role, security.sha256(tok)]);
+    // Email them a link to set their own password (the temporary one is shown as a backup).
+    N.staffWelcome({ email, firstName: nameCase(req.body.first_name), role: D.ROLE_LABEL[req.body.role], link: url(`/reset/${tok}`), invitedBy: `${req.user.first_name} ${req.user.last_name}`, isNew: true });
     D.audit(req.user, 'create_staff', { detail: `${email} -> ${req.body.role}` });
     const staff = await db.many(`SELECT id, first_name, last_name, email, checkin_role FROM users WHERE checkin_role IS NOT NULL ORDER BY last_name`);
     render(req, res, V.staffPage({ csrf: res.locals.csrf, user: req.user, staff, tempPassword: temp, created: `${nameCase(req.body.first_name)} ${nameCase(req.body.last_name)}` }), { title: 'Team', tab: 'staff' });
