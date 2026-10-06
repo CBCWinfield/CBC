@@ -80,7 +80,7 @@ const books = {
 };
 
 const USER_COLS = `id, email, first_name, last_name, phone, address, city, state, zip, about, role, status,
-  library_code, notify_email, created_at, approved_at, last_login_at, checkin_role, prefs, training_waived_at`;
+  library_code, notify_email, created_at, approved_at, last_login_at, checkin_role, prefs, training_waived_at, signup_source, privacy_accepted_at`;
 
 const users = {
   get: (id) => db.one(`SELECT ${USER_COLS} FROM users WHERE id = $1`, [id]),
@@ -95,6 +95,15 @@ const users = {
     const r = await db.one("SELECT nextval('library_code_seq')::int AS n");
     return `CBC-${r.n}`;
   },
+  // Approve a membership application: gives them a library card number.
+  async approve(user) {
+    const code = user.library_code || await users.nextCode();
+    await db.query("UPDATE users SET status = 'approved', library_code = $2, approved_at = COALESCE(approved_at, now()) WHERE id = $1", [user.id, code]);
+    return users.get(user.id);
+  },
+  pendingCount: async () => (await db.one("SELECT count(*)::int AS n FROM users WHERE status = 'pending'")).n,
+  // Check-in admins and co-admins can approve memberships too.
+  checkinAdmins: () => db.many(`SELECT id, email, notify_email FROM users WHERE checkin_role IN ('admin', 'coadmin') AND status = 'approved'`),
   activeCount: async (userId) => (await db.one(`SELECT count(*)::int AS n FROM checkouts WHERE user_id = $1 AND ${ACTIVE}`, [userId])).n,
 };
 

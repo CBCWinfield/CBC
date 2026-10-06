@@ -14,7 +14,7 @@ const fmtDateKey = (k) => t.fmtLong(t.zoned(...k.split('-').map(Number), 12));
 const dateKeyOf = (d) => (d instanceof Date ? t.dateKey(d) : String(d).slice(0, 10));
 
 // ---------------------------------------------------------------- layout
-function layout({ title, user, csrf, flash = [], body, tab, event, bare = false, unread = 0, prayerNew = 0 }) {
+function layout({ title, user, csrf, flash = [], body, tab, event, bare = false, unread = 0, prayerNew = 0, pendingMembers = 0 }) {
   const staff = D.rank(user) > 0;
   const tabs = staff ? [
     ['/checkin', 'Check in', 'station', '✓'],
@@ -25,7 +25,7 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
   ] : [];
   // Everything else lives in the "More" menu.
   const more = [];
-  if (D.can(user, 'coadmin')) more.push(['/checkin/admin', 'Admin dashboard', 'admin']);
+  if (D.can(user, 'coadmin')) more.push(['/checkin/admin', 'Admin dashboard', 'admin'], ['/checkin/members', pendingMembers ? `Membership requests (${pendingMembers})` : 'Membership requests', 'members']);
   if (staff) more.push(['/checkin/serve', 'Serving calendar', 'serve'], ['/checkin/incidents', 'Incident reports', 'incidents']);
   if (D.isTeam(user)) more.push(['/checkin/training', user.checkinLocked ? 'Training (to do)' : 'Training', 'training']);
   if (D.can(user, 'leader')) more.push(['/checkin/events', 'Events', 'events']);
@@ -49,8 +49,8 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=Montserrat:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="/css/style.css?v=7">
-<link rel="stylesheet" href="/css/checkin.css?v=9">
+<link rel="stylesheet" href="/css/style.css?v=9">
+<link rel="stylesheet" href="/css/checkin.css?v=10">
 <script src="/js/app.js?v=7" defer></script>
 <script src="/js/checkin.js?v=8" defer></script>
 </head>
@@ -69,7 +69,7 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
       <a class="ci-inbox-link ci-prayer-link" href="/checkin/prayer"${tab === 'prayer' ? raw(' aria-current="page"') : ''} title="Prayer Wall"><span aria-hidden="true" class="ci-prayer-icon">🙏</span><span class="ci-inbox-word">Prayer</span>${prayerNew ? html`<span class="ci-unread ci-unread-prayer" aria-label="${prayerNew} new prayer requests">${prayerNew > 99 ? '99+' : prayerNew}</span>` : ''}</a>
       <a class="ci-inbox-link" href="/checkin/inbox"${tab === 'inbox' ? raw(' aria-current="page"') : ''} title="Inbox"><span aria-hidden="true">✉</span><span class="ci-inbox-word">Inbox</span>${unread ? html`<span class="ci-unread" aria-label="${unread} unread">${unread > 99 ? '99+' : unread}</span>` : ''}</a>
       <details class="ci-more">
-        <summary class="${more.some(([, , key]) => key === tab) ? 'is-current' : ''}">More <span aria-hidden="true">▾</span></summary>
+        <summary class="${more.some(([, , key]) => key === tab) ? 'is-current' : ''}">More${pendingMembers ? html` <span class="ci-unread" aria-label="${pendingMembers} membership requests">${pendingMembers}</span>` : ''} <span aria-hidden="true">▾</span></summary>
         <div class="ci-more-menu">
           ${more.map(([href, label, key]) => html`<a href="${href}"${tab === key ? raw(' aria-current="page"') : ''}>${label}</a>`)}
           <form method="post" action="/logout">${csrfField(csrf)}<button class="linklike" type="submit">Log out</button></form>
@@ -100,9 +100,21 @@ ${user && user.checkinLocked && tab !== 'training' ? html`<div class="ci-alert c
 ${flash.length ? html`<div class="flashes">${flash.map((f) => html`<p class="flash flash-${f.type}" role="${f.type === 'error' ? 'alert' : 'status'}">${f.message}</p>`)}</div>` : ''}
 ${body}
 </main>
+<footer class="ci-foot">${require('../lib/privacy').links()}</footer>
 ${tabs.length ? html`<nav class="ci-tabbar" aria-label="Check-in sections">${tabs.map(([href, label, key, icon]) => html`<a href="${href}"${tab === key ? raw(' aria-current="page"') : ''}><span aria-hidden="true">${icon}</span>${label}</a>`)}</nav>` : ''}
 </body>
 </html>`;
+}
+
+// Shown to people whose membership application is still waiting for approval.
+function pendingPage({ user, what = 'this' }) {
+  return html`<div class="ci-narrow pending-wait">
+    <div class="pending-icon" aria-hidden="true">⏳</div>
+    <h1>Almost there, ${user.first_name}!</h1>
+    <p>Your membership application is waiting for approval. Once the librarian or a church admin approves it, usually within a day or two, you’ll get an email with your library card number and can use ${what}.</p>
+    <p class="muted">Applied with ${user.email}. Questions? Call the church office at (620) 221-2980.</p>
+    <p class="pending-links"><a class="btn" href="/checkin/welcome/family">Set up my family meanwhile</a> <a class="btn btn-quiet" href="/catalog">Browse the library</a></p>
+  </div>`;
 }
 
 // ---------------------------------------------------------------- shared bits
@@ -870,8 +882,10 @@ function joinPage({ csrf, invite, email, error, loggedIn }) {
       <div class="row"><div class="field"><label for="j-first">Your first name</label><input id="j-first" name="first_name" required autocomplete="given-name"></div><div class="field"><label for="j-last">Last name</label><input id="j-last" name="last_name" required autocomplete="family-name"></div></div>
       <div class="field"><label for="j-email">Email</label><input id="j-email" name="email" type="email" value="${email || ''}" required autocomplete="email"></div>
       <div class="field"><label for="j-pw">Create a password</label><input id="j-pw" name="password" type="password" minlength="8" required autocomplete="new-password"><p class="hint">At least 8 characters.</p></div>
-      <button class="btn ci-big-btn" type="submit">Create my account</button>
-      <p class="small">Already have a login for the church library? <a href="/login?next=/checkin/join/${invite}">Log in</a> and come back to this link.</p>
+      ${require('../lib/privacy').notice()}
+      <label class="check consent"><input type="checkbox" name="privacy" value="1" required> <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>, and I’m 18 or older.</span></label>
+      <button class="btn ci-big-btn" type="submit">Create my membership account</button>
+      <p class="small">This also gives you a library card number for the church library. Already have an account? <a href="/login?next=/checkin/join/${invite}">Log in</a> and come back to this link.</p>
     </form>`}
   </section>`;
 }
@@ -1028,6 +1042,7 @@ function installPage() {
 }
 
 module.exports = {
+  pendingPage,
   layout, eventPicker, station, familyCheckin, labelsPage, printQueue, eventsPage, newFamilyFlow, newKidsFlow, guestPage, roster, scanPage, familiesPage, familyAdmin, personPage, newFamilyPage,
   invitePage, staffPage, reportsPage, policiesPage, servingMonth, servingDay, servingImport, AREAS, joinPage, wizard, familyHome, installPage, familyRow, STEPS,
 };

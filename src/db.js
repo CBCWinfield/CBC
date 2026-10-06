@@ -606,6 +606,14 @@ const MIGRATIONS = [
       );
     `,
   },
+  {
+    // One membership account for library, Prayer Wall and check-in: privacy consent + where they signed up.
+    version: 10,
+    sql: `
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS privacy_accepted_at timestamptz;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS signup_source text;
+    `,
+  },
 ];
 
 async function migrate() {

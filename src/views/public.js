@@ -1,5 +1,6 @@
 'use strict';
 const { html, raw, selected, checked } = require('../lib/html');
+const Privacy = require('../lib/privacy');
 const P = require('./parts');
 const t = require('../lib/time');
 const { describeDays } = require('../settings');
@@ -14,7 +15,7 @@ function landing({ s, recent, counts, categories, user }) {
       <p class="lede">${s.welcome_message}</p>
       <div class="actions">
         ${user ? html`<a class="btn" href="/catalog">Browse the catalog</a><a class="btn btn-quiet" href="/my">My Library</a>`
-          : html`<a class="btn" href="/apply">Apply for a library account</a><a class="btn btn-quiet" href="/catalog">Browse the catalog</a>`}
+          : html`<a class="btn" href="/apply">Apply for a membership account</a><a class="btn btn-quiet" href="/catalog">Browse the catalog</a>`}
       </div>
       ${counts.n ? html`<p class="hero-count">${counts.n.toLocaleString()} titles on the shelves</p>` : ''}
     </div>
@@ -24,7 +25,7 @@ function landing({ s, recent, counts, categories, user }) {
   <section class="how">
     <h2>How borrowing works</h2>
     <ol class="steps">
-      <li><h3>Apply</h3><p>Fill out a short form. ${s.auto_approve ? 'You’re approved right away' : 'Once the librarian approves you'}, you’ll get a library code by email.</p></li>
+      <li><h3>Apply</h3><p>Fill out a short form for your free membership account. ${s.auto_approve ? 'You’re approved right away' : 'Once you’re approved'}, you’ll get your library card number by email.</p></li>
       <li><h3>Reserve</h3><p>Find a book, choose <em>Check out</em>, enter your library code and pick a pickup time.</p></li>
       <li><h3>Pick up</h3><p>Come by the church library ${hours(s)}. Keep books for ${s.checkout_days} days.</p></li>
     </ol>
@@ -147,48 +148,81 @@ function checkoutPage({ book, days, user, csrf, s, error, values = {} }) {
   </form>`;
 }
 
-function applyPage({ csrf, values = {}, errors = {}, s }) {
+// Where someone started signing up from, so the page speaks to what they came for.
+function signupContext(next) {
+  const n = String(next || '');
+  if (n.startsWith('/checkin/prayer')) return { key: 'prayer', icon: '🙏', eyebrow: 'Prayer Wall', lead: 'Create your free membership account to share prayer requests and pray with your church family.' };
+  if (n.startsWith('/checkin')) return { key: 'family', icon: '👨‍👩‍👧', eyebrow: 'Family check-in', lead: 'Create your free membership account, then add your family for faster check-in on Sundays and Wednesdays.' };
+  return { key: 'library', icon: '📚', eyebrow: 'Library', lead: 'Create your free membership account to borrow books, Bibles and devotionals from the church library.' };
+}
+
+const PERKS = [['📚', 'Library', 'Your own library card number to reserve and borrow books'], ['🙏', 'Prayer Wall', 'Share requests and pray for others'], ['👨‍👩‍👧', 'Family check-in', 'Faster, safer check-in for your kids'], ['💬', 'Messages', 'Stay in touch with families and the church team']];
+
+function applyPage({ csrf, values = {}, errors = {}, s, next = '' }) {
+  const ctx = signupContext(next);
   const f = (name, label, opts = {}) => html`<div class="field${opts.cls ? ' ' + opts.cls : ''}">
     <label for="a-${name}">${label}${opts.optional ? html` <span class="muted">(optional)</span>` : ''}</label>
     <input id="a-${name}" name="${name}" type="${opts.type || 'text'}" value="${opts.type === 'password' ? '' : values[name] || ''}"${opts.optional ? '' : raw(' required')}${opts.auto ? raw(` autocomplete="${opts.auto}"`) : ''}${errors[name] ? raw(` aria-invalid="true" aria-describedby="e-${name}"`) : ''}>
     ${errors[name] ? html`<p class="error" id="e-${name}">${errors[name]}</p>` : ''}
     ${opts.hint ? html`<p class="hint">${opts.hint}</p>` : ''}
   </div>`;
+  const tick = (name, label) => html`<div class="field"><label class="check consent"><input type="checkbox" name="${name}" value="1"${values[name] ? raw(' checked') : ''} required${errors[name] ? raw(` aria-invalid="true" aria-describedby="e-${name}"`) : ''}> <span>${label}</span></label>
+    ${errors[name] ? html`<p class="error" id="e-${name}">${errors[name]}</p>` : ''}</div>`;
   return html`
-  <div class="narrow">
-    <div class="page-head"><h1>Apply for a library account</h1>
-    <p>The library is free and open to the public. ${s.auto_approve ? 'Your account is approved as soon as you apply.' : 'The librarian reviews each application, usually within a few days.'} Once approved, you'll get a library code by email.</p></div>
-    <form method="post" action="/apply" class="stack" novalidate>
-      ${P.csrfField(csrf)}
+  <div class="narrow join">
+    <div class="join-head">
+      <p class="join-eyebrow"><span aria-hidden="true">${ctx.icon}</span> ${ctx.eyebrow}</p>
+      <h1>Apply for a membership account</h1>
+      <p class="join-lead">${ctx.lead}</p>
+    </div>
+    <div class="join-perks" aria-label="One account for everything at Central">${PERKS.map(([i, t, d]) => html`<div class="join-perk${ctx.eyebrow === t ? ' is-here' : ''}"><span aria-hidden="true">${i}</span><strong>${t}</strong><small>${d}</small></div>`)}</div>
+    <ol class="join-steps">
+      <li><strong>Apply</strong><span>About two minutes</span></li>
+      <li><strong>Get approved</strong><span>${s.auto_approve ? 'Right away' : 'By the librarian or a church admin, usually within a day or two'}</span></li>
+      <li><strong>You’re in</strong><span>Your library card number arrives by email</span></li>
+    </ol>
+    <form method="post" action="/apply" class="stack join-form" novalidate>
+      ${P.csrfField(csrf)}<input type="hidden" name="next" value="${next}">
       <div class="row">${f('first_name', 'First name', { auto: 'given-name' })}${f('last_name', 'Last name', { auto: 'family-name' })}</div>
       ${f('email', 'Email', { type: 'email', auto: 'email' })}
       ${f('phone', 'Phone', { type: 'tel', auto: 'tel' })}
       ${f('address', 'Street address', { auto: 'street-address' })}
       <div class="row">${f('city', 'City', { auto: 'address-level2' })}${f('state', 'State', { auto: 'address-level1', cls: 'short' })}${f('zip', 'ZIP', { auto: 'postal-code', cls: 'short' })}</div>
-      <div class="field"><label for="a-about">Anything you'd like the librarian to know? <span class="muted">(optional)</span></label>
+      <div class="field"><label for="a-about">Anything you’d like us to know? <span class="muted">(optional)</span></label>
         <textarea id="a-about" name="about" rows="3" maxlength="600">${values.about || ''}</textarea>
-        <p class="hint">For example, whether you attend Central Baptist or how you heard about the library.</p></div>
+        <p class="hint">For example, whether you attend Central Baptist or how you heard about us.</p></div>
       ${f('password', 'Create a password', { type: 'password', auto: 'new-password', hint: 'At least 8 characters.' })}
       ${f('password2', 'Type the password again', { type: 'password', auto: 'new-password' })}
+      ${Privacy.notice()}
+      ${tick('privacy', raw('I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.'))}
+      ${tick('adult', 'I’m 18 or older. (Children are added to a family by a parent or guardian.)')}
       <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <button class="btn" type="submit">Send application</button>
-      <p class="muted">Already applied? <a href="/login">Log in</a></p>
+      <button class="btn join-submit" type="submit">Send my application</button>
+      <p class="muted">Already have an account? <a href="/login${next ? `?next=${encodeURIComponent(next)}` : ''}">Log in</a></p>
     </form>
   </div>`;
 }
 
-function applied({ user, s }) {
-  return html`<div class="narrow notice">
-    <h1>${user.status === 'approved' ? 'You’re all set' : 'Application sent'}</h1>
+function applied({ user, s, next = '' }) {
+  const ctx = signupContext(next);
+  const go = next && next.startsWith('/') ? next : '/my';
+  const goLabel = { prayer: 'Go to the Prayer Wall', family: 'Set up my family', library: 'Browse the catalog' }[ctx.key];
+  return html`<div class="narrow notice join-done">
+    <div class="join-done-icon" aria-hidden="true">${user.status === 'approved' ? '🎉' : '✉️'}</div>
+    <h1>${user.status === 'approved' ? 'Welcome to Central!' : 'Application sent'}</h1>
     ${user.status === 'approved'
-      ? html`<p>Your account is approved. Your library code is</p><p class="code-big">${user.library_code}</p><p>You'll enter it when you check out a book. It's also on your My Library page.</p><p><a class="btn" href="/catalog">Browse the catalog</a></p>`
-      : html`<p>Thank you, ${user.first_name}. The librarian will review your application, and you'll get an email at <strong>${user.email}</strong> with your library code once you're approved.</p><p>In the meantime you can <a href="/catalog">browse the catalog</a>.</p>`}
+      ? html`<p>Your membership account is approved. Your library card number is</p><p class="code-big">${user.library_code}</p><p>You’ll use it to check out books. It’s also on your My Library page.</p><p><a class="btn" href="${ctx.key === 'library' ? '/catalog' : go}">${goLabel}</a></p>`
+      : html`<p>Thank you, ${user.first_name}! The librarian or a church admin will review your application, usually within a day or two.</p>
+        <p>We’ll email <strong>${user.email}</strong> as soon as you’re approved, with your library card number. After that you can use the library${ctx.key === 'prayer' ? ', post on the Prayer Wall' : ', the Prayer Wall'} and messages.</p>
+        <p class="join-while">While you wait, you can <a href="/catalog">browse the catalog</a> or <a href="/checkin/welcome/family">set up your family for check-in</a>.</p>`}
   </div>`;
 }
 
 function loginPage({ csrf, email = '', error, next = '' }) {
-  return html`<div class="narrow">
-    <div class="page-head"><h1>Log in</h1></div>
+  const ctx = signupContext(next);
+  const nextQ = next ? `?next=${encodeURIComponent(next)}` : '';
+  return html`<div class="narrow login-wrap">
+    <div class="page-head"><h1>Log in</h1>${next && ctx.key !== 'library' ? html`<p class="muted">Log in to continue to the ${ctx.eyebrow}.</p>` : ''}</div>
     ${error ? html`<p class="flash flash-error" role="alert">${error}</p>` : ''}
     <form method="post" action="/login" class="stack">
       ${P.csrfField(csrf)}<input type="hidden" name="next" value="${next}">
@@ -196,15 +230,19 @@ function loginPage({ csrf, email = '', error, next = '' }) {
       <div class="field"><label for="l-pw">Password</label><input id="l-pw" name="password" type="password" required autocomplete="current-password"></div>
       <button class="btn" type="submit">Log in</button>
       <p><a href="/forgot">Forgot your password?</a></p>
-      <p class="muted">New to the library? <a href="/apply">Apply for an account</a></p>
     </form>
+    <div class="join-card">
+      <p class="join-card-title"><span aria-hidden="true">${ctx.icon}</span> New to Central?</p>
+      <p>One free membership account gives you the library (with your own library card number), the Prayer Wall, family check-in and messages.</p>
+      <a class="btn btn-quiet" href="/apply${nextQ}">Apply for a membership account</a>
+    </div>
   </div>`;
 }
 
 function forgotPage({ csrf, sent }) {
   return html`<div class="narrow">
     <div class="page-head"><h1>Reset your password</h1></div>
-    ${sent ? html`<p class="flash flash-ok" role="status">If that email has a library account, a reset link is on its way. It works for 1 hour.</p>` : ''}
+    ${sent ? html`<p class="flash flash-ok" role="status">If that email has an account, a reset link is on its way. It works for 1 hour.</p>` : ''}
     <form method="post" action="/forgot" class="stack">
       ${P.csrfField(csrf)}
       <div class="field"><label for="fg-email">Email</label><input id="fg-email" name="email" type="email" required autocomplete="email"></div>
@@ -231,4 +269,4 @@ function errorPage({ status, message }) {
   return html`<div class="narrow notice"><h1>${title}</h1><p>${message || (status === 404 ? 'That page doesn’t exist. It may have been moved or removed.' : 'Please try again.')}</p><p><a class="btn btn-quiet" href="/">Go to the library home page</a></p></div>`;
 }
 
-module.exports = { landing, catalog, bookPage, checkoutPage, applyPage, applied, loginPage, forgotPage, resetPage, errorPage, hours };
+module.exports = { signupContext, privacyPage: () => Privacy.page(), termsPage: () => Privacy.termsPage(), landing, catalog, bookPage, checkoutPage, applyPage, applied, loginPage, forgotPage, resetPage, errorPage, hours };

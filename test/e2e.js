@@ -69,7 +69,21 @@ class Browser {
     address: '12 Main St', city: 'Winfield', state: 'KS', zip: '67156', about: 'Member since 1998',
     password: 'ruthpass1', password2: 'ruthpass1',
   });
+  assert.match(r.body, /agree to the Terms of Service and Privacy Policy/, 'consent is required');
+  assert.match(r.body, /adults 18 and older/, 'age confirmation is required');
+  r = await pat.post('/apply', {
+    first_name: 'Ruth', last_name: 'Miller', email: 'ruth@example.com', phone: '620-555-0101',
+    address: '12 Main St', city: 'Winfield', state: 'KS', zip: '67156', about: 'Member since 1998',
+    password: 'ruthpass1', password2: 'ruthpass1', privacy: '1', adult: '1', next: '/checkin/prayer',
+  });
   assert.match(r.body, /Application sent/);
+  // Membership wording, privacy pages, and pending applicants waiting for the Prayer Wall
+  for (const pth of ['/privacy', '/terms']) { const pr = await pat.get(pth); assert.strictEqual(pr.status, 200, `${pth} loads`); }
+  r = await pat.get('/checkin/prayer');
+  assert.match(r.body, /Almost there, Ruth/);
+  assert.match(r.body, /the Prayer Wall/);
+  r = await pat.get('/apply?next=/checkin/prayer');
+  assert.ok(r.status === 302 || r.status === 303, 'signed-in people skip the form');
 
   // Pending patron can't check out
   r = await pat.get('/books/1');
@@ -148,9 +162,9 @@ class Browser {
   await pat2.get('/apply');
   r = await pat2.post('/apply', {
     first_name: 'Sam', last_name: 'Ortiz', email: 'sam@example.com', phone: '620-555-0102',
-    address: '4 Elm', city: 'Winfield', state: 'KS', zip: '67156', password: 'sampass12', password2: 'sampass12',
+    address: '4 Elm', city: 'Winfield', state: 'KS', zip: '67156', password: 'sampass12', password2: 'sampass12', privacy: '1', adult: '1',
   });
-  assert.match(r.body, /You’re all set/);
+  assert.match(r.body, /Welcome to Central!/);
   assert.match(r.body, /CBC-\d+/);
 
   // Staff: create an assistant, assistant can't open settings or applications

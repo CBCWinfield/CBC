@@ -20,6 +20,7 @@ const safety = require('./safety');
 const community = require('./community');
 const prayer = require('./prayer');
 const workflows = require('./workflows');
+const members = require('./members');
 const { intParam, clean, safeNext } = require('../routes/guards');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -45,7 +46,7 @@ const needRole = (role) => async (req, res, next) => {
 };
 
 function render(req, res, body, opts = {}) {
-  res.send(V.layout({ body, user: req.user, csrf: res.locals.csrf, flash: security.takeFlash(req), event: req.ciEvent, unread: req.ciUnread || 0, prayerNew: req.ciPrayerNew || 0, ...opts }).toString());
+  res.send(V.layout({ body, user: req.user, csrf: res.locals.csrf, flash: security.takeFlash(req), event: req.ciEvent, unread: req.ciUnread || 0, prayerNew: req.ciPrayerNew || 0, pendingMembers: req.ciPendingMembers || 0, ...opts }).toString());
 }
 
 // Current event for this device (kept in the session, only valid today).
@@ -144,6 +145,7 @@ module.exports = (app) => {
     if (req.user && req.method === 'GET' && req.path.startsWith('/checkin') && !req.path.startsWith('/checkin/api/')) {
       req.ciUnread = await social.unreadCount(req.user.id).catch(() => 0);
       req.ciPrayerNew = await prayer.newCount(req.user).catch(() => 0);
+      if (D.can(req.user, 'coadmin')) req.ciPendingMembers = await users.pendingCount().catch(() => 0);
     }
     await next();
   });
@@ -722,10 +724,11 @@ module.exports = (app) => {
       const last = nameCase(req.body.last_name);
       const pw = String(req.body.password || '');
       const error = !first || !last ? 'Enter your first and last name.' : !EMAIL_RE.test(email) ? 'Enter a valid email address.' : pw.length < 8 ? 'Use at least 8 characters for your password.'
-        : await users.byEmail(email) ? 'That email already has an account. Log in first, then open this link again.' : null;
+        : await users.byEmail(email) ? 'That email already has an account. Log in first, then open this link again.'
+        : req.body.privacy !== '1' ? 'Please agree to the Terms of Service and Privacy Policy.' : null;
       if (error) return render(req, res, V.joinPage({ csrf: res.locals.csrf, invite: req.params.token, email, error }), { title: 'Join', bare: true });
       const code = await users.nextCode();
-      const row = await db.one(`INSERT INTO users (email, password_hash, first_name, last_name, status, library_code, approved_at) VALUES ($1, $2, $3, $4, 'approved', $5, now()) RETURNING id`,
+      const row = await db.one(`INSERT INTO users (email, password_hash, first_name, last_name, status, library_code, approved_at, privacy_accepted_at, signup_source) VALUES ($1, $2, $3, $4, 'approved', $5, now(), now(), 'family') RETURNING id`,
         [email, await security.hashPassword(pw), first, last, code]);
       user = await users.get(row.id);
       await req.regenerateSession();
@@ -886,7 +889,7 @@ module.exports = (app) => {
 
   // Anyone with an account can start a family without an invite.
   app.get('/checkin/register', async (req, res) => {
-    if (!req.user) return res.redirect('/apply?next=/checkin/family');
+    if (!req.user) return res.redirect('/apply?next=/checkin/welcome/family');
     res.redirect('/checkin/welcome/family');
   });
 
@@ -1318,4 +1321,6 @@ module.exports = (app) => {
   prayer.routes(app, { render, needLogin, currentEvent });
   // Custom workflows (Automations › + Workflow).
   workflows.routes(app, { render, needRole, currentEvent });
+  // Membership requests (check-in admins can approve, like the librarian).
+  members.routes(app, { render, needRole, currentEvent });
 };

@@ -489,3 +489,44 @@ fieldset.card legend + * { clear: both; }
 .add-patron { margin-bottom: 18px; padding: 14px 18px; }
 .add-patron summary { cursor: pointer; }
 .add-patron form { margin-top: 12px; align-items: flex-end; }
+
+/* ---- Membership sign-up, login, legal pages ---- */
+.join-head { text-align: center; margin: 8px 0 18px; }
+.join-eyebrow { margin: 0 0 6px; font-family: var(--serif); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--green); }
+.join-head h1 { margin: 0 0 8px; }
+.join-lead { margin: 0 auto; max-width: 34em; font-size: 1.08rem; color: var(--ink-soft); }
+.join-perks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 0 16px; }
+.join-perk { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.join-perk span { grid-row: span 2; font-size: 1.35rem; }
+.join-perk small { color: var(--ink-soft); line-height: 1.3; }
+.join-perk.is-here { border-color: var(--green); background: var(--sage); }
+.join-steps { list-style: none; counter-reset: js; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 20px; padding: 0; }
+.join-steps li { counter-increment: js; position: relative; padding: 10px 10px 10px 42px; border-radius: 12px; background: #F1F5EE; display: grid; align-content: start; gap: 2px; font-size: 0.9rem; }
+.join-steps li::before { content: counter(js); position: absolute; left: 10px; top: 10px; width: 24px; height: 24px; border-radius: 50%; background: var(--green); color: #fff; font-weight: 700; display: grid; place-items: center; font-size: 0.8rem; }
+.join-steps span { color: var(--ink-soft); font-size: 0.82rem; }
+.join-form { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+.join-submit { width: 100%; min-height: 48px; font-size: 1.05rem; }
+.privacy-box { border: 1px solid var(--line); border-radius: 12px; background: #F7FAF5; padding: 12px 14px; font-size: 0.92rem; }
+.privacy-title { margin: 0 0 4px; font-weight: 700; }
+.privacy-box ul { margin: 4px 0 6px; padding-left: 20px; }
+.privacy-box li { margin: 3px 0; }
+.privacy-box summary { cursor: pointer; font-weight: 700; color: var(--green-deep); }
+.privacy-full { max-height: 320px; overflow: auto; margin-top: 8px; padding: 8px 12px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.privacy-full h3 { font-size: 0.95rem; margin: 10px 0 2px; }
+.check.consent { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; }
+.check.consent input { width: 20px; height: 20px; margin-top: 2px; flex: none; accent-color: var(--green); }
+.join-done-icon { font-size: 2.6rem; }
+.join-while { color: var(--ink-soft); }
+.join-card { margin-top: 22px; padding: 16px 18px; border-radius: 14px; border: 1px solid var(--line); background: #F7FAF5; }
+.join-card-title { margin: 0 0 4px; font-weight: 700; font-family: var(--serif); font-size: 1.05rem; }
+.join-card p { margin: 0 0 10px; }
+.privacy-page h2 { margin-top: 26px; font-size: 1.2rem; }
+.privacy-page li { margin: 6px 0; }
+.privacy-page .lead { font-size: 1.08rem; }
+.foot-legal { font-size: 0.85rem; }
+.foot-legal a { color: inherit; }
+@media (max-width: 640px) {
+  .join-perks { grid-template-columns: 1fr; }
+  .join-steps { grid-template-columns: 1fr; }
+  .join-form { padding: 16px; }
+}

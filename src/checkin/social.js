@@ -53,7 +53,7 @@ async function directory(me, q = '', limit = 40) {
       (SELECT string_agg(DISTINCT k.first_name, ', ') FROM people a JOIN people k ON k.family_id = a.family_id AND k.kind = 'child' AND k.active WHERE a.user_id = u.id AND a.active) AS kids,
       (SELECT f.name FROM people a JOIN families f ON f.id = a.family_id WHERE a.user_id = u.id AND a.active LIMIT 1) AS family_name
     FROM users u
-    WHERE u.id <> $1 AND u.status NOT IN ('denied', 'paused')
+    WHERE u.id <> $1 AND u.status = 'approved'
       AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.user_id = $1 AND b.blocked_id = u.id) OR (b.user_id = u.id AND b.blocked_id = $1))
       ${term ? `AND ((u.first_name || ' ' || u.last_name) ILIKE $2 OR u.last_name ILIKE $2 OR EXISTS (SELECT 1 FROM people a JOIN families f ON f.id = a.family_id WHERE a.user_id = u.id AND f.name ILIKE $2))` : ''}
     ORDER BY (u.checkin_role IS NOT NULL) DESC, u.last_name, u.first_name LIMIT 400`, term ? [me.id, `%${term}%`] : [me.id]);
@@ -328,9 +328,17 @@ function automationsPage({ csrf, list, log, workflows = [] }) {
 function routes(app, { render, needLogin, needRole, currentEvent }) {
   const withEvent = async (req) => { if (isStaff(req.user)) req.ciEvent = await currentEvent(req); };
 
+  // Messaging (and the member directory) opens once a membership is approved.
+  const waiting = (req, res) => {
+    if (req.user.status !== 'pending') return false;
+    render(req, res, require('./views').pendingPage({ user: req.user, what: 'messages' }), { title: 'Inbox', tab: 'inbox' });
+    return true;
+  };
+
   app.get('/checkin/inbox', async (req, res) => {
     if (needLogin(req, res)) return;
     await withEvent(req);
+    if (waiting(req, res)) return;
     const convs = await conversationsFor(req.user.id);
     const openReports = D.can(req.user, 'coadmin') ? (await db.one('SELECT count(*)::int AS n FROM message_reports WHERE resolved_at IS NULL')).n : 0;
     render(req, res, inboxPage({ user: req.user, convs, openReports }), { title: 'Inbox', tab: 'inbox' });
@@ -339,6 +347,7 @@ function routes(app, { render, needLogin, needRole, currentEvent }) {
   app.get('/checkin/inbox/new', async (req, res) => {
     if (needLogin(req, res)) return;
     await withEvent(req);
+    if (waiting(req, res)) return;
     const q = clean(req.query.q, 80);
     const to = [].concat(req.query.to || []).map(Number).filter(Boolean);
     const people = await directory(req.user, q);
@@ -349,6 +358,7 @@ function routes(app, { render, needLogin, needRole, currentEvent }) {
 
   app.post('/checkin/inbox/new', security.rateLimit('ci-msg-new', { max: 30, windowMs: 3600000 }), async (req, res) => {
     if (needLogin(req, res)) return;
+    if (req.user.status === 'pending') throw new HttpError(403, 'Your membership needs to be approved before you can start conversations.');
     const ids = [...new Set([].concat(req.body.to || []).map(Number).filter(Boolean))].slice(0, 50);
     const body = clean(req.body.body, 4000);
     const reachable = (await directory(req.user, '', 1000)).filter((u) => ids.includes(u.id));

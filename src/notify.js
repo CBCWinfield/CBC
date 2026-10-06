@@ -72,49 +72,57 @@ module.exports = {
   pushTo,
 
   applicationReceived: safe(async (user) => {
-    const s = await settingsStore.get();
     await email(user, {
-      subject: 'We received your library application',
+      subject: 'We received your membership application',
       heading: `Thank you, ${user.first_name}`,
       paragraphs: [
-        `Your application for the ${esc(s.library_name)} has been received.`,
-        'The librarian will review it soon. You will get another email with your library code once you are approved.',
+        'Your application for a Central Baptist Church membership account has been received.',
+        'The librarian or a church admin will review it soon, usually within a day or two. You’ll get another email with your library card number as soon as you’re approved. Then you can use the library, the Prayer Wall, family check-in and messages.',
       ],
     });
-    await staffAlert({
-      subject: `New library application: ${fullName(user)}`,
-      heading: 'New library application',
+    const where = { prayer: ' from the Prayer Wall', family: ' from family check-in', library: ' from the library' }[user.signup_source] || '';
+    const alert = {
+      subject: `New membership application: ${fullName(user)}`,
+      heading: 'New membership application',
       paragraphs: [
-        `<strong>${esc(fullName(user))}</strong> (${esc(user.email)}) applied for a library account.`,
+        `<strong>${esc(fullName(user))}</strong> (${esc(user.email)}) applied for a membership account${where}.`,
         user.about ? `They wrote: “${esc(user.about)}”` : '',
+        'Either the librarian or a check-in admin can approve it. Approving gives them a library card number and opens the Prayer Wall and messages.',
       ],
-      button: { label: 'Review applications', url: url('/admin/applications') },
-      push: { title: 'New library application', body: `${fullName(user)} applied for an account.`, url: '/admin/applications' },
-    });
+    };
+    // Librarians review in the library admin…
+    await staffAlert({ ...alert, button: { label: 'Review applications', url: url('/admin/applications') }, push: { title: 'New membership application', body: `${fullName(user)} applied for an account.`, url: '/admin/applications' } });
+    // …and check-in admins can approve from Central Check-In.
+    const admins = await users.checkinAdmins();
+    const librarianEmails = new Set(await users.staffEmails(['librarian']));
+    const to = admins.filter((a) => a.notify_email !== false && a.email && !librarianEmails.has(a.email)).map((a) => a.email);
+    const s = await settingsStore.get();
+    if (to.length) await mailer.send({ to, ...alert, button: { label: 'Review membership requests', url: url('/checkin/members') }, libraryName: s.library_name });
+    if (admins.length) await pushTo(admins.map((a) => a.id), { title: 'New membership application', body: `${fullName(user)} applied for an account.`, url: '/checkin/members' });
   }),
 
   approved: safe(async (user) => {
     const s = await settingsStore.get();
     await email(user, {
-      subject: `You're approved. Your library code is ${user.library_code}`,
-      heading: 'Welcome to the library',
+      subject: `You're approved! Your library card number is ${user.library_code}`,
+      heading: `Welcome to Central, ${user.first_name}!`,
       paragraphs: [
-        `Hi ${esc(user.first_name)}, your library account is approved.`,
-        `Your library code is <strong style="font-size:20px;letter-spacing:1px">${esc(user.library_code)}</strong>. You'll enter it each time you check out a book. It's also on your My Library page.`,
-        `Books are picked up ${esc(settingsStore.describeDays(s.pickup_days))}, ${t.fmtHm(s.pickup_start)}–${t.fmtHm(s.pickup_end)}. You can keep them for ${s.checkout_days} days.`,
+        'Your Central Baptist Church membership account is approved.',
+        `Your library card number is <strong style="font-size:20px;letter-spacing:1px">${esc(user.library_code)}</strong>. You'll enter it when you check out a book. It's also on your My Library page.`,
+        `With your account you can now:<br>• <a href="${esc(url('/catalog'))}">Borrow books</a>: pick up ${esc(settingsStore.describeDays(s.pickup_days))}, ${t.fmtHm(s.pickup_start)}–${t.fmtHm(s.pickup_end)}, and keep them ${s.checkout_days} days<br>• <a href="${esc(url('/checkin/prayer'))}">Share and pray on the Prayer Wall</a><br>• <a href="${esc(url('/checkin/welcome/family'))}">Set up your family for check-in</a><br>• <a href="${esc(url('/checkin/inbox'))}">Message other families and the church team</a>`,
       ],
-      button: { label: 'Browse the catalog', url: url('/catalog') },
+      button: { label: user.signup_source === 'prayer' ? 'Open the Prayer Wall' : user.signup_source === 'family' ? 'Set up my family' : 'Browse the catalog', url: url(user.signup_source === 'prayer' ? '/checkin/prayer' : user.signup_source === 'family' ? '/checkin/welcome/family' : '/catalog') },
     });
-    await pushTo([user.id], { title: 'You’re approved', body: `Your library code is ${user.library_code}.`, url: '/my' });
+    await pushTo([user.id], { title: 'You’re approved', body: `Welcome to Central! Your library card number is ${user.library_code}.`, url: '/my' });
   }),
 
   denied: safe(async (user) => {
     const s = await settingsStore.get();
     await email(user, {
-      subject: 'About your library application',
+      subject: 'About your membership application',
       heading: `Hi ${user.first_name}`,
       paragraphs: [
-        `Thank you for your interest in the ${esc(s.library_name)}. We weren't able to approve your application at this time.`,
+        `Thank you for your interest in the ${esc(s.library_name)}. We weren't able to approve your membership application at this time.`,
         'If you have questions, please contact the church office.',
       ],
     });

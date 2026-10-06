@@ -9,7 +9,7 @@ function nav(user, current) {
     items.push(link('/my', 'My Library', 'my'));
     if (user.role !== 'patron') items.push(link('/admin', 'Librarian', 'admin'));
   } else {
-    items.push(link('/apply', 'Apply', 'apply'));
+    items.push(link('/apply', 'Join', 'apply'));
     items.push(link('/login', 'Log in', 'login'));
   }
   return items;
@@ -48,7 +48,7 @@ function layout({ title, user, csrf, flash = [], body, current, settings, wide =
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="/css/style.css?v=7">
+<link rel="stylesheet" href="/css/style.css?v=9">
 <script src="/js/app.js?v=7" defer></script>
 </head>
 <body>
@@ -88,6 +88,7 @@ ${body}
     ${s.library_address ? html`<p>${s.library_address}</p>` : ''}
     <p>${[s.contact_phone, s.contact_email].filter(Boolean).join('  ·  ')}</p>
     ${user ? html`<p class="muted">Signed in as ${fullName(user)}</p>` : ''}
+    <p class="foot-legal">${require('../lib/privacy').links()}</p>
   </div>
 </footer>
 </body>

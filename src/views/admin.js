@@ -383,14 +383,16 @@ function applicationsPage({ csrf, pending, recent, s }) {
     <button class="btn ${s.auto_approve ? 'btn-quiet' : ''}" type="submit">${s.auto_approve ? 'Turn off automatic approval' : 'Turn on automatic approval'}</button>
   </form>
   <section class="admin-section">
-    <h2>Waiting for review</h2>
+    <h2>Membership applications waiting for review</h2>
+    <p class="small muted">One membership account covers the library, Prayer Wall and family check-in. You or a check-in admin can approve it; approving gives them a library card number.</p>
     ${pending.length ? html`<ul class="app-list">${pending.map((u) => html`<li class="card">
-      <div class="app-head"><h3>${fullName(u)}</h3><span class="small muted">Applied ${t.fmtDateTime(u.created_at)}</span></div>
+      <div class="app-head"><h3>${fullName(u)}</h3><span class="small muted">Applied ${t.fmtDateTime(u.created_at)}${u.signup_source ? ` from the ${{ prayer: 'Prayer Wall', family: 'family check-in', library: 'library' }[u.signup_source] || u.signup_source}` : ''}</span></div>
       <dl class="facts compact">
         <dt>Email</dt><dd><a href="mailto:${u.email}">${u.email}</a></dd>
         ${u.phone ? html`<dt>Phone</dt><dd>${u.phone}</dd>` : ''}
         ${u.address ? html`<dt>Address</dt><dd>${u.address}${u.city ? `, ${u.city}` : ''}${u.state ? ` ${u.state}` : ''} ${u.zip || ''}</dd>` : ''}
         ${u.about ? html`<dt>Note</dt><dd>${u.about}</dd>` : ''}
+        <dt>Privacy</dt><dd>${u.privacy_accepted_at ? `Agreed to the privacy notice ${t.fmtDate(u.privacy_accepted_at)}` : '—'}</dd>
       </dl>
       <div class="actions">
         ${btnForm(`/admin/applications/${u.id}/approve`, csrf, 'Approve', { cls: '' })}

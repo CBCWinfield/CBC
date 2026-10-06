@@ -254,12 +254,20 @@ function singlePage({ csrf, user, p, comments, due }) {
 // ---------------------------------------------------------------- routes
 function routes(app, { render, needLogin, currentEvent }) {
   const withEvent = async (req) => { if (D.can(req.user, 'volunteer')) req.ciEvent = await currentEvent(req); };
-  const canPost = (u) => u && !['denied', 'paused'].includes(u.status);
+  const canPost = (u) => u && u.status === 'approved';
   const backTo = (req, p, hash = '') => (req.body.back === 'single' ? `/checkin/prayer/${p.id}${hash}` : `/checkin/prayer${hash.startsWith('?') ? hash : `#prayer-${p.id}`}`);
+
+  // Applicants still waiting for approval see a friendly "almost there" page.
+  const waiting = (req, res) => {
+    if (req.user.status !== 'pending') return false;
+    render(req, res, require('./views').pendingPage({ user: req.user, what: 'the Prayer Wall' }), { title: 'Prayer Wall', tab: 'prayer' });
+    return true;
+  };
 
   app.get('/checkin/prayer', async (req, res) => {
     if (needLogin(req, res)) return;
     await withEvent(req);
+    if (waiting(req, res)) return;
     const filter = ['new', 'praying', 'mine', 'answered'].includes(req.query.f) ? req.query.f : '';
     const me = await db.one('SELECT prayer_seen_at, created_at FROM users WHERE id = $1', [req.user.id]);
     const seenBefore = me.prayer_seen_at || me.created_at ? new Date(me.prayer_seen_at || me.created_at) : null;
@@ -274,6 +282,7 @@ function routes(app, { render, needLogin, currentEvent }) {
   app.get('/checkin/prayer/:id', async (req, res) => {
     if (needLogin(req, res)) return;
     await withEvent(req);
+    if (waiting(req, res)) return;
     const [p] = await list(req.user, { id: intParam(req.params.id) });
     if (!p) throw new HttpError(404, 'That prayer request was not found. It may have been removed.');
     const comments = (await commentsFor([p.id])).get(p.id) || [];
@@ -290,7 +299,7 @@ function routes(app, { render, needLogin, currentEvent }) {
     const anonymous = req.body.anonymous === '1';
     const p = await db.one(`INSERT INTO prayers (user_id, body, anonymous, audience, checkin_at) VALUES ($1, $2, $3, $4, now()) RETURNING id`, [req.user.id, body, anonymous, audience]);
     // People who asked to hear about new requests (Settings → Prayer wall).
-    const listeners = await db.many(`SELECT id, prefs, checkin_role FROM users WHERE id <> $1 AND status IN ('approved', 'pending') AND prefs IS NOT NULL`, [req.user.id]);
+    const listeners = await db.many(`SELECT id, prefs, checkin_role FROM users WHERE id <> $1 AND status = 'approved' AND prefs IS NOT NULL`, [req.user.id]);
     const ids = listeners.filter((u) => P.of(u).push_prayer_new === true && (audience === 'everyone' || D.isTeam(u))).map((u) => u.id);
     if (ids.length) pushTo(ids, { title: '🙏 New prayer request', body: `${anonymous ? 'Someone' : req.user.first_name} asked for prayer: “${body.slice(0, 90)}${body.length > 90 ? '…' : ''}”`, url: `/checkin/prayer/${p.id}` }).catch(() => {});
     security.flash(req, 'ok', 'Your request is on the wall. Your church family is praying with you.');
@@ -298,6 +307,7 @@ function routes(app, { render, needLogin, currentEvent }) {
   });
 
   const visible = async (req, id) => {
+    if (req.user.status !== 'approved') throw new HttpError(403, 'Your membership needs to be approved first.');
     const p = await db.one(`SELECT * FROM prayers WHERE id = $1 AND status <> 'hidden'`, [id]);
     if (!p || (p.audience === 'team' && !D.isTeam(req.user) && p.user_id !== req.user.id)) throw new HttpError(404, 'That prayer request was not found.');
     return p;

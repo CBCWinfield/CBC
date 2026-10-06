@@ -21,16 +21,12 @@ function normalCode(v) {
   return digits ? `CBC-${Number(digits)}` : '';
 }
 
-async function approve(user) {
-  const code = user.library_code || await users.nextCode();
-  await db.query("UPDATE users SET status = 'approved', library_code = $2, approved_at = COALESCE(approved_at, now()) WHERE id = $1", [user.id, code]);
-  return users.get(user.id);
-}
+const approve = (user) => users.approve(user);
 
 // Can this user check this book out right now? Returns a reason when not.
 async function checkoutBlock(user, book, s) {
   if (!user) return { reason: 'login' };
-  if (user.status === 'pending') return { reason: 'Your application is waiting for approval. You can check out books once the librarian approves it.' };
+  if (user.status === 'pending') return { reason: 'Your membership application is waiting for approval. You can check out books once it’s approved.' };
   if (user.status === 'paused') return { reason: 'Your account is paused, so checkouts are turned off. Please contact the librarian.' };
   if (user.status !== 'approved') return { reason: 'Your account can’t check out books. Please contact the church office.' };
   if (!book.active || book.copies_total === 0) return { reason: 'This item isn’t available for checkout.' };
@@ -149,9 +145,13 @@ module.exports = (app) => {
 
   // ---- Apply / register ----
   app.get('/apply', async (req, res) => {
-    if (req.user) return res.redirect('/my');
-    res.render(V.applyPage({ csrf: res.locals.csrf, s: req.settings }), { title: 'Apply', current: 'apply' });
+    const next = safeNext(req.query.next) || '';
+    if (req.user) return res.redirect(next || '/my');
+    res.render(V.applyPage({ csrf: res.locals.csrf, s: req.settings, next }), { title: 'Apply for a membership account', current: 'apply' });
   });
+
+  app.get('/privacy', async (req, res) => res.render(V.privacyPage(), { title: 'Privacy Policy' }));
+  app.get('/terms', async (req, res) => res.render(V.termsPage(), { title: 'Terms of Service' }));
 
   app.post('/apply', security.rateLimit('apply', { max: 8, windowMs: 3600000 }), async (req, res) => {
     if (req.body.website) return res.redirect('/'); // honeypot: bots fill hidden fields
@@ -160,20 +160,26 @@ module.exports = (app) => {
     for (const f of fields) v[f] = clean(req.body[f], 120);
     v.about = clean(req.body.about, 600);
     v.email = v.email.toLowerCase();
+    v.privacy = req.body.privacy === '1';
+    v.adult = req.body.adult === '1';
+    const next = safeNext(req.body.next) || '';
+    const source = V.signupContext(next).key;
     const errors = {};
     for (const f of fields) if (!v[f]) errors[f] = 'Please fill this in.';
     if (v.email && !EMAIL_RE.test(v.email)) errors.email = 'Enter a valid email address, like name@example.com.';
     const pw = String(req.body.password || '');
     if (pw.length < 8) errors.password = 'Use at least 8 characters.';
     else if (pw !== req.body.password2) errors.password2 = 'The two passwords don’t match.';
+    if (!v.privacy) errors.privacy = 'Please agree to the Terms of Service and Privacy Policy.';
+    if (!v.adult) errors.adult = 'Membership accounts are for adults 18 and older.';
     if (!errors.email && await users.byEmail(v.email)) errors.email = 'That email already has an account. Log in instead, or use “Forgot your password?”';
     if (Object.keys(errors).length) {
-      return res.status(422).render(V.applyPage({ csrf: res.locals.csrf, values: v, errors, s: req.settings }), { title: 'Apply', current: 'apply' });
+      return res.status(422).render(V.applyPage({ csrf: res.locals.csrf, values: v, errors, s: req.settings, next }), { title: 'Apply for a membership account', current: 'apply' });
     }
     let user = await db.one(
-      `INSERT INTO users (email, password_hash, first_name, last_name, phone, address, city, state, zip, about)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
-      [v.email, await security.hashPassword(pw), v.first_name, v.last_name, v.phone, v.address, v.city, v.state, v.zip, v.about || null],
+      `INSERT INTO users (email, password_hash, first_name, last_name, phone, address, city, state, zip, about, privacy_accepted_at, signup_source)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11) RETURNING id`,
+      [v.email, await security.hashPassword(pw), v.first_name, v.last_name, v.phone, v.address, v.city, v.state, v.zip, v.about || null, source],
     );
     user = await users.get(user.id);
     if (req.settings.auto_approve) {
@@ -182,11 +188,11 @@ module.exports = (app) => {
     } else {
       notify.applicationReceived(user);
     }
-    require('../checkin/automations').welcome(user, { link: '/my' });
+    require('../checkin/automations').welcome(user, { link: next || '/my' });
     await req.regenerateSession();
     req.session.userId = user.id;
     req.user = user;
-    res.render(V.applied({ user, s: req.settings }), { title: 'Application sent' });
+    res.render(V.applied({ user, s: req.settings, next }), { title: user.status === 'approved' ? 'Welcome' : 'Application sent' });
   });
 
   // ---- Log in / out ----

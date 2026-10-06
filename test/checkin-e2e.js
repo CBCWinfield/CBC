@@ -125,7 +125,7 @@ class Browser {
   const parent = new Browser();
   r = await parent.go(`/checkin/join/${tok}`);
   assert.match(r.body, /Welcome to Central/);
-  r = await parent.post(`/checkin/join/${tok}`, { first_name: 'Dana', last_name: 'Miller', email: 'dana@example.com', password: 'danapass1' });
+  r = await parent.post(`/checkin/join/${tok}`, { first_name: 'Dana', last_name: 'Miller', email: 'dana@example.com', password: 'danapass1', privacy: '1' });
   assert.strictEqual(r.location, '/checkin/welcome/family');
   r = await parent.go('/checkin/welcome/family');
   assert.match(r.body, /The Miller Family/);
@@ -419,6 +419,34 @@ class Browser {
   assert.ok(!/Pray for our volunteers/.test(r.body), 'team-only request hidden from families');
   r = await admin.go('/checkin/prayer');
   assert.match(r.body, /Pray for our volunteers/);
+
+  // Membership: apply from the Prayer Wall, a check-in admin approves, library card number issued
+  const applicant = new Browser();
+  r = await applicant.go('/checkin/prayer');
+  assert.ok(/\/login\?next=%2Fcheckin%2Fprayer/.test(r.location || ''), 'signed-out visitors go to log in');
+  r = await applicant.go('/login?next=/checkin/prayer');
+  assert.match(r.body, /Apply for a membership account/);
+  assert.match(r.body, /apply\?next=%2Fcheckin%2Fprayer/);
+  r = await applicant.go('/apply?next=/checkin/prayer');
+  assert.match(r.body, /Prayer Wall/);
+  assert.match(r.body, /Terms of Service/);
+  r = await applicant.post('/apply', { first_name: 'Lydia', last_name: 'Grant', email: 'lydia@example.com', phone: '620-555-0199', address: '7 Oak', city: 'Winfield', state: 'KS', zip: '67156', password: 'lydiapass1', password2: 'lydiapass1', privacy: '1', adult: '1', next: '/checkin/prayer' });
+  assert.match(r.body, /Application sent/);
+  assert.strictEqual(sql(`SELECT signup_source || ' ' || (privacy_accepted_at IS NOT NULL)::text FROM users WHERE email = 'lydia@example.com'`), 'prayer true');
+  r = await applicant.go('/checkin/prayer');
+  assert.match(r.body, /Almost there, Lydia/);
+  r = await admin.go('/checkin/inbox');
+  assert.match(r.body, /Membership requests \(1\)/, 'admins see the request count');
+  r = await admin.go('/checkin/members');
+  assert.match(r.body, /Lydia Grant/);
+  assert.match(r.body, /from the Prayer Wall/);
+  const lydiaId = sql(`SELECT id FROM users WHERE email = 'lydia@example.com'`);
+  r = await admin.post(`/checkin/members/${lydiaId}/approve`, {});
+  assert.match(sql(`SELECT status || ' ' || library_code FROM users WHERE id = ${lydiaId}`), /^approved CBC-\d+$/);
+  r = await applicant.go('/checkin/prayer');
+  assert.match(r.body, /How can we pray for you, Lydia/, 'approved member reaches the Prayer Wall');
+  r = await vol.go('/checkin/members');
+  assert.ok(r.status !== 200 || !/Membership requests<\/h1>/.test(r.body), 'volunteers cannot approve memberships');
 
   // Custom workflows (Automations › + Workflow)
   r = await admin.go('/checkin/automations');
