@@ -205,7 +205,7 @@ function prepareBook(b) {
     tags: words(b.tags),
     series: words(b.series),
     number: words(b.call_number),
-    description: words(b.description),
+    description: words([b.short_description, b.description].filter(Boolean).join(' ')),
     audience: words(b.audience),
     format: words(b.format),
   };

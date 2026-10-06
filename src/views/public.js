@@ -103,6 +103,7 @@ function bookPage({ book, user, s, myActive, canCheckout, reason }) {
     <div class="book-detail-body">
       <h1>${book.title}</h1>
       ${book.subtitle ? html`<p class="subtitle">${book.subtitle}</p>` : ''}
+      ${book.short_description ? html`<p class="short-desc">${book.short_description}</p>` : ''}
       ${book.author ? html`<p class="byline">by <a href="/catalog?q=${encodeURIComponent(book.author)}">${book.author}</a></p>` : ''}
       <div class="checkout-box">
         ${P.availability(book)}

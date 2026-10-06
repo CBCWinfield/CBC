@@ -4,7 +4,7 @@ const db = require('./db');
 
 const BOOK_COLS = `b.id, b.title, b.subtitle, b.author, b.isbn, b.category, b.audience, b.format, b.description,
   b.tags, b.publisher, b.published_year, b.pages, b.copies_total, b.shelf_location, b.active,
-  b.legacy_id, b.call_number, b.series, b.subcategory, b.details, b.cover_status, b.cover_note, b.cover_source_url,
+  b.short_description, b.legacy_id, b.call_number, b.series, b.subcategory, b.details, b.cover_status, b.cover_note, b.cover_source_url,
   b.created_at, b.updated_at, (b.cover_image IS NOT NULL) AS has_cover,
   GREATEST(b.copies_total - COALESCE(a.n, 0), 0)::int AS available, COALESCE(a.n, 0)::int AS out_count`;
 const BOOK_FROM = `books b LEFT JOIN (
@@ -46,6 +46,9 @@ const books = {
   // First level below a subject, e.g. "Historical Fiction" under "Christian Fiction".
   subcategories: (category) => db.many(`SELECT split_part(subcategory, ' › ', 1) AS name, count(*)::int AS n FROM books
     WHERE active AND category = $1 AND subcategory IS NOT NULL AND subcategory <> '' GROUP BY 1 ORDER BY 2 DESC, 1`, [category]),
+  // Every category path in use, for the category checklist on the book screen.
+  categoryPaths: () => db.many(`SELECT category, subcategory, count(*)::int AS n FROM books
+    WHERE category IS NOT NULL AND category <> '' GROUP BY category, subcategory ORDER BY category, subcategory NULLS FIRST`),
   formats: async () => (await db.many(`SELECT format, count(*)::int AS n FROM books WHERE active AND format IS NOT NULL GROUP BY format ORDER BY 2 DESC`)).map((r) => r.format),
   count: async () => (await db.one('SELECT count(*)::int AS n, COALESCE(sum(copies_total),0)::int AS copies FROM books WHERE active')),
 };

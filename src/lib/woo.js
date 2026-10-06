@@ -96,9 +96,8 @@ function rowToBook(cols, idx) {
   const pages = parseInt(attrs['Number of Pages'], 10);
   const stock = parseInt(get('Stock'), 10);
 
-  const short = cleanDescription(get('Short description'));
-  let description = cleanDescription(get('description'));
-  if (short && !description.toLowerCase().includes(short.toLowerCase())) description = description ? `${short}\n\n${description}` : short;
+  const short = cleanDescription(get('Short description')).replace(/\s*\n+\s*/g, ' ');
+  const description = cleanDescription(get('description'));
 
   const images = get('Images').split(',').map((u) => u.trim()).filter((u) => /^https?:\/\//i.test(u));
   return {
@@ -111,6 +110,7 @@ function rowToBook(cols, idx) {
     audience: audienceFor(paths, details),
     format: mapFormat(attrs.Format, paths),
     description: description || null,
+    short_description: short || null,
     tags: tags || null,
     publisher: attrs.Publisher || null,
     published_year: year ? Number(year) : null,
@@ -159,6 +159,7 @@ function toWooCsv(books, baseUrl) {
       Published: b.active ? 1 : -1,
       'Is featured?': 0,
       'Visibility in catalog': 'visible',
+      'Short description': b.short_description || '',
       description: desc,
       'Tax status': 'taxable',
       'In stock?': b.available > 0 ? 1 : 'backorder',

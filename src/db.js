@@ -162,6 +162,11 @@ const MIGRATIONS = [
       UPDATE books SET cover_status = 'done' WHERE cover_image IS NOT NULL AND cover_status = 'none';
     `,
   },
+  {
+    // The old system's separate "Short description".
+    version: 3,
+    sql: `ALTER TABLE books ADD COLUMN IF NOT EXISTS short_description text;`,
+  },
 ];
 
 async function migrate() {

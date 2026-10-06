@@ -114,6 +114,7 @@ test('old library export: detected, mapped and round-tripped', () => {
   assert.strictEqual(blotch.published_year, 2016);
   assert.strictEqual(blotch.call_number, null, 'Excel-mangled number is dropped');
   assert.match(blotch.cover_source_url, /blotch-front-cover\.jpg$/);
+  assert.strictEqual(blotch.short_description, 'A Tale of Forgiveness and Grace');
   assert.ok(!/<|\[embedyt|\\n/.test(blotch.description), 'HTML, shortcodes and \\n are cleaned out');
   const princess = rows.find((b) => b.title === 'Blue Princess Takes The Stage');
   assert.strictEqual(princess.category, 'Junior');

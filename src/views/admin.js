@@ -131,101 +131,212 @@ function booksPage({ rows, q, total, page, pages, base, categories, category, co
   </div>
   ${coverCard(coverStatus, csrf)}
   <form class="filters" method="get" action="/admin/books">
-    <div class="field grow"><label for="ab-q">Search title, author, ISBN</label><input id="ab-q" type="search" name="q" value="${q || ''}"></div>
-    <div class="field"><label for="ab-cat">Subject</label><select id="ab-cat" name="category"><option value="">All</option>${categories.map((c) => html`<option${selected(c.category, category)}>${c.category}</option>`)}</select></div>
+    <div class="field grow"><label for="ab-q">Search title, writer, SKU or ISBN</label><input id="ab-q" type="search" name="q" value="${q || ''}"></div>
+    <div class="field"><label for="ab-cat">Category</label><select id="ab-cat" name="category"><option value="">All categories</option>${categories.map((c) => html`<option${selected(c.category, category)}>${c.category}</option>`)}</select></div>
     <label class="check"><input type="checkbox" name="nocover" value="1"${checked(noCover)}> No cover yet</label>
     <button class="btn btn-quiet" type="submit">Search</button>
   </form>
   <p class="muted small">${total} title${total === 1 ? '' : 's'}</p>
   ${rows.length ? html`<div class="table-wrap"><table class="table books-table">
-    <thead><tr><th>Title</th><th>Author</th><th>Library no.</th><th>Subject</th><th>Copies</th></tr></thead>
+    <thead><tr><th>Title</th><th>SKU</th><th>Stock</th><th>Writer</th><th>Categories</th></tr></thead>
     <tbody>${rows.map((b) => html`<tr${b.active ? '' : raw(' class="inactive"')}>
-      <td class="with-cover">${P.cover(b, 'xs')}<a href="/admin/books/${b.id}/edit">${b.title}</a>${b.active ? '' : html` <span class="badge badge-muted">Archived</span>`}</td>
-      <td>${b.author || ''}</td><td>${b.call_number || ''}</td><td>${b.category || ''}${b.subcategory ? html`<br><span class="small muted">${b.subcategory}</span>` : ''}</td>
-      <td>${b.available} of ${b.copies_total} in</td>
+      <td class="with-cover">${P.cover(b, 'xs')}<span><a href="/admin/books/${b.id}/edit">${b.title}</a>${b.active ? '' : html` <span class="badge badge-muted">Hidden</span>`}<br><span class="small muted">${b.format || ''}</span></span></td>
+      <td>${b.call_number || html`<span class="muted">–</span>`}</td>
+      <td>${b.available > 0 ? html`<span class="avail avail-yes">In stock (${b.available})</span>` : html`<span class="avail avail-no">Checked out</span>`}</td>
+      <td>${b.author || ''}</td>
+      <td>${[b.category, b.subcategory].filter(Boolean).join(' › ') || html`<span class="muted">Uncategorized</span>`}</td>
     </tr>`)}</tbody></table></div>`
     : html`<div class="empty"><p>${q ? 'No books match that search.' : 'The catalog is empty.'}</p><p><a class="btn" href="/admin/books/new">Add the first book</a></p></div>`}
   ${P.pager({ page, pages, base })}`;
 }
 
-const CATEGORY_SUGGESTIONS = ['Bible Study', 'Bibles', 'Commentary', 'Devotional', 'Christian Living', 'Prayer', 'Theology', 'Apologetics', 'Church History', 'Biography', 'Missions', 'Marriage & Family', 'Parenting', 'Grief & Comfort', 'Prophecy', 'Women', 'Men', 'Youth', 'Children', 'Fiction', 'Music & Worship', 'Reference'];
-
 const FORMATS = ['Book', 'Paperback', 'Hardback', 'Board Book', 'Large Print', 'Workbook', 'Audiobook', 'CD', 'DVD', 'Blu-ray', 'Pamphlet', 'Other'];
+const VIDEO = 'DVD,Blu-ray';
+const AUDIO = 'CD,Audiobook';
 
-function bookForm({ csrf, book = {}, errors = {}, categories, history = [], isNew }) {
+// Detail fields stored with each book (the old system's "attributes").
+const DETAIL_FIELDS = [
+  { key: 'Illustrator', name: 'detail_illustrator' },
+  { key: 'Reading Level', name: 'detail_reading_level', hint: 'e.g. Age 7-10 or Grades 3-5' },
+  { key: 'Book read by', name: 'detail_read_by', showFor: AUDIO },
+  { key: 'Rated', name: 'detail_rated', showFor: VIDEO, hint: 'e.g. G, PG, Not Rated' },
+  { key: 'Running Time', name: 'detail_running_time', showFor: VIDEO, hint: 'e.g. 88 minutes' },
+];
+
+// Turn "Christian Fiction" + "Historical Fiction › WW II" rows into a nested tree.
+function categoryTree(paths) {
+  const root = { children: new Map() };
+  for (const { category, subcategory, n } of paths) {
+    if (!category) continue;
+    const parts = [category, ...(subcategory ? subcategory.split(' › ') : [])];
+    let node = root;
+    let path = '';
+    for (const part of parts) {
+      path = path ? `${path} › ${part}` : part;
+      if (!node.children.has(part)) node.children.set(part, { name: part, path, n: 0, children: new Map() });
+      node = node.children.get(part);
+      node.n += n;
+    }
+  }
+  return root;
+}
+
+function treeList(node, current, depth = 0) {
+  const kids = [...node.children.values()].sort((a, b) => a.name.localeCompare(b.name));
+  if (!kids.length) return '';
+  return html`<ul${depth ? '' : raw(' class="cat-tree"')}>${kids.map((k) => html`<li>
+    <label class="check"><input type="radio" name="category_path" value="${k.path}"${checked(current === k.path)}> <span>${k.name}</span> <span class="muted small">${k.n}</span></label>
+    ${treeList(k, current, depth + 1)}
+  </li>`)}</ul>`;
+}
+
+function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = [], isNew }) {
   const formats = book.format && !FORMATS.includes(book.format) ? [...FORMATS, book.format] : FORMATS;
-  const allCats = [...new Set([...categories.map((c) => c.category), ...CATEGORY_SUGGESTIONS])].sort();
-  const f = (name, label, opts = {}) => html`<div class="field${opts.cls ? ' ' + opts.cls : ''}">
-    <label for="b-${name}">${label}${opts.optional === false ? '' : opts.req ? '' : html` <span class="muted">(optional)</span>`}</label>
-    <input id="b-${name}" name="${name}" type="${opts.type || 'text'}" value="${book[name] ?? ''}"${opts.req ? raw(' required') : ''}${opts.list ? raw(` list="${opts.list}"`) : ''}${opts.min != null ? raw(` min="${opts.min}"`) : ''}${opts.inputmode ? raw(` inputmode="${opts.inputmode}"`) : ''}>
+  const details = book.details || {};
+  const currentPath = [book.category, book.subcategory].filter(Boolean).join(' › ');
+  const paths = categoryPaths.some((p) => [p.category, p.subcategory].filter(Boolean).join(' › ') === currentPath) || !book.category
+    ? categoryPaths
+    : [...categoryPaths, { category: book.category, subcategory: book.subcategory, n: 0 }];
+  const tree = categoryTree(paths);
+  const allPaths = [];
+  (function walk(n) { for (const k of n.children.values()) { allPaths.push(k.path); walk(k); } })(tree);
+  allPaths.sort();
+
+  const val = (name) => book[name] ?? '';
+  const f = (name, label, opts = {}) => html`<div class="field${opts.cls ? ' ' + opts.cls : ''}"${opts.showFor ? raw(` data-show-for="${opts.showFor}"`) : ''}>
+    <label for="b-${name}">${label}</label>
+    <input id="b-${name}" name="${name}" type="${opts.type || 'text'}" value="${opts.value ?? val(name)}"${opts.req ? raw(' required') : ''}${opts.min != null ? raw(` min="${opts.min}"`) : ''}${opts.inputmode ? raw(` inputmode="${opts.inputmode}"`) : ''}${opts.placeholder ? html` placeholder="${opts.placeholder}"` : ''}>
     ${errors[name] ? html`<p class="error">${errors[name]}</p>` : ''}${opts.hint ? html`<p class="hint">${opts.hint}</p>` : ''}</div>`;
+
   return html`
-  <form method="post" action="${isNew ? '/admin/books' : `/admin/books/${book.id}`}" class="book-form" id="book-form">
+  <form method="post" action="${isNew ? '/admin/books' : `/admin/books/${book.id}`}" class="book-form wp-layout" id="book-form">
     ${P.csrfField(csrf)}
-    <div class="book-form-grid">
-      <div class="book-form-main stack">
-        <div class="isbn-row">
-          ${f('isbn', 'ISBN', { inputmode: 'numeric', hint: 'Usually on the back cover above the barcode. Fill it in to look up the rest.' })}
-          <button type="button" class="btn btn-quiet" id="isbn-lookup">Fill in from ISBN</button>
-        </div>
-        <p class="small muted" id="isbn-status" role="status"></p>
-        ${f('title', 'Title', { req: true })}
-        ${f('subtitle', 'Subtitle')}
-        ${f('author', 'Author')}
-        <div class="row">
-          ${f('category', 'Subject', { list: 'cat-list', hint: 'Pick one or type a new one.' })}
-          <div class="field"><label for="b-audience">For</label><select id="b-audience" name="audience">${['Everyone', 'Adults', 'Youth', 'Children'].map((a) => html`<option${selected(a, book.audience || 'Everyone')}>${a}</option>`)}</select></div>
-          <div class="field"><label for="b-format">Format</label><select id="b-format" name="format">${formats.map((a) => html`<option${selected(a, book.format || 'Book')}>${a}</option>`)}</select></div>
-        </div>
-        <div class="row">
-          ${f('subcategory', 'Sub-subject', { hint: 'e.g. Historical Fiction under Christian Fiction.' })}
-          ${f('series', 'Series')}
-        </div>
-        <datalist id="cat-list">${allCats.map((c) => html`<option value="${c}">`)}</datalist>
-        <div class="field"><label for="b-description">Description <span class="muted">(optional)</span></label><textarea id="b-description" name="description" rows="6">${book.description || ''}</textarea></div>
-        ${f('tags', 'Keywords', { hint: 'Separate with commas, e.g. grief, comfort, widows. These help people find the book with the Ask bar.' })}
-        <div class="row">
-          ${f('copies_total', 'Copies', { type: 'number', min: 0, req: true, cls: 'short' })}
-          ${f('call_number', 'Library no.', { hint: 'The number on the book’s label, e.g. 6871 or DVD78.' })}
-          ${f('shelf_location', 'Shelf location', { hint: 'e.g. B-3 or “Children’s corner”' })}
-        </div>
-        <div class="row">
-          ${f('publisher', 'Publisher')}
-          ${f('published_year', 'Year', { type: 'number', cls: 'short' })}
-          ${f('pages', 'Pages', { type: 'number', cls: 'short' })}
-        </div>
-        ${!isNew ? html`<label class="check"><input type="checkbox" name="active" value="1"${checked(book.active !== false)}> Show in the catalog</label>` : ''}
+    <div class="wp-main">
+      <div class="field title-field">
+        <label for="b-title">Title</label>
+        <input id="b-title" name="title" value="${val('title')}" required placeholder="Book title" class="input-title">
+        ${errors.title ? html`<p class="error">${errors.title}</p>` : ''}
       </div>
-      <div class="book-form-side">
-        <p class="label">Cover</p>
-        <div class="cover-preview" id="cover-preview">${book.id ? P.cover(book, 'lg') : html`<div class="cover cover-lg cover-empty">No cover yet</div>`}</div>
-        <label class="btn btn-quiet file-btn" for="cover-file">${book.has_cover ? 'Replace photo' : 'Add a photo'}</label>
-        <input type="file" id="cover-file" accept="image/*" capture="environment" class="visually-hidden">
-        <p class="hint">Take a picture of the cover with your phone, or choose an image.</p>
-        <input type="hidden" name="cover_data" id="cover-data">
-        <input type="hidden" name="cover_url" id="cover-url">
-        ${book.has_cover ? html`<label class="check small"><input type="checkbox" name="remove_cover" value="1"> Remove cover</label>` : ''}
-        ${!isNew && book.cover_status === 'pending' ? html`<p class="small muted">Looking for a cover…</p>` : ''}
-        ${!isNew && book.cover_note ? html`<p class="small muted">${book.cover_note}</p>` : ''}
-        ${!isNew && !book.has_cover ? html`<button class="btn btn-quiet btn-small" type="submit" formaction="/admin/books/${book.id}/find-cover" formnovalidate>Find a cover online</button>` : ''}
+      ${f('subtitle', 'Subtitle')}
+
+      <div class="field">
+        <label for="b-short">Short description</label>
+        <textarea id="b-short" name="short_description" rows="2" placeholder="One line shown under the title, e.g. A Tale of Forgiveness and Grace">${val('short_description')}</textarea>
       </div>
+      <div class="field">
+        <label for="b-description">Description</label>
+        <textarea id="b-description" name="description" rows="9">${val('description')}</textarea>
+      </div>
+
+      <section class="box">
+        <h2 class="box-head">Book data</h2>
+        <div class="box-body">
+          <h3 class="box-sub">Inventory</h3>
+          <div class="row">
+            ${f('call_number', 'SKU (library no.)', { hint: 'The number on the book’s label, e.g. 6871 or DVD78.' })}
+            ${f('copies_total', 'Stock (copies)', { type: 'number', min: 0, req: true, cls: 'short' })}
+            ${f('shelf_location', 'Shelf location', { hint: 'Optional, e.g. B-3' })}
+          </div>
+          <div class="isbn-row">
+            ${f('isbn', 'ISBN', { inputmode: 'numeric', hint: 'On the back cover above the barcode. Press the button to fill in the rest.' })}
+            <button type="button" class="btn btn-quiet" id="isbn-lookup">Fill in from ISBN</button>
+          </div>
+          <p class="small muted" id="isbn-status" role="status"></p>
+
+          <h3 class="box-sub">Attributes</h3>
+          <div class="row">
+            ${f('author', 'Writer', { hint: 'Separate several with commas.' })}
+            <div class="field short"><label for="b-format">Format</label><select id="b-format" name="format">${formats.map((a) => html`<option${selected(a, book.format || 'Paperback')}>${a}</option>`)}</select></div>
+          </div>
+          <div class="row">
+            ${f('publisher', 'Publisher')}
+            ${f('published_year', 'Publication date', { type: 'number', cls: 'short', placeholder: 'Year' })}
+            ${f('pages', 'Pages', { type: 'number', cls: 'short' })}
+          </div>
+          <div class="row">
+            ${f('series', 'Series')}
+            ${DETAIL_FIELDS.map((d) => f(d.name, d.key, { value: details[d.key] || '', hint: d.hint, showFor: d.showFor }))}
+          </div>
+        </div>
+      </section>
+
+      ${!isNew ? html`<section class="box">
+        <h2 class="box-head">Recent checkouts</h2>
+        <div class="box-body">${history.length ? coTable(history, csrf, { history: true }) : html`<p class="muted">This book hasn't been checked out yet.</p>`}</div>
+      </section>` : ''}
     </div>
-    <div class="form-actions">
-      <button class="btn" type="submit">${isNew ? 'Add book' : 'Save changes'}</button>
-      ${isNew ? html`<button class="btn btn-quiet" type="submit" name="and_new" value="1">Add and start another</button>` : ''}
-      <a class="btn btn-quiet" href="/admin/books">Cancel</a>
-    </div>
-  </form>
-  ${!isNew ? html`
-    <section class="admin-section">
-      <h2>Recent checkouts</h2>
-      ${history.length ? coTable(history, csrf, { history: true }) : html`<p class="muted">This book hasn't been checked out yet.</p>`}
-    </section>
-    <section class="admin-section danger-zone">
-      <h2>Remove this book</h2>
-      <p class="small">Books with checkout history are archived (hidden from the catalog) instead of deleted.</p>
-      ${btnForm(`/admin/books/${book.id}/delete`, csrf, 'Remove book', { cls: 'btn-danger btn-small', confirm: `Remove “${book.title}” from the library?` })}
-    </section>` : ''}`;
+
+    <aside class="wp-side">
+      <section class="box">
+        <h2 class="box-head">Publish</h2>
+        <div class="box-body stack">
+          <input type="hidden" name="active_present" value="1">
+          <label class="check"><input type="checkbox" name="active" value="1"${checked(isNew || book.active !== false)}> Show in the catalog</label>
+          ${!isNew ? html`<p class="small muted">${book.out_count ? `${book.out_count} of ${book.copies_total} out right now.` : 'All copies are in.'}${book.legacy_id ? ` Old system ID ${book.legacy_id}.` : ''}</p>` : ''}
+          <button class="btn" type="submit">${isNew ? 'Add book' : 'Update'}</button>
+          ${isNew ? html`<button class="btn btn-quiet" type="submit" name="and_new" value="1">Add and start another</button>` : html`<a class="btn btn-quiet" href="/books/${book.id}" target="_blank" rel="noopener">View in catalog</a>`}
+          <a class="small" href="/admin/books">Back to all books</a>
+        </div>
+      </section>
+
+      <section class="box">
+        <h2 class="box-head">Categories</h2>
+        <div class="box-body">
+          <input type="search" class="cat-filter" id="cat-filter" placeholder="Search categories" aria-label="Search categories">
+          <div class="cat-scroll" id="cat-scroll">
+            <label class="check"><input type="radio" name="category_path" value=""${checked(!currentPath)}> <span>Uncategorized</span></label>
+            ${treeList(tree, currentPath)}
+          </div>
+          <details class="add-cat"${errors.category ? raw(' open') : ''}>
+            <summary>+ Add new category</summary>
+            <div class="stack">
+              <div class="field"><label for="b-newcat">Name</label><input id="b-newcat" name="new_category_name"></div>
+              <div class="field"><label for="b-newparent">Parent category</label>
+                <select id="b-newparent" name="new_category_parent"><option value="">— None (top level) —</option>${allPaths.map((p) => html`<option>${p}</option>`)}</select></div>
+              <p class="hint">The new category is used for this book when you save.</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="box">
+        <h2 class="box-head">Who it's for</h2>
+        <div class="box-body audience-choices">
+          ${['Everyone', 'Adults', 'Youth', 'Children'].map((a) => html`<label class="check"><input type="radio" name="audience" value="${a}"${checked((book.audience || 'Adults') === a)}> ${a === 'Youth' ? 'Teens (Central Teens)' : a === 'Children' ? 'Children (Central Kids)' : a}</label>`)}
+        </div>
+      </section>
+
+      <section class="box">
+        <h2 class="box-head">Cover image</h2>
+        <div class="box-body stack">
+          <div class="cover-preview" id="cover-preview">${book.id ? P.cover(book, 'lg') : html`<div class="cover cover-lg cover-empty">No cover yet</div>`}</div>
+          <label class="btn btn-quiet file-btn" for="cover-file">${book.has_cover ? 'Replace cover image' : 'Set cover image'}</label>
+          <input type="file" id="cover-file" accept="image/*" capture="environment" class="visually-hidden">
+          <p class="hint">Take a picture with your phone, or choose an image.</p>
+          <input type="hidden" name="cover_data" id="cover-data">
+          <input type="hidden" name="cover_url" id="cover-url">
+          ${book.has_cover ? html`<label class="check small"><input type="checkbox" name="remove_cover" value="1"> Remove cover image</label>` : ''}
+          ${!isNew && book.cover_status === 'pending' ? html`<p class="small muted">Looking for a cover…</p>` : ''}
+          ${!isNew && book.cover_note ? html`<p class="small muted">${book.cover_note}</p>` : ''}
+          ${!isNew && !book.has_cover ? html`<button class="btn btn-quiet btn-small" type="submit" formaction="/admin/books/${book.id}/find-cover" formnovalidate>Find a cover online</button>` : ''}
+        </div>
+      </section>
+
+      <section class="box">
+        <h2 class="box-head">Tags</h2>
+        <div class="box-body">
+          <div class="field"><label class="visually-hidden" for="b-tags">Tags</label><input id="b-tags" name="tags" value="${val('tags')}">
+          <p class="hint">Separate with commas, e.g. grief, comfort, widows. Tags help people find the book with the Ask bar.</p></div>
+        </div>
+      </section>
+
+      ${!isNew ? html`<section class="box danger-box">
+        <h2 class="box-head">Remove</h2>
+        <div class="box-body"><p class="small">Books with checkout history are archived instead of deleted.</p>
+          <button class="btn btn-danger btn-small" type="submit" formaction="/admin/books/${book.id}/delete" formnovalidate data-confirm-click="Remove “${book.title}” from the library?">Move to trash</button></div>
+      </section>` : ''}
+    </aside>
+  </form>`;
 }
 
 function importPage({ csrf, result }) {

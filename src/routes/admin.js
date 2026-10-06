@@ -50,7 +50,7 @@ function bookValues(body) {
     author: clean(body.author, 300) || null,
     isbn: (clean(body.isbn, 20).replace(/[^0-9Xx]/g, '').toUpperCase()) || null,
     category: clean(body.category, 80) || null,
-    audience: AUDIENCES.includes(body.audience) ? body.audience : 'Everyone',
+    audience: AUDIENCES.includes(body.audience) ? body.audience : 'Adults',
     format: clean(body.format, 40) || 'Book',
     description: clean(body.description, 8000) || null,
     tags: clean(body.tags, 500) || null,
@@ -62,10 +62,34 @@ function bookValues(body) {
     call_number: clean(body.call_number, 40) || null,
     series: clean(body.series, 200) || null,
     subcategory: clean(body.subcategory, 200) || null,
+    short_description: clean(body.short_description, 500) || null,
   };
+  // Category from the checklist ("Christian Fiction › Historical Fiction"), or a new one typed in.
+  const newName = clean(body.new_category_name, 80).replace(/[›>]/g, '-');
+  const path = newName
+    ? [clean(body.new_category_parent, 300), newName].filter(Boolean).join(' › ')
+    : body.category_path !== undefined ? clean(body.category_path, 300) : null;
+  if (path !== null) {
+    const parts = path.split('›').map((x) => x.trim()).filter(Boolean);
+    v.category = parts[0] || null;
+    v.subcategory = parts.length > 1 ? parts.slice(1).join(' › ') : null;
+  }
+  // Attributes kept as details (only the ones on the form; others from the old system are left alone).
+  const DETAIL_FORM = { detail_illustrator: 'Illustrator', detail_reading_level: 'Reading Level', detail_read_by: 'Book read by', detail_rated: 'Rated', detail_running_time: 'Running Time' };
+  if (Object.keys(DETAIL_FORM).some((k) => k in body)) {
+    v.detailUpdates = {};
+    for (const [field, key] of Object.entries(DETAIL_FORM)) if (field in body) v.detailUpdates[key] = clean(body[field], 120);
+  }
   const errors = {};
   if (!v.title) errors.title = 'A title is required.';
   return { v, errors };
+}
+
+function mergeDetails(existing, updates) {
+  if (!updates) return existing || null;
+  const out = { ...(existing || {}) };
+  for (const [k, val] of Object.entries(updates)) { if (val) out[k] = val; else delete out[k]; }
+  return Object.keys(out).length ? out : null;
 }
 
 async function coverFrom(body) {
@@ -206,7 +230,7 @@ module.exports = (app) => {
   });
 
   app.get('/admin/books/new', requireStaff, async (req, res) => {
-    await page(req, res, 'books', 'Add a book', A.bookForm({ csrf: res.locals.csrf, book: { copies_total: 1 }, categories: await books.categories(), isNew: true }));
+    await page(req, res, 'books', 'Add a book', A.bookForm({ csrf: res.locals.csrf, book: { copies_total: 1 }, categoryPaths: await books.categoryPaths(), isNew: true }));
   });
 
   app.get('/admin/books/lookup', requireStaff, security.rateLimit('isbn', { max: 60, windowMs: 600000 }), async (req, res) => {
@@ -226,15 +250,18 @@ module.exports = (app) => {
     const { v, errors } = bookValues(req.body);
     if (Object.keys(errors).length) {
       res.status(422);
-      return page(req, res, 'books', 'Add a book', A.bookForm({ csrf: res.locals.csrf, book: v, errors, categories: await books.categories(), isNew: true }));
+      return page(req, res, 'books', 'Add a book', A.bookForm({ csrf: res.locals.csrf, book: v, errors, categoryPaths: await books.categoryPaths(), isNew: true }));
     }
     const cover = await coverFrom(req.body);
+    const details = mergeDetails(null, v.detailUpdates);
     const row = await db.one(`INSERT INTO books (title, subtitle, author, isbn, category, audience, format, description, tags, publisher,
-      published_year, pages, copies_total, shelf_location, call_number, series, subcategory, cover_image, cover_type, cover_status)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING id`,
+      published_year, pages, copies_total, shelf_location, call_number, series, subcategory, cover_image, cover_type, cover_status,
+      short_description, details, active)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING id`,
     [v.title, v.subtitle, v.author, v.isbn, v.category, v.audience, v.format, v.description, v.tags, v.publisher,
       v.published_year, v.pages, v.copies_total, v.shelf_location, v.call_number, v.series, v.subcategory,
-      cover ? cover.data : null, cover ? cover.type : null, cover ? 'done' : 'none']);
+      cover ? cover.data : null, cover ? cover.type : null, cover ? 'done' : 'none',
+      v.short_description, details ? JSON.stringify(details) : null, req.body.active_present ? req.body.active === '1' : true]);
     security.flash(req, 'ok', `Added “${v.title}”.`);
     res.redirect(req.body.and_new ? '/admin/books/new' : `/admin/books/${row.id}/edit`);
   });
@@ -242,7 +269,7 @@ module.exports = (app) => {
   app.get('/admin/books/:id/edit', requireStaff, async (req, res) => {
     const book = await books.get(intParam(req.params.id));
     if (!book) throw new HttpError(404, 'That book wasn’t found.');
-    await page(req, res, 'books', 'Edit book', A.bookForm({ csrf: res.locals.csrf, book, categories: await books.categories(), history: await checkouts.forBook(book.id) }));
+    await page(req, res, 'books', 'Edit book', A.bookForm({ csrf: res.locals.csrf, book, categoryPaths: await books.categoryPaths(), history: await checkouts.forBook(book.id) }));
   });
 
   app.post('/admin/books/:id', requireStaff, async (req, res) => {
@@ -252,13 +279,15 @@ module.exports = (app) => {
     const { v, errors } = bookValues(req.body);
     if (Object.keys(errors).length) {
       res.status(422);
-      return page(req, res, 'books', 'Edit book', A.bookForm({ csrf: res.locals.csrf, book: { ...existing, ...v }, errors, categories: await books.categories() }));
+      return page(req, res, 'books', 'Edit book', A.bookForm({ csrf: res.locals.csrf, book: { ...existing, ...v }, errors, categoryPaths: await books.categoryPaths() }));
     }
+    const details = mergeDetails(existing.details, v.detailUpdates);
     await db.query(`UPDATE books SET title=$2, subtitle=$3, author=$4, isbn=$5, category=$6, audience=$7, format=$8, description=$9, tags=$10,
       publisher=$11, published_year=$12, pages=$13, copies_total=$14, shelf_location=$15, active=$16, call_number=$17, series=$18, subcategory=$19,
-      updated_at=now() WHERE id=$1`,
+      short_description=$20, details=$21, updated_at=now() WHERE id=$1`,
     [id, v.title, v.subtitle, v.author, v.isbn, v.category, v.audience, v.format, v.description, v.tags, v.publisher,
-      v.published_year, v.pages, v.copies_total, v.shelf_location, req.body.active === '1', v.call_number, v.series, v.subcategory]);
+      v.published_year, v.pages, v.copies_total, v.shelf_location, req.body.active === '1', v.call_number, v.series, v.subcategory,
+      v.short_description, details ? JSON.stringify(details) : null]);
     const cover = await coverFrom(req.body);
     if (cover) await db.query("UPDATE books SET cover_image = $2, cover_type = $3, cover_status = 'done', cover_note = 'added by staff' WHERE id = $1", [id, cover.data, cover.type]);
     else if (req.body.remove_cover === '1') await db.query("UPDATE books SET cover_image = NULL, cover_type = NULL, cover_status = 'none' WHERE id = $1", [id]);
@@ -311,7 +340,7 @@ module.exports = (app) => {
       result.skipped.push(...skipped);
       const existing = new Set((await db.many('SELECT legacy_id FROM books WHERE legacy_id IS NOT NULL')).map((r) => r.legacy_id));
       const COLS = ['legacy_id', 'call_number', 'title', 'author', 'category', 'subcategory', 'audience', 'format', 'description', 'tags',
-        'publisher', 'published_year', 'pages', 'series', 'copies_total', 'active', 'details', 'cover_source_url'];
+        'publisher', 'published_year', 'pages', 'series', 'copies_total', 'active', 'details', 'cover_source_url', 'short_description'];
       for (let i = 0; i < rows.length; i += 100) {
         const chunk = rows.slice(i, i + 100);
         const params = [];
@@ -325,7 +354,7 @@ module.exports = (app) => {
             subcategory = EXCLUDED.subcategory, audience = EXCLUDED.audience, format = EXCLUDED.format, description = EXCLUDED.description,
             tags = EXCLUDED.tags, publisher = EXCLUDED.publisher, published_year = EXCLUDED.published_year, pages = EXCLUDED.pages,
             series = EXCLUDED.series, copies_total = EXCLUDED.copies_total, active = EXCLUDED.active, details = EXCLUDED.details,
-            cover_source_url = EXCLUDED.cover_source_url,
+            cover_source_url = EXCLUDED.cover_source_url, short_description = EXCLUDED.short_description,
             cover_status = CASE WHEN books.cover_image IS NULL THEN 'pending' ELSE books.cover_status END,
             updated_at = now()`, params);
         for (const b of chunk) { if (existing.has(b.legacy_id)) result.updated++; else result.added++; }

@@ -348,6 +348,7 @@ fieldset.card legend + * { clear: both; }
 .table td { padding: 11px 14px; border-bottom: 1px solid #E3E9E5; vertical-align: top; }
 .table tr:last-child td { border-bottom: 0; }
 .table td.actions { white-space: nowrap; text-align: right; }
+.table .avail { white-space: nowrap; }
 .table tr.inactive td { color: var(--ink-soft); }
 .with-cover { display: flex; gap: 10px; align-items: center; }
 .toggle-card { display: flex; gap: 20px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
@@ -371,6 +372,34 @@ fieldset.card legend + * { clear: both; }
 .isbn-row .field { flex: 1 1 220px; }
 .isbn-row .btn { margin-top: 28px; }
 
+/* ---------- Book screen (familiar WordPress layout: writing area + side boxes) ---------- */
+.wp-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+.wp-main { display: grid; gap: 18px; min-width: 0; }
+.wp-side { display: grid; gap: 16px; align-content: start; }
+.input-title { font-family: var(--serif); font-size: 1.5rem !important; font-weight: 600; padding: 0.5em 0.6em !important; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.box-head { font-family: var(--sans); font-size: 1rem; font-weight: 700; color: var(--ink); margin: 0; padding: 10px 14px; background: #FAFBF9; border-bottom: 1px solid var(--line); }
+.box-body { padding: 14px; }
+.box-body .table-wrap { border: 0; }
+.box-sub { font-family: var(--sans); font-size: 0.85rem; font-weight: 700; color: var(--green); margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #E3E9E5; }
+.box-sub:first-child { margin-top: 0; }
+.box-body .row + .row, .box-body .isbn-row { margin-top: 12px; }
+.cat-filter { margin-bottom: 8px; min-height: 38px !important; padding: 0.4em 0.6em !important; }
+.cat-scroll { max-height: 280px; overflow-y: auto; border: 1px solid #E3E9E5; border-radius: 6px; padding: 8px 10px; }
+.cat-scroll .check { font-size: 0.95rem; padding: 2px 0; }
+.cat-scroll .check input { width: 17px; height: 17px; }
+.cat-tree, .cat-tree ul { list-style: none; margin: 0; padding: 0; }
+.cat-tree ul { padding-left: 22px; }
+.add-cat { margin-top: 10px; }
+.add-cat summary { cursor: pointer; color: var(--green); font-weight: 700; font-size: 0.95rem; }
+.add-cat .stack { margin-top: 10px; gap: 10px; }
+.audience-choices { display: grid; gap: 6px; }
+.danger-box .box-head { color: var(--danger); }
+.wp-side .btn { width: 100%; }
+.wp-side .file-btn { width: auto; }
+.short-desc { font-size: 1.15rem; font-style: italic; color: var(--ink-soft); margin: 4px 0 0; }
+[data-show-for][hidden] { display: none; }
+
 /* ---------- Footer ---------- */
 .site-foot { border-top: 3px solid var(--gilt); background: var(--black); color: #D9E2D6; }
 .site-foot .wrap { padding: 28px 20px; }
@@ -387,7 +416,7 @@ fieldset.card legend + * { clear: both; }
   .admin-nav { position: static; display: flex; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
   .admin-nav a { white-space: nowrap; }
   .admin-role { display: none; }
-  .two-col, .book-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .two-col, .book-form-grid, .wp-layout { grid-template-columns: minmax(0, 1fr); }
   .book-form-side { position: static; }
 }
 @media (max-width: 760px) {

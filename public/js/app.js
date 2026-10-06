@@ -168,11 +168,21 @@
         .then(function (d) {
           if (d.error) { isbnStatus.textContent = d.error; return; }
           var filled = [];
-          ['title', 'subtitle', 'author', 'publisher', 'published_year', 'pages', 'description', 'category', 'tags'].forEach(function (k) {
+          ['title', 'subtitle', 'author', 'publisher', 'published_year', 'pages', 'description', 'tags'].forEach(function (k) {
             var f = field(k);
             if (f && d[k] && !f.value.trim()) { f.value = d[k]; filled.push(k); }
           });
-          if (d.audience && field('audience').value === 'Everyone') field('audience').value = d.audience;
+          var aud = bookForm.querySelector('input[name="audience"]:checked');
+          if (d.audience && (!aud || aud.value === 'Adults' || aud.value === 'Everyone')) {
+            var pick = bookForm.querySelector('input[name="audience"][value="' + d.audience + '"]');
+            if (pick) pick.checked = true;
+          }
+          var catChosen = bookForm.querySelector('input[name="category_path"]:checked');
+          if (d.category && (!catChosen || !catChosen.value)) {
+            var match = Array.prototype.find.call(bookForm.querySelectorAll('input[name="category_path"]'), function (r) { return r.value.split(' › ').pop().toLowerCase() === d.category.toLowerCase(); });
+            if (match) match.checked = true;
+            else { field('new_category_name').value = d.category; bookForm.querySelector('.add-cat').open = true; }
+          }
           if (d.isbn) field('isbn').value = d.isbn;
           if (d.cover_url && !coverData.value) {
             coverUrl.value = d.cover_url;
@@ -215,6 +225,37 @@
       reader.readAsDataURL(file);
     });
   }
+
+  /* ---------- Book screen: category search, format-specific fields, trash button ---------- */
+  var catFilter = document.getElementById('cat-filter');
+  if (catFilter) {
+    catFilter.addEventListener('input', function () {
+      var q = catFilter.value.trim().toLowerCase();
+      document.querySelectorAll('#cat-scroll li').forEach(function (li) {
+        var own = li.querySelector(':scope > label').textContent.toLowerCase();
+        var anyInside = li.textContent.toLowerCase().indexOf(q) >= 0;
+        li.hidden = q && !anyInside && own.indexOf(q) < 0;
+      });
+    });
+    var chosen = document.querySelector('#cat-scroll input:checked');
+    var box = document.getElementById('cat-scroll');
+    if (chosen && chosen.value) box.scrollTop = chosen.closest('label').offsetTop - box.offsetTop - 80;
+  }
+  var fmt = document.getElementById('b-format');
+  if (fmt) {
+    var showFor = function () {
+      document.querySelectorAll('[data-show-for]').forEach(function (el) {
+        var has = el.querySelector('input') && el.querySelector('input').value;
+        el.hidden = !has && el.getAttribute('data-show-for').split(',').indexOf(fmt.value) < 0;
+      });
+    };
+    fmt.addEventListener('change', showFor);
+    showFor();
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-confirm-click]');
+    if (b && !window.confirm(b.getAttribute('data-confirm-click'))) e.preventDefault();
+  });
 
   /* ---------- CSV import: read the chosen file into the form ---------- */
   var csvFile = document.getElementById('csv-file');
