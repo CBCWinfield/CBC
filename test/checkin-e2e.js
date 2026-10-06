@@ -161,7 +161,16 @@ class Browser {
   assert.strictEqual(r.location, '/checkin/training');
   r = await vol.go('/checkin/training');
   assert.match(r.body, /Welcome to the team/);
-  assert.match(r.body, /0 of 8 complete/);
+  assert.match(r.body, /0 of 9 complete/);
+  assert.match(r.body, /Teens &amp; Kids Ministry Manual/);
+  const manualId = sql(`SELECT id FROM policies WHERE title = 'Teens & Kids Ministry Manual'`);
+  r = await vol.go(`/checkin/policies/${manualId}`);
+  assert.match(r.body, /Central Check-In Security/);
+  assert.match(r.body, /<strong>Two-Adult Rule:<\/strong>/);
+  assert.match(r.body, /class="ci-pdf"/);
+  assert.ok(!/KidCheck/i.test(r.body));
+  await vol.post(`/checkin/policies/${manualId}/ack`, { confirm: '1' });
+  assert.strictEqual((await vol.go(`/checkin/policies/${manualId}/file`)).status, 200);
   r = await vol.go(`/checkin/policies/${polId}`);
   assert.match(r.body, /<h3>Two adults<\/h3>/);
   assert.match(r.body, /<li>Doors open<\/li>/);

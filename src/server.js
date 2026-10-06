@@ -126,6 +126,8 @@ async function bootstrap() {
       }
     }
   }
+  // Starter policy: the ministry manual (once per database).
+  await require('./checkin/seed').seedPolicies().catch((err) => console.error('Policy seed failed:', err.message));
 }
 
 if (require.main === module) {

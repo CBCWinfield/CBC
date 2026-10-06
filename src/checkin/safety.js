@@ -49,7 +49,13 @@ function formatText(text) {
   return blocks.map((b) => {
     const lines = b.split('\n').map((l) => l.trim()).filter(Boolean);
     if (!lines.length) return '';
-    if (lines.every((l) => /^[-*•] /.test(l))) return html`<ul>${lines.map((l) => html`<li>${l.replace(/^[-*•] /, '')}</li>`)}</ul>`;
+    if (lines.every((l) => /^[-*•] /.test(l))) {
+      return html`<ul>${lines.map((l) => {
+        const item = l.replace(/^[-*•] /, '');
+        const m = /^([^:]{2,60}):\s(.*)$/.exec(item); // "Label: text" -> bold label
+        return m ? html`<li><strong>${m[1]}:</strong> ${m[2]}</li>` : html`<li>${item}</li>`;
+      })}</ul>`;
+    }
     if (lines.length === 1 && /^#{1,3} /.test(lines[0])) return html`<h3>${lines[0].replace(/^#+ /, '')}</h3>`;
     return html`<p>${lines.map((l, i) => html`${i ? raw('<br>') : ''}${l}`)}</p>`;
   });
