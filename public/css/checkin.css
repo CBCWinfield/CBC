@@ -478,3 +478,7 @@ a.ci-name-link:hover { text-decoration: underline; }
   .ci-main { padding: 0; }
 }
 .ci-broadcast { margin-top: 22px; }
+.ci-videos { display: grid; gap: 18px; }
+.ci-video-card { margin: 0; display: grid; gap: 6px; }
+.ci-cert ul { padding-left: 20px; }
+.ci-cert li { margin-bottom: 10px; }

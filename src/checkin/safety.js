@@ -9,7 +9,7 @@ const t = require('../lib/time');
 const { pushTo } = require('../notify');
 const { intParam, clean } = require('../routes/guards');
 const D = require('./data');
-const { MODULES, MODULE, SRC } = require('./training');
+const { MODULES, MODULE, SRC, CERTIFICATION } = require('./training');
 
 const csrfField = (csrf) => html`<input type="hidden" name="_csrf" value="${csrf}">`;
 const fullName = (u) => `${u.first_name} ${u.last_name}`.trim();
@@ -80,9 +80,9 @@ function hubPage({ user, st, locked }) {
     <section class="ci-section"><h2>${st.policies.length ? '2. ' : ''}Complete each training</h2>
       <ul class="ci-train-list">${st.modules.map((m) => html`<li><a class="ci-train-item${m.done ? ' is-done' : ''}" href="/checkin/training/${m.key}">
         <span class="ci-train-check" aria-hidden="true">${m.done ? '✓' : ''}</span>
-        <span class="ci-conv-text"><span class="ci-conv-name">${m.title}</span><span class="ci-conv-last">${m.done ? `Completed ${t.fmtDateYear(m.completed_at)}` : `About ${m.minutes} minutes${m.video ? ' · includes a video' : ''}`}</span></span>
+        <span class="ci-conv-text"><span class="ci-conv-name">${m.title}</span><span class="ci-conv-last">${m.done ? `Completed ${t.fmtDateYear(m.completed_at)}` : `About ${m.minutes} minutes${m.videos && m.videos.length ? ` · ${m.videos.length} video${m.videos.length === 1 ? '' : 's'}` : ''}`}</span></span>
       </a></li>`)}</ul></section>
-    <p class="small muted">Lessons are drawn from public guidance by the U.S. Department of Health & Human Services, the CDC, Darkness to Light, Committee for Children, RAINN, the Kansas Department for Children and Families, and Southern Baptist abuse-prevention resources (ERLC Caring Well and SBC Abuse Prevention). Each lesson lists its sources. For deeper, free training, see <a href="https://sbcabuseprevention.com/" target="_blank" rel="noopener">SBC Abuse Prevention’s Essentials course</a>.</p>
+    <p class="small muted">Lessons are drawn from the U.S. Department of Health & Human Services, the CDC, Darkness to Light, Stop It Now, the NSPCC, the National Center for Missing & Exploited Children, the FBI, RAINN, the Kansas Department for Children and Families, Scouting America Youth Protection, Southern Baptist abuse-prevention resources (ERLC Caring Well, SBC Abuse Prevention), the American Heart Association, the American Red Cross and Nicklaus Children’s Hospital. Each lesson lists its sources. For deeper, free training, see <a href="https://sbcabuseprevention.com/" target="_blank" rel="noopener">SBC Abuse Prevention’s Essentials course</a>.</p>
   </div>`;
 }
 
@@ -95,9 +95,14 @@ function modulePage({ csrf, m, done, index }) {
     ${m.sections.map((sec) => html`<section class="ci-lesson-sec"><h2>${sec.h}</h2>
       ${(sec.p || []).map((p) => html`<p>${raw(p)}</p>`)}
       ${sec.list ? html`<ul>${sec.list.map((li) => html`<li>${raw(li)}</li>`)}</ul>` : ''}</section>`)}
-    ${m.video ? html`<section class="ci-lesson-sec"><h2>Watch</h2>
-      <div class="ci-video"><iframe src="https://player.vimeo.com/video/${m.video.id}?dnt=1&title=0&byline=0" title="${m.video.title}" allow="fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>
-      <p class="small muted">${m.video.title} · about ${m.video.minutes} minutes. <a href="https://vimeo.com/${m.video.id}" target="_blank" rel="noopener">Open on Vimeo</a></p></section>` : ''}
+    ${m.videos && m.videos.length ? html`<section class="ci-lesson-sec"><h2>Watch</h2>
+      <div class="ci-videos">${m.videos.map((v) => html`<figure class="ci-video-card">
+        <div class="ci-video"><iframe src="${v.host === 'vimeo' ? `https://player.vimeo.com/video/${v.id}?dnt=1&title=0&byline=0` : `https://www.youtube-nocookie.com/embed/${v.id}?rel=0&modestbranding=1`}" title="${v.title}" allow="fullscreen; picture-in-picture; encrypted-media" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+        <figcaption><strong>${v.title}</strong><br><span class="small muted">${v.by}${v.minutes ? ` · about ${v.minutes} min` : ''} · <a href="${v.host === 'vimeo' ? `https://vimeo.com/${v.id}` : `https://www.youtube.com/watch?v=${v.id}`}" target="_blank" rel="noopener">Open in a new tab</a></span></figcaption>
+      </figure>`)}</div></section>` : ''}
+    ${m.certification ? html`<section class="ci-lesson-sec ci-cert"><h2>Get certified</h2>
+      <p>Central encourages everyone serving with children to hold a current CPR and first-aid certification. These courses are offered near Winfield and online with an in-person skills check:</p>
+      <ul>${CERTIFICATION.map((c) => html`<li><a href="${c.url}" target="_blank" rel="noopener"><strong>${c.title}</strong></a><br><span class="small">${c.note}</span></li>`)}</ul></section>` : ''}
     <section class="ci-lesson-sec ci-sources"><h2>Sources</h2><ul>${m.sources.map((k) => html`<li><a href="${SRC[k].url}" target="_blank" rel="noopener">${SRC[k].title}</a></li>`)}</ul></section>
     <form method="post" action="/checkin/training/${m.key}" class="ci-card ci-confirm" data-confirm-form>
       ${csrfField(csrf)}

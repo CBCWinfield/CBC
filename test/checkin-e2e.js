@@ -161,14 +161,14 @@ class Browser {
   assert.strictEqual(r.location, '/checkin/training');
   r = await vol.go('/checkin/training');
   assert.match(r.body, /Welcome to the team/);
-  assert.match(r.body, /0 of 6 complete/);
+  assert.match(r.body, /0 of 8 complete/);
   r = await vol.go(`/checkin/policies/${polId}`);
   assert.match(r.body, /<h3>Two adults<\/h3>/);
   assert.match(r.body, /<li>Doors open<\/li>/);
   await vol.post(`/checkin/policies/${polId}/ack`, {});
   assert.strictEqual(sql(`SELECT count(*) FROM policy_acks WHERE policy_id = ${polId}`), '0', 'must tick the box');
   await vol.post(`/checkin/policies/${polId}/ack`, { confirm: '1' });
-  for (const key of ['recognize', 'prevent', 'respond', 'conduct', 'words']) {
+  for (const key of ['recognize', 'prevent', 'online', 'respond', 'conduct', 'words', 'cpr']) {
     r = await vol.go(`/checkin/training/${key}`);
     assert.match(r.body, /Sources/);
     const boxes = [...r.body.matchAll(/name="(c\d+)"/g)].map((m) => m[1]);
@@ -182,6 +182,11 @@ class Browser {
   assert.strictEqual(r.location, '/checkin', 'unlocked after the last lesson');
   r = await vol.go('/checkin/training');
   assert.match(r.body, /All done/);
+  r = await vol.go('/checkin/training/cpr');
+  assert.match(r.body, /youtube-nocookie\.com\/embed\/PJbJ5IFvtIg/);
+  assert.match(r.body, /redcross\.org\/take-a-class\/cpr/);
+  r = await vol.go('/checkin/training/prevent');
+  assert.match(r.body, /player\.vimeo\.com\/video\/652549488/);
   r = await admin.go('/checkin/admin');
   assert.match(r.body, /Team training and policies/);
   assert.match(r.body, /Val Helper/);
