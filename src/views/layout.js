@@ -43,7 +43,8 @@ function layout({ title, user, csrf, flash = [], body, current, settings, wide =
 <meta name="csrf-token" content="${csrf || ''}">
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/img/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/img/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/img/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

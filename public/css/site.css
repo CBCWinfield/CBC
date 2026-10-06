@@ -47,7 +47,7 @@ p { margin: 0 0 1em; }
 /* Header */
 .top { position: sticky; top: 0; z-index: 50; background: var(--field-deep); color: #fff; }
 .top-in { max-width: var(--wrap); margin: 0 auto; padding: 10px var(--gutter); display: flex; align-items: center; gap: 22px; min-height: 72px; }
-.brand img { height: 46px; width: auto; mix-blend-mode: screen; } /* the logo file has a black background */
+.brand img { height: 46px; width: auto; }
 .nav { display: flex; align-items: center; gap: 2px; margin-left: auto; }
 .nav > a, .nav-more summary { color: #E5EEE0; text-decoration: none; font-weight: 700; font-size: 0.98rem; padding: 10px 12px; border-radius: 999px; cursor: pointer; list-style: none; }
 .nav-more summary::-webkit-details-marker { display: none; }
@@ -252,7 +252,7 @@ body.menu-open { overflow: hidden; }
 .foot h2 { font-size: 1rem; color: #fff; margin-bottom: 10px; letter-spacing: 0; }
 .foot a { color: #E3ECDD; text-decoration: none; }
 .foot a:hover { color: var(--wheat); }
-.foot-id img { height: 50px; width: auto; margin-bottom: 14px; mix-blend-mode: screen; }
+.foot-id img { height: 52px; width: auto; margin-bottom: 14px; }
 .foot-id p { max-width: 24em; }
 .foot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .foot-times span { display: block; color: var(--wheat); font-weight: 700; font-size: 0.9rem; }

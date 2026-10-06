@@ -65,10 +65,11 @@ function layout({ title, desc, page, body, base = '' }) {
 <meta property="og:title" content="${title || 'Central Baptist Church'}">
 <meta property="og:description" content="${desc || `A church family on Wheat Road in Winfield, Kansas, for ${years()} years.`}">
 <meta property="og:type" content="website">
-<link rel="icon" href="/img/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/img/icon-192.png">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/img/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/bricolage.woff" as="font" type="font/woff" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=8">
+<link rel="stylesheet" href="/css/site.css?v=9">
 <script src="/js/site.js?v=3" defer></script>
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
@@ -76,7 +77,7 @@ function layout({ title, desc, page, body, base = '' }) {
 <a class="skip" href="#main">Skip to content</a>
 <header class="top">
   <div class="top-in">
-    <a class="brand" href="${href('/')}" aria-label="Central Baptist Church home"><img src="/img/logo-central-black.png" alt="Central Baptist Church" width="150" height="56"></a>
+    <a class="brand" href="${href('/')}" aria-label="Central Baptist Church home"><img src="/img/logo-central-white.png" alt="Central Baptist Church" width="640" height="224"></a>
     <nav class="nav" aria-label="Main">
       ${NAV.map(([p, l]) => html`<a href="${href(p)}"${cur(p)}>${l}</a>`)}
       <details class="nav-more"><summary>More</summary><div class="nav-pop">
@@ -107,7 +108,7 @@ ${body}
 <footer class="foot">
   <div class="foot-in">
     <div class="foot-id">
-      <img src="/img/logo-central-black.png" alt="Central Baptist Church" width="150" height="56">
+      <img src="/img/logo-central-white.png" alt="Central Baptist Church" width="640" height="224">
       <p>A Southern Baptist church family on Wheat Road in Winfield, Kansas, since ${CHURCH.founded}.</p>
     </div>
     <div>
