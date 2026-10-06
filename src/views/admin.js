@@ -122,7 +122,15 @@ function coverCard(st, csrf) {
   </div>`;
 }
 
-function booksPage({ rows, q, total, page, pages, base, categories, category, coverStatus, csrf, noCover }) {
+function sortHead(label, key, sort, sortBase) {
+  const active = sort === key || sort === `${key}_desc`;
+  const next = sort === key ? `${key}_desc` : key;
+  const sep = sortBase.includes('?') && !sortBase.endsWith('?') ? '&' : '';
+  const arrow = !active ? '' : sort.endsWith('_desc') ? ' ▼' : ' ▲';
+  return html`<th aria-sort="${!active ? 'none' : sort.endsWith('_desc') ? 'descending' : 'ascending'}"><a class="sort-link${active ? ' is-active' : ''}" href="${sortBase}${sep}sort=${next}">${label}${arrow}</a></th>`;
+}
+
+function booksPage({ rows, q, total, page, pages, base, categories, category, coverStatus, csrf, noCover, sort = 'title', sortBase = '/admin/books?', sorts = [] }) {
   return html`
   <div class="quick">
     <a class="btn" href="/admin/books/new">Add a book</a>
@@ -131,14 +139,15 @@ function booksPage({ rows, q, total, page, pages, base, categories, category, co
   </div>
   ${coverCard(coverStatus, csrf)}
   <form class="filters" method="get" action="/admin/books">
-    <div class="field grow"><label for="ab-q">Search title, writer, SKU or ISBN</label><input id="ab-q" type="search" name="q" value="${q || ''}"></div>
+    <div class="field grow suggest-wrap"><label for="ab-q">Search title, writer, SKU or ISBN</label><input id="ab-q" type="search" name="q" value="${q || ''}" autocomplete="off" data-suggest="admin" placeholder="Start typing…"></div>
     <div class="field"><label for="ab-cat">Category</label><select id="ab-cat" name="category"><option value="">All categories</option>${categories.map((c) => html`<option${selected(c.category, category)}>${c.category}</option>`)}</select></div>
+    <div class="field"><label for="ab-sort">Sort by</label><select id="ab-sort" name="sort" data-autosubmit>${sorts.map(([k, label]) => html`<option value="${k}"${selected(k, sort)}>${label}</option>`)}</select></div>
     <label class="check"><input type="checkbox" name="nocover" value="1"${checked(noCover)}> No cover yet</label>
     <button class="btn btn-quiet" type="submit">Search</button>
   </form>
   <p class="muted small">${total} title${total === 1 ? '' : 's'}</p>
   ${rows.length ? html`<div class="table-wrap"><table class="table books-table">
-    <thead><tr><th>Title</th><th>SKU</th><th>Stock</th><th>Writer</th><th>Categories</th></tr></thead>
+    <thead><tr>${sortHead('Title', 'title', sort, sortBase)}${sortHead('SKU', 'sku', sort, sortBase)}${sortHead('Stock', 'stock', sort, sortBase)}${sortHead('Writer', 'writer', sort, sortBase)}${sortHead('Categories', 'category', sort, sortBase)}</tr></thead>
     <tbody>${rows.map((b) => html`<tr${b.active ? '' : raw(' class="inactive"')}>
       <td class="with-cover">${P.cover(b, 'xs')}<span><a href="/admin/books/${b.id}/edit">${b.title}</a>${b.active ? '' : html` <span class="badge badge-muted">Hidden</span>`}<br><span class="small muted">${b.format || ''}</span></span></td>
       <td>${b.call_number || html`<span class="muted">–</span>`}</td>

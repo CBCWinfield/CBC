@@ -32,14 +32,40 @@ function bookFilters({ q, category, subcategory, audience, format, available, in
   return { where: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
 }
 
+// Sort orders for book lists. Titles ignore a leading "The", "A" or "An", like a library shelf.
+const SORT_TITLE = "lower(regexp_replace(b.title, '^(the|a|an)\\s+', '', 'i'))";
+const SORT_SKU_PREFIX = "lower(regexp_replace(COALESCE(b.call_number, ''), '[0-9].*$', ''))";
+const SORT_SKU_NUMBER = "NULLIF(substring(regexp_replace(COALESCE(b.call_number, ''), '[^0-9]', '', 'g') from 1 for 15), '')::numeric";
+const SORT_WRITER = "lower(substring(split_part(COALESCE(b.author, ''), ',', 1) from '(\\S+)\\s*$'))";
+const SORTS = {
+  title: { label: 'Title A–Z', sql: `${SORT_TITLE}, b.id` },
+  title_desc: { label: 'Title Z–A', sql: `${SORT_TITLE} DESC, b.id` },
+  writer: { label: 'Writer (last name) A–Z', sql: `${SORT_WRITER} NULLS LAST, ${SORT_TITLE}` },
+  writer_desc: { label: 'Writer (last name) Z–A', sql: `${SORT_WRITER} DESC NULLS LAST, ${SORT_TITLE}` },
+  sku: { label: 'SKU (library no.) low–high', sql: `(b.call_number IS NULL), ${SORT_SKU_PREFIX}, ${SORT_SKU_NUMBER} NULLS LAST, b.call_number` },
+  sku_desc: { label: 'SKU (library no.) high–low', sql: `(b.call_number IS NULL), ${SORT_SKU_PREFIX} DESC, ${SORT_SKU_NUMBER} DESC NULLS LAST, b.call_number DESC` },
+  newest: { label: 'Newest added', sql: 'b.created_at DESC, b.id DESC' },
+  published: { label: 'Publication date (newest)', sql: `b.published_year DESC NULLS LAST, ${SORT_TITLE}` },
+  available: { label: 'Available first', sql: `(b.copies_total - COALESCE(a.n, 0) > 0) DESC, ${SORT_TITLE}` },
+  stock: { label: 'Stock low–high', sql: `(b.copies_total - COALESCE(a.n, 0)), ${SORT_TITLE}` },
+  stock_desc: { label: 'Stock high–low', sql: `(b.copies_total - COALESCE(a.n, 0)) DESC, ${SORT_TITLE}` },
+  category: { label: 'Category A–Z', sql: `lower(COALESCE(b.category, 'zzz')), lower(COALESCE(b.subcategory, '')), ${SORT_TITLE}` },
+  category_desc: { label: 'Category Z–A', sql: `lower(COALESCE(b.category, '')) DESC, lower(COALESCE(b.subcategory, '')) DESC, ${SORT_TITLE}` },
+};
+
 const books = {
-  async list(filters = {}, { limit = 60, offset = 0, order = 'b.title' } = {}) {
+  async list(filters = {}, { limit = 60, offset = 0, order = 'b.title', sort } = {}) {
+    if (sort) order = (SORTS[sort] || SORTS.title).sql;
     const { where, params } = bookFilters(filters);
     const rows = await db.many(`SELECT ${BOOK_COLS} FROM ${BOOK_FROM} ${where} ORDER BY ${order} LIMIT ${Number(limit)} OFFSET ${Number(offset)}`, params);
     const count = await db.one(`SELECT count(*)::int AS n FROM ${BOOK_FROM} ${where}`, params);
     return { rows, total: count.n };
   },
   all: () => db.many(`SELECT ${BOOK_COLS} FROM ${BOOK_FROM} WHERE b.active ORDER BY b.title`),
+  // Small rows for search-as-you-type suggestions (includes hidden books, for staff).
+  searchIndex: () => db.many(`SELECT b.id, b.title, b.subtitle, b.author, b.call_number, b.series, b.category, b.subcategory, b.format,
+    b.active, b.updated_at, (b.cover_image IS NOT NULL) AS has_cover,
+    GREATEST(b.copies_total - COALESCE(a.n, 0), 0)::int AS available FROM ${BOOK_FROM}`),
   recent: (n = 18) => db.many(`SELECT ${BOOK_COLS} FROM ${BOOK_FROM} WHERE b.active ORDER BY b.created_at DESC LIMIT ${Number(n)}`),
   get: (id) => db.one(`SELECT ${BOOK_COLS} FROM ${BOOK_FROM} WHERE b.id = $1`, [id]),
   categories: () => db.many(`SELECT category, count(*)::int AS n FROM books WHERE active AND category IS NOT NULL AND category <> '' GROUP BY category ORDER BY category`),
@@ -97,4 +123,4 @@ const checkouts = {
 
 const fullName = (u) => [u.first_name, u.last_name].filter(Boolean).join(' ');
 
-module.exports = { books, users, checkouts, fullName, BOOK_COLS, BOOK_FROM };
+module.exports = { books, users, checkouts, fullName, BOOK_COLS, BOOK_FROM, SORTS };

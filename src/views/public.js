@@ -58,7 +58,7 @@ function landing({ s, recent, counts, categories, user }) {
   </section>`;
 }
 
-function catalog({ q, category, subcategory, audience, format, available, rows, total, page, pages, categories, subcategories = [], formats = [], base }) {
+function catalog({ q, category, subcategory, audience, format, available, rows, total, page, pages, categories, subcategories = [], formats = [], base, sort = 'title', sorts = [] }) {
   const chipBase = (sub) => `/catalog?${new URLSearchParams(Object.entries({ q, category, subcategory: sub, audience, format, available: available ? '1' : '' }).filter(([, v]) => v))}`;
   return html`
   <div class="page-head">
@@ -68,13 +68,15 @@ function catalog({ q, category, subcategory, audience, format, available, rows, 
     <p class="muted">${total.toLocaleString()} ${total === 1 ? 'title' : 'titles'}${q ? html` matching “${q}”` : ''}${category ? html` in ${category}${subcategory ? ` › ${subcategory}` : ''}` : ''}</p>
   </div>
   <form class="filters" method="get" action="/catalog">
-    <div class="field grow"><label for="f-q">Title, author or subject</label><input id="f-q" type="search" name="q" value="${q || ''}"></div>
+    <div class="field grow suggest-wrap"><label for="f-q">Title, author or subject</label><input id="f-q" type="search" name="q" value="${q || ''}" autocomplete="off" data-suggest="public" placeholder="Start typing a title, writer or library no."></div>
     <div class="field"><label for="f-cat">Subject</label>
       <select id="f-cat" name="category"><option value="">All subjects</option>${categories.map((c) => html`<option${selected(c.category, category)}>${c.category}</option>`)}</select></div>
     <div class="field"><label for="f-aud">For</label>
       <select id="f-aud" name="audience"><option value="">Everyone</option>${['Adults', 'Youth', 'Children'].map((a) => html`<option${selected(a, audience)}>${a}</option>`)}</select></div>
     <div class="field"><label for="f-fmt">Format</label>
       <select id="f-fmt" name="format"><option value="">Any format</option>${formats.map((f) => html`<option${selected(f, format)}>${f}</option>`)}</select></div>
+    <div class="field"><label for="f-sort">Sort by</label>
+      <select id="f-sort" name="sort" data-autosubmit>${sorts.map(([k, label]) => html`<option value="${k}"${selected(k, sort)}>${label}</option>`)}</select></div>
     <label class="check"><input type="checkbox" name="available" value="1"${checked(available)}> Available now</label>
     <button class="btn" type="submit">Search</button>
     ${q || category || audience || format || available ? html`<a class="btn btn-quiet" href="/catalog">Clear</a>` : ''}

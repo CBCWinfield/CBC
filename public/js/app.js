@@ -88,7 +88,7 @@
         var saved = JSON.parse(last);
         render(saved.q, saved.data);
         input.value = saved.q;
-        setCollapsed(store('askCollapsed') !== '0');
+        setCollapsed(true); // a new page starts with the last answer folded away
       } catch (e) { /* ignore */ }
     }
     input.addEventListener('search', function () {
@@ -225,6 +225,126 @@
       reader.readAsDataURL(file);
     });
   }
+
+  /* ---------- Search-as-you-type suggestions ---------- */
+  function highlight(text, query) {
+    // Bold the parts of the text that start with a typed word (built with DOM nodes, never HTML).
+    var frag = document.createDocumentFragment();
+    var words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    var re = words.length ? new RegExp('(^|[^a-z0-9])(' + words.map(function (w) { return w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')', 'gi') : null;
+    var last = 0;
+    var str = String(text || '');
+    if (re) {
+      str.replace(re, function (m, pre, word, idx) {
+        var start = idx + pre.length;
+        frag.appendChild(document.createTextNode(str.slice(last, start)));
+        frag.appendChild(el('mark', { text: str.substr(start, word.length) }));
+        last = start + word.length;
+        return m;
+      });
+    }
+    frag.appendChild(document.createTextNode(str.slice(last)));
+    return frag;
+  }
+
+  document.querySelectorAll('input[data-suggest]').forEach(function (input, n) {
+    var mode = input.getAttribute('data-suggest');
+    var isAsk = input.hasAttribute('data-suggest-ask');
+    var wrap = input.closest('.suggest-wrap') || input.parentNode;
+    var listId = 'suggest-list-' + n;
+    var box = el('div', { class: 'suggest-box', id: listId, role: 'listbox' });
+    box.hidden = true;
+    wrap.appendChild(box);
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-controls', listId);
+    input.setAttribute('aria-expanded', 'false');
+    var items = [];
+    var active = -1;
+    var timer = null;
+    var seq = 0;
+
+    function close() { box.hidden = true; input.setAttribute('aria-expanded', 'false'); active = -1; input.removeAttribute('aria-activedescendant'); }
+    function setActive(i) {
+      items.forEach(function (it, j) { it.classList.toggle('is-active', j === i); it.setAttribute('aria-selected', String(j === i)); });
+      active = i;
+      if (i >= 0) { input.setAttribute('aria-activedescendant', items[i].id); items[i].scrollIntoView({ block: 'nearest' }); }
+      else input.removeAttribute('aria-activedescendant');
+    }
+    function option(url, kids, cls) {
+      var a = el('a', { href: url, class: 'suggest-item' + (cls ? ' ' + cls : ''), role: 'option', id: listId + '-' + items.length, tabindex: '-1' }, kids);
+      a.addEventListener('mousedown', function (e) { e.preventDefault(); window.location.href = url; });
+      items.push(a);
+      return a;
+    }
+    function render(q, d) {
+      box.innerHTML = '';
+      items = [];
+      active = -1;
+      if (!d.books.length && !d.writers.length && !d.categories.length) {
+        box.appendChild(el('p', { class: 'suggest-empty', text: isAsk ? 'No title matches yet. Press Enter to ask the library.' : 'No matches yet. Keep typing, or press Enter to search.' }));
+      }
+      if (d.writers.length) {
+        box.appendChild(el('p', { class: 'suggest-label', text: 'Writers' }));
+        d.writers.forEach(function (w) {
+          var t = el('span', { class: 'suggest-title' }); t.appendChild(highlight(w.name, q));
+          box.appendChild(option(w.url, [el('span', { class: 'suggest-icon', text: '✎' }), el('span', { class: 'suggest-text' }, [t, el('span', { class: 'suggest-meta', text: w.n + (w.n === 1 ? ' book' : ' books') })])], 'suggest-small'));
+        });
+      }
+      if (d.categories.length) {
+        box.appendChild(el('p', { class: 'suggest-label', text: 'Categories' }));
+        d.categories.forEach(function (c) {
+          var t = el('span', { class: 'suggest-title' }); t.appendChild(highlight(c.label, q));
+          box.appendChild(option(c.url, [el('span', { class: 'suggest-icon', text: '▤' }), el('span', { class: 'suggest-text' }, [t, el('span', { class: 'suggest-meta', text: c.n + (c.n === 1 ? ' book' : ' books') })])], 'suggest-small'));
+        });
+      }
+      if (d.books.length) {
+        box.appendChild(el('p', { class: 'suggest-label', text: 'Books' }));
+        d.books.forEach(function (b) {
+          var thumb = b.cover ? el('img', { class: 'suggest-thumb', src: b.cover, alt: '' }) : el('span', { class: 'suggest-thumb', style: '--spine:' + hashColor(b.title) });
+          var t = el('span', { class: 'suggest-title' }); t.appendChild(highlight(b.title, q));
+          var meta = el('span', { class: 'suggest-meta' });
+          meta.appendChild(highlight([b.author, b.sku ? 'SKU ' + b.sku : '', b.format].filter(Boolean).join(' · '), q));
+          var status = el('span', { class: 'avail ' + (b.hidden ? 'avail-none' : b.available > 0 ? 'avail-yes' : 'avail-no'), text: b.hidden ? 'Hidden' : b.available > 0 ? 'In' : 'Out' });
+          box.appendChild(option(b.url, [thumb, el('span', { class: 'suggest-text' }, [t, meta]), status]));
+        });
+      }
+      if (d.total > d.books.length && !isAsk) {
+        box.appendChild(el('p', { class: 'suggest-foot', text: 'Press Enter to see all ' + d.total.toLocaleString() + ' matches' }));
+      } else if (isAsk) {
+        box.appendChild(el('p', { class: 'suggest-foot', text: 'Press Enter to ask the library' }));
+      }
+      box.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+    }
+    function fetchSuggestions() {
+      var q = input.value.trim();
+      if (q.length < 2 && !/^\d$/.test(q)) { close(); return; }
+      var mine = ++seq;
+      fetch('/api/suggest?q=' + encodeURIComponent(q) + (mode === 'admin' ? '&for=admin' : ''), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (mine === seq && document.activeElement === input) render(q, d); })
+        .catch(function () {});
+    }
+    input.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(fetchSuggestions, 140); });
+    input.addEventListener('focus', function () { if (input.value.trim().length >= 2) fetchSuggestions(); });
+    input.addEventListener('blur', function () { setTimeout(close, 150); });
+    input.addEventListener('keydown', function (e) {
+      if (box.hidden) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(items.length - 1, active + 1)); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(-1, active - 1)); }
+      else if (e.key === 'Escape') { close(); }
+      else if (e.key === 'Enter') {
+        if (active >= 0) { e.preventDefault(); window.location.href = items[active].getAttribute('href'); }
+        else close();
+      }
+    });
+  });
+
+  // Sort menus apply as soon as a choice is made.
+  document.querySelectorAll('select[data-autosubmit]').forEach(function (sel) {
+    sel.addEventListener('change', function () { if (sel.form) sel.form.submit(); });
+  });
 
   /* ---------- Book screen: category search, format-specific fields, trash button ---------- */
   var catFilter = document.getElementById('cat-filter');

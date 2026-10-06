@@ -6,10 +6,13 @@ const { books, users, checkouts } = require('../models');
 const V = require('../views/public');
 const notify = require('../notify');
 const { ask } = require('../lib/ask');
+const { suggest } = require('../lib/suggest');
+const { SORTS } = require('../models');
 const { buildSlots, findSlot } = require('../lib/slots');
 const { requireUser, safeNext, intParam, clean } = require('./guards');
 
 const PAGE = 24;
+const CATALOG_SORTS = ['title', 'title_desc', 'writer', 'writer_desc', 'newest', 'published', 'available', 'sku'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 // Normalise a typed library code: "cbc 1042", "1042", "CBC-1042" -> "CBC-1042"
@@ -51,13 +54,15 @@ module.exports = (app) => {
       q, category: clean(req.query.category, 100), subcategory: clean(req.query.subcategory, 150), audience: clean(req.query.audience, 30),
       format: clean(req.query.format, 40), available: req.query.available === '1',
     };
+    const sort = CATALOG_SORTS.includes(req.query.sort) ? req.query.sort : 'title';
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const { rows, total } = await books.list(filters, { limit: PAGE, offset: (page - 1) * PAGE });
-    const params = new URLSearchParams(Object.entries({ ...filters, available: filters.available ? '1' : '' }).filter(([, v]) => v));
+    const { rows, total } = await books.list(filters, { limit: PAGE, offset: (page - 1) * PAGE, sort });
+    const params = new URLSearchParams(Object.entries({ ...filters, available: filters.available ? '1' : '', sort: sort === 'title' ? '' : sort }).filter(([, v]) => v));
     res.render(V.catalog({
       ...filters, rows, total, page, pages: Math.ceil(total / PAGE),
       categories: await books.categories(), base: `/catalog?${params}`, formats: await books.formats(),
       subcategories: filters.category ? await books.subcategories(filters.category) : [],
+      sort, sorts: CATALOG_SORTS.map((k) => [k, SORTS[k].label]),
     }), { title: 'Catalog', current: 'catalog' });
   });
 
@@ -250,6 +255,32 @@ module.exports = (app) => {
 
   // ---- Ask bar (self-contained) ----
   let cache = { at: 0, rows: null };
+  let index = { at: 0, rows: null };
+  module.exports.clearSearchCache = () => { cache = { at: 0, rows: null }; index = { at: 0, rows: null }; };
+
+  // Search-as-you-type suggestions for the catalog, the Ask bar and the librarian's book list.
+  app.get('/api/suggest', security.rateLimit('suggest', { max: 240, windowMs: 60000 }), async (req, res) => {
+    if (!index.rows || Date.now() - index.at > 20000) index = { at: Date.now(), rows: await books.searchIndex() };
+    const staff = req.user && req.user.role !== 'patron' && req.query.for === 'admin';
+    const r = suggest(clean(req.query.q, 100), index.rows, { includeHidden: staff });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      total: r.total || 0,
+      books: r.books.map((b) => ({
+        id: b.id, title: b.title, author: b.author, sku: b.call_number, format: b.format, available: b.available,
+        hidden: b.active === false,
+        cover: b.has_cover ? `/covers/${b.id}?v=${new Date(b.updated_at).getTime()}` : null,
+        url: staff ? `/admin/books/${b.id}/edit` : `/books/${b.id}`,
+      })),
+      writers: r.writers.map((w) => ({ ...w, url: `${staff ? '/admin/books' : '/catalog'}?q=${encodeURIComponent(w.name)}` })),
+      categories: r.categories.map((c) => ({
+        ...c,
+        url: staff ? `/admin/books?category=${encodeURIComponent(c.category)}`
+          : `/catalog?category=${encodeURIComponent(c.category)}${c.subcategory ? `&subcategory=${encodeURIComponent(c.subcategory)}` : ''}`,
+      })),
+    });
+  });
+
   app.post('/api/ask', security.rateLimit('ask', { max: 60, windowMs: 60000 }), async (req, res) => {
     if (!cache.rows || Date.now() - cache.at > 30000) cache = { at: Date.now(), rows: await books.all() };
     const result = ask(clean(req.body.q, 300), cache.rows, req.settings);

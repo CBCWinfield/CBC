@@ -3,7 +3,7 @@ const db = require('../db');
 const security = require('../lib/security');
 const settingsStore = require('../settings');
 const { HttpError } = require('../lib/http');
-const { books, users, checkouts, fullName } = require('../models');
+const { books, users, checkouts, fullName, SORTS } = require('../models');
 const A = require('../views/admin');
 const notify = require('../notify');
 const mailer = require('../lib/mailer');
@@ -14,7 +14,9 @@ const woo = require('../lib/woo');
 const { parseCsvObjects } = require('../lib/csv');
 const t = require('../lib/time');
 const { requireStaff, requireLibrarian, intParam, clean } = require('./guards');
-const { approve, normalCode } = require('./public');
+const publicRoutes = require('./public');
+const { approve, normalCode } = publicRoutes;
+const refreshSearch = () => publicRoutes.clearSearchCache && publicRoutes.clearSearchCache();
 
 const PAGE = 50;
 const FORMATS = ['Book', 'Paperback', 'Hardback', 'Board Book', 'Large Print', 'Workbook', 'Audiobook', 'CD', 'DVD', 'Blu-ray', 'Pamphlet', 'Other'];
@@ -221,10 +223,13 @@ module.exports = (app) => {
     const category = clean(req.query.category, 100);
     const noCover = req.query.nocover === '1';
     const pg = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const { rows, total } = await books.list({ q, category, noCover, includeInactive: true }, { limit: PAGE, offset: (pg - 1) * PAGE, order: 'b.active DESC, b.title' });
-    const params = new URLSearchParams(Object.entries({ q, category, nocover: noCover ? '1' : '' }).filter(([, v]) => v));
+    const sort = SORTS[req.query.sort] ? req.query.sort : 'title';
+    const { rows, total } = await books.list({ q, category, noCover, includeInactive: true }, { limit: PAGE, offset: (pg - 1) * PAGE, sort });
+    const keep = { q, category, nocover: noCover ? '1' : '' };
+    const params = new URLSearchParams(Object.entries({ ...keep, sort: sort === 'title' ? '' : sort }).filter(([, v]) => v));
     await page(req, res, 'books', 'Books', A.booksPage({
       rows, q, category, noCover, total, page: pg, pages: Math.ceil(total / PAGE), base: `/admin/books?${params}`,
+      sort, sortBase: `/admin/books?${new URLSearchParams(Object.entries(keep).filter(([, v]) => v))}`, sorts: Object.entries(SORTS).map(([k, v]) => [k, v.label]),
       categories: await books.categories(), coverStatus: await covers.status(), csrf: res.locals.csrf,
     }));
   });
@@ -262,6 +267,7 @@ module.exports = (app) => {
       v.published_year, v.pages, v.copies_total, v.shelf_location, v.call_number, v.series, v.subcategory,
       cover ? cover.data : null, cover ? cover.type : null, cover ? 'done' : 'none',
       v.short_description, details ? JSON.stringify(details) : null, req.body.active_present ? req.body.active === '1' : true]);
+    refreshSearch();
     security.flash(req, 'ok', `Added “${v.title}”.`);
     res.redirect(req.body.and_new ? '/admin/books/new' : `/admin/books/${row.id}/edit`);
   });
@@ -291,6 +297,7 @@ module.exports = (app) => {
     const cover = await coverFrom(req.body);
     if (cover) await db.query("UPDATE books SET cover_image = $2, cover_type = $3, cover_status = 'done', cover_note = 'added by staff' WHERE id = $1", [id, cover.data, cover.type]);
     else if (req.body.remove_cover === '1') await db.query("UPDATE books SET cover_image = NULL, cover_type = NULL, cover_status = 'none' WHERE id = $1", [id]);
+    refreshSearch();
     security.flash(req, 'ok', `Saved “${v.title}”.`);
     res.redirect(`/admin/books/${id}/edit`);
   });
@@ -311,6 +318,7 @@ module.exports = (app) => {
       await db.query('DELETE FROM books WHERE id = $1', [id]);
       security.flash(req, 'ok', `“${book.title}” was removed.`);
     }
+    refreshSearch();
     res.redirect('/admin/books');
   });
 
@@ -359,6 +367,7 @@ module.exports = (app) => {
             updated_at = now()`, params);
         for (const b of chunk) { if (existing.has(b.legacy_id)) result.updated++; else result.added++; }
       }
+    refreshSearch();
       result.coversQueued = (await db.one("SELECT count(*)::int AS n FROM books WHERE cover_status = 'pending'")).n;
       covers.kick();
     } else {

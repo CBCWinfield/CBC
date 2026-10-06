@@ -129,3 +129,17 @@ test('old library export: detected, mapped and round-tripped', () => {
   assert.deepStrictEqual(again.map((b) => [b.legacy_id, b.title, b.author, b.call_number, b.format, b.series]),
     rows.map((b) => [b.legacy_id, b.title, b.author, b.call_number, b.format, b.series]));
 });
+
+// ---- Search-as-you-type suggestions ----
+const { suggest } = require('../src/lib/suggest');
+test('suggestions: titles first, writers, library numbers, typing in progress', () => {
+  const idx = books.map((b) => ({ ...b, call_number: String(1000 + b.id), active: true }));
+  const s1 = suggest('scre', idx);
+  assert.strictEqual(s1.books[0].title, 'The Screwtape Letters', 'ignores the leading "The"');
+  const s2 = suggest('c s lew', idx);
+  assert.ok(s2.books.length >= 3 && s2.books.every((b) => b.author === 'C. S. Lewis'));
+  assert.strictEqual(s2.writers[0].name, 'C. S. Lewis');
+  assert.strictEqual(suggest('1004', idx).books[0].id, 4, 'library number goes straight to the book');
+  assert.ok(suggest('devot', idx).categories.some((c) => c.category === 'Devotional'));
+  assert.strictEqual(suggest('x', idx).books.length, 0, 'waits for two letters');
+});

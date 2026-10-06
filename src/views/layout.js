@@ -32,17 +32,17 @@ function layout({ title, user, csrf, flash = [], body, current, settings, wide =
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="/css/style.css?v=4">
-<script src="/js/app.js?v=3" defer></script>
+<link rel="stylesheet" href="/css/style.css?v=5">
+<script src="/js/app.js?v=6" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="masthead">
   <div class="masthead-inner">
     <a class="brand" href="/"><img src="/img/logo-central-black.png" alt="Central Baptist Church" width="122" height="46"><span class="brand-label">Library</span></a>
-    <form class="ask" id="ask-form" action="/catalog" method="get" role="search">
+    <form class="ask suggest-wrap" id="ask-form" action="/catalog" method="get" role="search">
       <label class="visually-hidden" for="ask-input">Ask the library</label>
-      <input id="ask-input" name="q" type="search" placeholder="Ask the library…" autocomplete="off" maxlength="300">
+      <input id="ask-input" name="q" type="search" placeholder="Ask the library…" autocomplete="off" maxlength="300" data-suggest="public" data-suggest-ask>
       <button type="submit">Ask</button>
     </form>
     <nav class="main-nav" aria-label="Main">${nav(user, current)}${user ? html`<form method="post" action="/logout" class="inline"><input type="hidden" name="_csrf" value="${csrf}"><button class="linklike" type="submit">Log out</button></form>` : ''}</nav>
