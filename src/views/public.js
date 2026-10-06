@@ -30,6 +30,14 @@ function landing({ s, recent, counts, categories, user }) {
     </ol>
   </section>
 
+  <section class="ministries">
+    <h2>For kids and teens</h2>
+    <div class="ministry-cards">
+      <a class="ministry-card" href="/catalog?audience=Children"><img src="/img/central-kids.webp" alt="Central Kids" width="640" height="312" loading="lazy"><span>Books for children</span></a>
+      <a class="ministry-card" href="/catalog?audience=Youth"><img src="/img/central-teens.webp" alt="Central Teens" width="640" height="305" loading="lazy"><span>Books for teens</span></a>
+    </div>
+  </section>
+
   ${categories.length ? html`<section class="cats">
     <h2>Browse by subject</h2>
     <ul class="cat-list">${categories.map((c) => html`<li><a href="/catalog?category=${encodeURIComponent(c.category)}">${c.category} <span class="muted">${c.n}</span></a></li>`)}</ul>
@@ -54,7 +62,9 @@ function catalog({ q, category, audience, format, available, rows, total, page, 
   const formats = ['Book', 'Large Print', 'Audiobook', 'DVD'];
   return html`
   <div class="page-head">
-    <h1>Catalog</h1>
+    ${audience === 'Children' ? html`<div class="audience-banner"><img src="/img/central-kids.webp" alt="Central Kids" width="640" height="312"></div>` : ''}
+    ${audience === 'Youth' ? html`<div class="audience-banner"><img src="/img/central-teens.webp" alt="Central Teens" width="640" height="305"></div>` : ''}
+    <h1>${audience === 'Children' ? 'Books for children' : audience === 'Youth' ? 'Books for teens' : 'Catalog'}</h1>
     <p class="muted">${total.toLocaleString()} ${total === 1 ? 'title' : 'titles'}${q ? html` matching “${q}”` : ''}${category ? html` in ${category}` : ''}</p>
   </div>
   <form class="filters" method="get" action="/catalog">

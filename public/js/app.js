@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
-  var SPINES = ['#1F4D3A', '#6B2A2A', '#24395A', '#7A5C24', '#46525C', '#3E5F4B', '#573A5C', '#2D4F57'];
+  var SPINES = ['#1B4D1F', '#2E7D32', '#111111', '#3E6B2A', '#5E2424', '#23395A', '#2F3A33', '#4A7C23'];
   function hashColor(s) {
     var h = 0;
     s = String(s || '');

@@ -10,14 +10,14 @@ const REPLY_TO = process.env.EMAIL_REPLY_TO || undefined;
 function layout({ heading, paragraphs = [], button, footer, libraryName }) {
   const p = paragraphs.filter(Boolean).map((t) => `<p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#1C2622">${t}</p>`).join('');
   const btn = button
-    ? `<p style="margin:22px 0"><a href="${esc(button.url)}" style="background:#1F4D3A;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:bold;display:inline-block">${esc(button.label)}</a></p>`
+    ? `<p style="margin:22px 0"><a href="${esc(button.url)}" style="background:#2E7D32;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:bold;display:inline-block">${esc(button.label)}</a></p>`
     : '';
-  return `<!doctype html><html><body style="margin:0;background:#EEF2EF;padding:24px 12px;font-family:Georgia,'Times New Roman',serif">
+  return `<!doctype html><html><body style="margin:0;background:#F0F4EE;padding:24px 12px;font-family:Arial,Helvetica,sans-serif">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
-  <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:8px;border-top:6px solid #1F4D3A">
+  <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:8px;border-top:6px solid #8CC63F">
   <tr><td style="padding:28px 28px 8px">
     <div style="font-size:14px;color:#55635C;margin-bottom:6px">${esc(libraryName)}</div>
-    <h1 style="margin:0 0 18px;font-size:24px;line-height:1.25;color:#1F4D3A;font-weight:normal">${esc(heading)}</h1>
+    <h1 style="margin:0 0 18px;font-size:24px;line-height:1.25;color:#1B4D1F;font-weight:bold">${esc(heading)}</h1>
     ${p}${btn}
   </td></tr>
   <tr><td style="padding:8px 28px 26px;font-size:13px;color:#55635C;line-height:1.5">${footer || ''}</td></tr>
