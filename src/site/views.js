@@ -26,10 +26,42 @@ function staffPhoto(key) {
 
 const NAV = [['/about', 'About'], ['/ministries', 'Ministries'], ['/sermons', 'Sermons'], ['/events', 'Events'], ['/staff', 'Staff'], ['/connect', 'Connect']];
 
+// The main menu, with the same dropdowns the old site had. Links starting with "app:" go to the church app;
+// "ext" opens in a new tab.
+const MENU = [
+  { label: 'About', href: '/about' },
+  { label: 'Ministries', href: '/ministries', groups: [
+    { title: 'Ministries', links: [['/ministries#kids', 'Central Kids'], ['/ministries#students', 'Central Teens'], ['/ministries#adults', 'Adults']] },
+    { title: 'Missions & outreach', links: [
+      ['https://kfl.org/baby-bottle-project/', 'Kansans For Life Baby Bottle Project', 'ext'],
+      ['https://casasporcristo.org/', 'Mexico Mission Trip (Casas Por Cristo)', 'ext'],
+      ['https://www.samaritanspurse.org/', 'Operation Christmas Child', 'ext'],
+      ['https://www.namb.net/', 'North American Mission Board', 'ext'],
+      ['https://www.imb.org/', 'International Mission Board', 'ext'],
+    ] },
+  ] },
+  { label: 'Sermons', href: '/sermons' },
+  { label: 'Resources', href: '/events', groups: [
+    { title: 'At Central', links: [['app:/', 'Church library'], ['/events', 'Events'], ['shop', 'Church shop', 'ext'], ['app:/checkin/family', 'Family check-in']] },
+    { title: 'Southern Baptist partners', links: [
+      ['https://www.kncsb.org/', 'Church Forward', 'ext'],
+      ['https://www.sbc.net/', 'Southern Baptist Convention', 'ext'],
+      ['https://scasbks.com/', 'South Central Association of Southern Baptists', 'ext'],
+      ['https://www.baptistpress.com/', 'Baptist Press', 'ext'],
+    ] },
+  ] },
+  { label: 'Staff', href: '/staff' },
+  { label: 'Shop', href: 'shop', ext: true },
+  { label: 'Connect', href: '/connect', groups: [
+    { title: 'Connect', links: [['/connect', 'Contact us'], ['/visit', 'Plan a visit'], ['app:/checkin/prayer', 'Prayer Wall'], ['/serve', 'Serve']] },
+  ] },
+];
+
 // Page wrapper: the green banner (nav, heading, swaying wheat), the page, and the footer.
 function layout({ title, desc, page, body, base = '', head }) {
   const href = (p) => (p.startsWith('http') ? p : `${base}${p}`);
-  const cur = (p) => (page === p ? raw(' aria-current="page"') : '');
+  const link = (u) => (u === 'shop' ? CHURCH.shop : u.startsWith('app:') ? appUrl(u.slice(4)) : href(u));
+  const cur = (p) => (page === p.replace(/^\//, '') || (p === '/' && page === 'home') ? raw(' aria-current="page"') : '');
   const isHome = page === 'home';
   return html`<!doctype html>
 <html lang="en">
@@ -47,8 +79,8 @@ function layout({ title, desc, page, body, base = '', head }) {
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=11">
-<script src="/js/site.js?v=4" defer></script>
+<link rel="stylesheet" href="/css/site.css?v=13">
+<script src="/js/site.js?v=5" defer></script>
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
 <body class="page-${page}">
@@ -57,8 +89,10 @@ function layout({ title, desc, page, body, base = '', head }) {
   <nav class="nav" aria-label="Main">
     <a class="brand" href="${href('/')}" aria-label="Central Baptist Church home"><img src="/img/logo-central-white.png" alt="Central Baptist Church" width="640" height="224"></a>
     <div class="navlinks">
-      ${NAV.map(([p, l]) => html`<a class="navlink" href="${href(p)}"${cur(p)}>${l}</a>`)}
-      <a class="navlink" href="${CHURCH.shop}" target="_blank" rel="noopener">Shop</a>
+      ${MENU.map((m) => (m.groups ? html`<details class="navdrop">
+        <summary class="navlink"${page === m.href.slice(1) ? raw(' aria-current="page"') : ''}>${m.label}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <div class="navdrop-pop${m.groups.length > 1 ? ' wide' : ''}">${m.groups.map((g) => html`<div class="navdrop-col"><p class="navdrop-title">${g.title}</p>${g.links.map(([u, l, ext]) => html`<a href="${link(u)}"${ext ? raw(' target="_blank" rel="noopener"') : ''}>${l}${ext ? html`<span class="ext" aria-hidden="true">↗</span>` : ''}</a>`)}</div>`)}</div>
+      </details>` : html`<a class="navlink" href="${link(m.href)}"${m.ext ? raw(' target="_blank" rel="noopener"') : cur(m.href)}>${m.label}</a>`))}
     </div>
     <div class="nav-cta">
       <a class="btn btn-ghost btn-sm" href="${href('/give')}">Give</a>
@@ -77,13 +111,11 @@ function layout({ title, desc, page, body, base = '', head }) {
 <div class="menu" id="menu" hidden>
   <div class="menu-top"><img src="/img/logo-central-white.png" alt="" width="640" height="224"><button class="menu-btn menu-close" type="button" aria-expanded="true" aria-controls="menu"><span class="menu-lines" aria-hidden="true"></span><span class="visually-hidden">Close menu</span></button></div>
   <nav aria-label="Menu">
-    ${[['/', 'Home'], ...NAV, ['/serve', 'Serve'], ['/give', 'Give']].map(([p, l]) => html`<a class="menu-big" href="${href(p)}"${cur(p)}>${l}</a>`)}
-    <div class="menu-small">
-      <a href="${appUrl('/checkin/prayer')}">Prayer Wall</a>
-      <a href="${appUrl('/')}">Church library</a>
-      <a href="${CHURCH.shop}" target="_blank" rel="noopener">Church shop</a>
-      <a href="${appUrl('/checkin/family')}">Family check-in</a>
-    </div>
+    <a class="menu-big" href="${href('/')}"${cur('/')}>Home</a>
+    ${MENU.map((m) => (m.groups ? html`<details class="menu-group"><summary class="menu-big">${m.label}</summary>
+      <div class="menu-sub"><a href="${href(m.href)}">${m.label === 'Resources' ? 'Events' : `All ${m.label.toLowerCase()}`}</a>${m.groups.map((g) => html`<p class="menu-sub-title">${g.title}</p>${g.links.map(([u, l, ext]) => html`<a href="${link(u)}"${ext ? raw(' target="_blank" rel="noopener"') : ''}>${l}</a>`)}`)}</div>
+    </details>` : html`<a class="menu-big" href="${link(m.href)}"${m.ext ? raw(' target="_blank" rel="noopener"') : cur(m.href)}>${m.label}</a>`))}
+    <a class="menu-big" href="${href('/give')}"${cur('/give')}>Give</a>
     <div class="menu-cta"><a class="btn btn-gold" href="${href('/visit')}">Plan a visit</a><a class="btn btn-ghost" href="${href('/give')}">Give</a></div>
   </nav>
 </div>

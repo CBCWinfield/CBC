@@ -16,12 +16,17 @@
     menu.addEventListener('click', function (e) { if (e.target.closest('a')) { menu.hidden = true; document.body.classList.remove('menu-open'); } });
     window.addEventListener('resize', function () { if (window.innerWidth > 960 && !menu.hidden) set(false); });
   }
+  // Only one desktop dropdown open at a time; Escape closes it.
+  document.querySelectorAll('.navdrop').forEach(function (d) {
+    d.addEventListener('toggle', function () { if (d.open) document.querySelectorAll('.navdrop[open]').forEach(function (o) { if (o !== d) o.removeAttribute('open'); }); });
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') document.querySelectorAll('.navdrop[open]').forEach(function (o) { o.removeAttribute('open'); o.querySelector('summary').focus(); }); });
   // "Watch now" plays the sermon right there.
   var watch = document.querySelector('[data-play-latest]');
   if (watch) watch.addEventListener('click', function (e) { var b = document.querySelector('#sermon-player .player-btn'); if (b && b.tagName === 'BUTTON') { e.preventDefault(); b.click(); } });
   // Close the desktop "More" menu when clicking elsewhere.
   document.addEventListener('click', function (e) {
-    document.querySelectorAll('.nav-more[open]').forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute('open'); });
+    document.querySelectorAll('.nav-more[open], .navdrop[open]').forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute('open'); });
   });
   // Sermon pictures: use YouTube's big image when it exists.
   document.querySelectorAll('img[data-fallback]').forEach(function (img) {
