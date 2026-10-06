@@ -221,6 +221,9 @@ body.menu-open { overflow: hidden; }
 .staff h2 { font-size: 1.3rem; margin-bottom: 2px; }
 .staff-role { color: var(--green); font-weight: 700; margin-bottom: 8px; }
 .staff-mono { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: var(--wheat-light); color: var(--field); font-family: var(--display); font-weight: 800; font-size: 2rem; }
+.staff-photo { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 3px solid var(--wheat-light); }
+.staff-lead .staff-photo { width: 120px; height: 120px; border-color: var(--wheat); }
+.staff-lead { grid-template-columns: auto 1fr; }
 .staff-lead .staff-mono { background: var(--wheat); color: var(--field-deep); }
 .deacons { margin-top: 36px; }
 .give-online { background: var(--field); color: #DCE8D6; border-radius: var(--r-lg); padding: clamp(28px, 4vw, 44px); }
@@ -299,7 +302,8 @@ body.menu-open { overflow: hidden; }
   .path-text strong { font-size: 1.15rem; }
   .path-text span { font-size: 0.95rem; line-height: 1.45; }
   .row2, .values, .out-grid, .staff-grid { grid-template-columns: 1fr; }
-  .staff { grid-template-columns: 56px 1fr; padding: 18px; } .staff-mono { width: 56px; height: 56px; font-size: 1.15rem; }
+  .staff { grid-template-columns: 56px 1fr; padding: 18px; } .staff-mono, .staff-photo { width: 56px; height: 56px; font-size: 1.15rem; }
+  .staff-lead .staff-photo { width: 84px; height: 84px; }
   .staff-lead { padding: 24px; }
   .sched li, .sched-wide li { grid-template-columns: 96px 1fr; gap: 12px; }
   .event { grid-template-columns: 1fr; } .event-date { width: 84px; }

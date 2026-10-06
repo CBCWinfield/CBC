@@ -60,7 +60,7 @@ function layout({ title, desc, page, body, base = '' }) {
 <link rel="icon" href="/img/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/img/icon-192.png">
 <link rel="preload" href="/fonts/bricolage.woff" as="font" type="font/woff" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=6">
+<link rel="stylesheet" href="/css/site.css?v=7">
 <script src="/js/site.js?v=2" defer></script>
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
@@ -332,13 +332,18 @@ function events({ base }) {
   </div></section>`;
 }
 
+// A staff photo exists? Returns a cache-busting stamp (file time) or 0.
+function staffPhoto(key) {
+  try { return Math.floor(require('fs').statSync(require('path').join(__dirname, '..', '..', 'public', 'img', 'staff', `${key}.jpg`)).mtimeMs / 1000); } catch { return 0; }
+}
+
 function staff() {
   const initials = (n) => (n.trim().split(/\s+/).pop() || '?')[0]; // family last-name initial
   return html`
   ${pageHead('Our staff & leaders', 'The people who serve our church family week in and week out.')}
   <section class="sec"><div class="wrap">
     <div class="staff-grid">${C.STAFF.map((s, i) => html`<article class="staff${i === 0 ? ' staff-lead' : ''}">
-      <span class="staff-mono" aria-hidden="true">${initials(s.names)}</span>
+      ${s.key && staffPhoto(s.key) ? html`<img class="staff-photo" src="/img/staff/${s.key}.jpg?v=${staffPhoto(s.key)}" alt="${s.names}" width="400" height="400" loading="lazy">` : html`<span class="staff-mono" aria-hidden="true">${initials(s.names)}</span>`}
       <div><h2>${s.names}</h2><p class="staff-role">${s.role}</p><p>${s.body}</p></div>
     </article>`)}</div>
     <div class="deacons"><h2>Deacons</h2><p>${C.DEACONS.join(', ')}</p></div>
