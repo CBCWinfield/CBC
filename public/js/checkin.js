@@ -12,6 +12,11 @@
 
   var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
 
+  /* ---------- Close the More menu when tapping elsewhere ---------- */
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('details.ci-more[open]').forEach(function (d) { if (!d.contains(e.target)) d.open = false; });
+  });
+
   /* ---------- One-tap family check-in ---------- */
   document.querySelectorAll('[data-quick-checkin]').forEach(function (f) {
     f.addEventListener('submit', function () {
@@ -120,12 +125,12 @@
       ['.ci-event-pill', 'This is what you’re checking in for. Sundays switch from Sunday School (9:30) to Children’s Church (10:45) by themselves. Tap to change it.'],
       ['#fam-q', 'Type a family name, a child’s name or a phone number. Matches appear as you type.'],
       ['.ci-family-tools', 'No match? Add a new family, or use Quick guest for a child here without a parent.'],
-      ['[data-tour="quick"]', 'Check in puts the whole family in for the service happening now and prints their tags.'],
+      ['[data-tour="quick"]', 'See the whole family arriving? Hit Quick Check: everyone is checked in for the service happening now and the kids’ name tags print. No need to open the family.'],
       ['[data-tour="help"]', 'Press HELP anytime, or type a question in Ask.'],
     ],
     families: [
       ['.ci-filter', 'Search any family, person, phone or email.'],
-      ['[data-tour="quick"]', 'One tap checks in the whole family for the service happening now and prints their tags.'],
+      ['[data-tour="quick"]', 'Quick Check checks in the whole family for the service happening now and prints the kids’ name tags.'],
       ['.ci-family-row', 'Tap the name instead to choose who’s here.'],
     ],
     family: [
@@ -227,6 +232,139 @@
     if (pToggle.checked) start();
   }
 
+  /* ---------- Inbox thread: live updates and sending without reloading ---------- */
+  var thread = document.getElementById('ci-thread');
+  if (thread) {
+    var convId = thread.getAttribute('data-thread');
+    var lastId = Number(thread.getAttribute('data-last')) || 0;
+    var scrollDown = function () { window.scrollTo(0, document.body.scrollHeight); };
+    var addMsg = function (m) {
+      if (m.id <= lastId) return;
+      lastId = m.id;
+      var empty = thread.querySelector('.ci-thread-empty'); if (empty) empty.remove();
+      var who = m.mine ? null : el('span', { class: 'ci-msg-who', text: m.name + (m.team ? ' · ' + m.team : '') });
+      var bubble = el('div', { class: 'ci-bubble' });
+      if (m.body == null) bubble.appendChild(el('em', { class: 'muted', text: 'Message removed' })); else bubble.textContent = m.body;
+      thread.appendChild(el('div', { class: 'ci-msg' + (m.mine ? ' is-mine' : ''), 'data-msg': String(m.id) }, [who, bubble, el('span', { class: 'ci-msg-meta', text: m.at })]));
+    };
+    var badge = function (n) {
+      var link = document.querySelector('.ci-inbox-link'); if (!link) return;
+      var b = link.querySelector('.ci-unread');
+      if (!n) { if (b) b.remove(); return; }
+      if (!b) { b = el('span', { class: 'ci-unread' }); link.appendChild(b); }
+      b.textContent = n > 99 ? '99+' : String(n);
+    };
+    var pull = function () {
+      if (document.hidden) return;
+      fetch('/checkin/api/inbox/' + convId + '?after=' + lastId, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var near = window.innerHeight + window.scrollY >= document.body.scrollHeight - 160;
+          (d.messages || []).forEach(addMsg);
+          if (d.messages && d.messages.length && near) scrollDown();
+          badge(d.unread || 0);
+        }).catch(function () {});
+    };
+    setInterval(pull, 4000);
+    document.addEventListener('visibilitychange', pull);
+    scrollDown();
+    var compose = document.querySelector('[data-compose]');
+    if (compose) {
+      var ta = compose.querySelector('textarea');
+      var grow = function () { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 180) + 'px'; };
+      ta.addEventListener('input', grow);
+      ta.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); compose.requestSubmit(); } });
+      compose.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var text = ta.value.trim();
+        if (!text) return;
+        var btn = compose.querySelector('button'); btn.disabled = true;
+        var body = new URLSearchParams(); body.append('_csrf', csrf); body.append('body', text);
+        fetch(compose.action, { method: 'POST', credentials: 'same-origin', headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+          .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Not sent'); return d; }); })
+          .then(function (d) { ta.value = ''; grow(); addMsg(d.message); scrollDown(); })
+          .catch(function (err) { alert(err.message || 'Couldn’t send. Check the connection and try again.'); })
+          .then(function () { btn.disabled = false; ta.focus(); });
+      });
+    }
+  }
+
+  /* ---------- "Download the app" / "Add to desktop" prompt ---------- */
+  (function installPrompt() {
+    var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    if (standalone) return;
+    var store = function (k, v) { try { if (v === undefined) return window.localStorage.getItem(k); window.localStorage.setItem(k, v); } catch (e) { return null; } return null; };
+    var snoozed = Number(store('ciInstallSnooze') || 0);
+    if (snoozed && Date.now() < snoozed) return;
+    var ua = navigator.userAgent || '';
+    var iOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var android = /Android/.test(ua);
+    var mobile = iOS || android || /Mobi/.test(ua);
+    var macSafari = !mobile && /Macintosh/.test(ua) && /Safari\//.test(ua) && !/Chrome|Chromium|Edg|Firefox/.test(ua);
+    var deferred = null;
+    var banner = null;
+    var show = function (how) {
+      if (banner) banner.remove();
+      var title = mobile ? 'Download the Central app' : 'Add Central to your desktop';
+      var text;
+      if (how === 'prompt') text = mobile ? 'Put Central on your home screen for quick check-in, messages and notifications.' : 'Open Central from your desktop or taskbar like any other app.';
+      else if (iOS) text = 'Tap the Share button (the square with an arrow ↑), then “Add to Home Screen”.';
+      else if (android) text = 'Tap the ⋮ menu in your browser, then “Install app” or “Add to Home screen”.';
+      else if (macSafari) text = 'In Safari’s menu bar choose File › Add to Dock.';
+      else text = 'In Chrome or Edge, click the install icon at the right end of the address bar, or open the ⋮ menu and choose “Install Central”.';
+      var later = el('button', { type: 'button', class: 'linklike', text: 'Not now' });
+      var actions = [later];
+      if (how === 'prompt') {
+        var go = el('button', { type: 'button', class: 'btn btn-small', text: mobile ? 'Download' : 'Add to desktop' });
+        go.addEventListener('click', function () {
+          deferred.prompt();
+          deferred.userChoice.then(function (c) { if (c.outcome === 'accepted') banner.remove(); else snooze(3); deferred = null; });
+        });
+        actions.push(go);
+      } else {
+        actions.push(el('a', { class: 'btn btn-quiet btn-small', href: '/checkin/install', text: 'Show me' }));
+      }
+      banner = el('div', { class: 'ci-install', role: 'dialog', 'aria-label': title }, [
+        el('img', { src: '/img/checkin-192.png', alt: '', width: '48', height: '48' }),
+        el('div', { class: 'ci-install-text' }, [el('strong', { text: title }), el('span', { text: text })]),
+        el('div', { class: 'ci-install-actions' }, actions),
+      ]);
+      later.addEventListener('click', function () { snooze(7); });
+      document.body.appendChild(banner);
+    };
+    var snooze = function (days) { store('ciInstallSnooze', String(Date.now() + days * 86400000)); if (banner) banner.remove(); banner = null; };
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; show('prompt'); });
+    window.addEventListener('appinstalled', function () { if (banner) banner.remove(); store('ciInstallSnooze', String(Date.now() + 3650 * 86400000)); });
+    // Browsers without an install event get simple instructions after a moment.
+    setTimeout(function () { if (!deferred && !banner && (iOS || android || macSafari)) show('manual'); }, 2500);
+  })();
+
+  /* ---------- Person photos: shrink on the device, then send ---------- */
+  document.querySelectorAll('[data-photo-form]').forEach(function (form) {
+    var input = form.querySelector('[data-photo-input]');
+    var label = input.closest('label');
+    input.addEventListener('change', function () {
+      var file = input.files && input.files[0];
+      if (!file) return;
+      if (label) label.firstChild.textContent = 'Saving…';
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        var max = 640;
+        var scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.naturalWidth * scale);
+        c.height = Math.round(img.naturalHeight * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        form.querySelector('[data-photo-data]').value = c.toDataURL('image/jpeg', 0.85);
+        form.submit();
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); alert('That picture couldn’t be opened. Try a JPG or PNG photo.'); if (label) label.firstChild.textContent = 'Add photo'; };
+      img.src = url;
+    });
+  });
+
   /* ---------- Live family search on the station ---------- */
   var search = document.querySelector('[data-family-search]');
   if (search) {
@@ -251,7 +389,15 @@
           f.checked ? el('span', { class: 'badge badge-ok', text: f.checked + ' in' }) : null,
         ]);
         rows.push(a);
-        ul.appendChild(el('li', {}, [a]));
+        // Quick Check: whole family in, kids' tags printed, without opening the family.
+        var token = search.getAttribute('data-csrf');
+        var qf = token ? el('form', { method: 'post', action: '/checkin/quick/' + f.id, class: 'ci-quick-form' }, [
+          el('input', { type: 'hidden', name: '_csrf', value: token }),
+          el('input', { type: 'hidden', name: 'back', value: '/checkin' }),
+          el('button', { class: 'btn ci-quick-btn', type: 'submit', text: 'Quick Check', title: 'Check in everyone in ' + f.name + ' and print the kids’ name tags' }),
+        ]) : null;
+        if (qf) qf.addEventListener('submit', function () { var b = qf.querySelector('button'); b.disabled = true; b.textContent = 'Checking in…'; });
+        ul.appendChild(el('li', { class: qf ? 'ci-family-item' : '' }, [a, qf]));
       });
       // Always offer the two ways forward when the family isn't found.
       var add = el('a', { class: 'ci-add-row' + (list.length ? '' : ' is-primary'), href: '/checkin/new?name=' + encodeURIComponent(q) }, [
@@ -393,50 +539,85 @@
     box.addEventListener('change', function () { target.hidden = !box.checked; });
   });
 
-  /* ---------- Camera scanning of pickup tags ---------- */
+  /* ---------- Camera scanning of pickup tags ----------
+     Uses the browser's own barcode reader when it has one (Chrome on Android, Edge, Chrome on Mac),
+     and our built-in reader (scan128.js) everywhere else, including iPhone and iPad. */
   var scanner = document.querySelector('[data-scanner]');
   var startBtn = document.querySelector('[data-start-scan]');
   var scanForm = document.querySelector('[data-scan-form]');
-  if (scanner && startBtn && scanForm && 'BarcodeDetector' in window && navigator.mediaDevices) {
+  if (scanner && startBtn && scanForm && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     startBtn.hidden = false;
     var video = scanner.querySelector('video');
     var status = scanner.querySelector('[data-scanner-status]');
+    var canvas = document.createElement('canvas');
+    var ctx2d = canvas.getContext('2d', { willReadFrequently: true });
     var stream = null;
+    var lastHit = '';
     var stop = function () { if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; };
+    var found = function (raw) {
+      var code = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (code.length < 4) return false;
+      code = code.slice(-4);
+      // The built-in reader must see the same code twice, so a smudge can't fool it.
+      if (!nativeDetector && code !== lastHit) { lastHit = code; return false; }
+      status.textContent = 'Found ' + code;
+      if (navigator.vibrate) navigator.vibrate(80);
+      stop();
+      scanForm.querySelector('input[name=code]').value = code;
+      scanForm.submit();
+      return true;
+    };
+    var nativeDetector = null;
+    var frame = function () {
+      var w = video.videoWidth;
+      var h = video.videoHeight;
+      if (!w || !h) return null;
+      var scale = Math.min(1, 960 / w);
+      canvas.width = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+      ctx2d.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return ctx2d.getImageData(0, 0, canvas.width, canvas.height);
+    };
+    var tick = function () {
+      if (!stream) return;
+      if (nativeDetector) {
+        nativeDetector.detect(video).then(function (codes) {
+          if (!codes.some(function (c) { return found(c.rawValue); })) setTimeout(tick, 200);
+        }).catch(function () { setTimeout(tick, 400); });
+        return;
+      }
+      var img = frame();
+      var text = img && window.Scan128 ? window.Scan128.decodeImageData(img) : null;
+      if (!(text && found(text))) setTimeout(tick, 120);
+    };
+    var setup = function () {
+      if (!('BarcodeDetector' in window)) return Promise.resolve(null);
+      return window.BarcodeDetector.getSupportedFormats().then(function (formats) {
+        return formats.indexOf('code_128') >= 0 ? new window.BarcodeDetector({ formats: ['code_128', 'qr_code'].filter(function (f) { return formats.indexOf(f) >= 0; }) }) : null;
+      }).catch(function () { return null; });
+    };
     startBtn.addEventListener('click', function () {
-      window.BarcodeDetector.getSupportedFormats().then(function (formats) {
-        var want = ['code_128', 'qr_code'].filter(function (f) { return formats.indexOf(f) >= 0; });
-        if (!want.length) throw new Error('unsupported');
-        var detector = new window.BarcodeDetector({ formats: want });
-        return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function (s) {
-          stream = s;
-          video.srcObject = s;
-          scanner.hidden = false;
-          startBtn.hidden = true;
-          return video.play().then(function () {
-            var tick = function () {
-              if (!stream) return;
-              detector.detect(video).then(function (codes) {
-                var hit = codes.map(function (c) { return (c.rawValue || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }).filter(function (v) { return v.length >= 4; })[0];
-                if (hit) {
-                  status.textContent = 'Found ' + hit;
-                  stop();
-                  scanForm.querySelector('input[name=code]').value = hit.slice(-4);
-                  scanForm.submit();
-                } else {
-                  setTimeout(tick, 250);
-                }
-              }).catch(function () { setTimeout(tick, 500); });
-            };
-            tick();
-          });
-        });
-      }).catch(function () {
-        status.textContent = 'This device can’t scan with the camera. Type the code instead.';
+      setup().then(function (d) {
+        nativeDetector = d;
+        return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      }).then(function (s) {
+        stream = s;
+        video.setAttribute('playsinline', '');
+        video.muted = true;
+        video.srcObject = s;
         scanner.hidden = false;
         startBtn.hidden = true;
-      });
+        status.textContent = 'Hold the pickup tag’s barcode inside the box, about a hand’s width away.';
+        return video.play();
+      }).then(function () { tick(); })
+        .catch(function () {
+          status.textContent = 'The camera isn’t available. Allow camera access for this site, or type the code instead.';
+          scanner.hidden = false;
+          startBtn.hidden = true;
+        });
     });
+    var stopBtn = scanner.querySelector('[data-stop-scan]');
+    if (stopBtn) stopBtn.addEventListener('click', function () { stop(); scanner.hidden = true; startBtn.hidden = false; });
     window.addEventListener('pagehide', stop);
   }
 })();

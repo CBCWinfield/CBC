@@ -182,6 +182,7 @@ module.exports = (app) => {
     } else {
       notify.applicationReceived(user);
     }
+    require('../checkin/automations').welcome(user, { link: '/my' });
     await req.regenerateSession();
     req.session.userId = user.id;
     req.user = user;

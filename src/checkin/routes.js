@@ -14,6 +14,8 @@ const N = require('./notify');
 const { AGREEMENTS } = require('./agreements');
 const allergens = require('./allergens');
 const assist = require('./assist');
+const A = require('./automations');
+const social = require('./social');
 const { intParam, clean, safeNext } = require('../routes/guards');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -35,7 +37,7 @@ const needRole = (role) => async (req, res, next) => {
 };
 
 function render(req, res, body, opts = {}) {
-  res.send(V.layout({ body, user: req.user, csrf: res.locals.csrf, flash: security.takeFlash(req), event: req.ciEvent, ...opts }).toString());
+  res.send(V.layout({ body, user: req.user, csrf: res.locals.csrf, flash: security.takeFlash(req), event: req.ciEvent, unread: req.ciUnread || 0, ...opts }).toString());
 }
 
 // Current event for this device (kept in the session, only valid today).
@@ -97,7 +99,7 @@ async function checkout(rows, by, to, event) {
 }
 
 const ROSTER_SQL = `SELECT a.*, p.first_name, p.last_name, p.preferred_name, p.kind, p.birthdate, p.grade, p.allergies, p.medical_notes,
-  p.medications, p.special_needs, p.custody_alert, p.custody_notes, p.class_override, p.is_guest, p.phone AS person_phone, p.guest_note, f.name AS family_name
+  p.medications, p.special_needs, p.custody_alert, p.custody_notes, p.class_override, p.is_guest, p.phone AS person_phone, p.guest_note, p.photo_at, f.name AS family_name
   FROM attendance a JOIN people p ON p.id = a.person_id JOIN families f ON f.id = a.family_id`;
 
 // ---------------------------------------------------------------- the family's own login
@@ -126,6 +128,10 @@ module.exports = (app) => {
   // Everything under /checkin uses the check-in look.
   app.use(async (req, res, next) => {
     req.originalUrl = req.url;
+    // Unread message count for the Inbox badge on check-in pages.
+    if (req.user && req.method === 'GET' && req.path.startsWith('/checkin') && !req.path.startsWith('/checkin/api/')) {
+      req.ciUnread = await social.unreadCount(req.user.id).catch(() => 0);
+    }
     await next();
   });
 
@@ -557,6 +563,49 @@ module.exports = (app) => {
     res.redirect(`/checkin/families/${person.family_id}`);
   });
 
+  // ---- Photos (one per person). The check-in team can add them at the desk; parents for their own family.
+  async function canSeePerson(req, person) {
+    if (!req.user || !person) return false;
+    if (D.can(req.user, 'volunteer')) return true;
+    const fam = await D.familyForUser(req.user.id);
+    return Boolean(fam && fam.id === person.family_id);
+  }
+
+  app.get('/checkin/people/:id/photo', async (req, res) => {
+    const person = await db.one('SELECT id, family_id, photo_at FROM people WHERE id = $1', [intParam(req.params.id)]);
+    if (!(await canSeePerson(req, person))) throw new HttpError(404, 'Photo not found.');
+    const ph = await db.one('SELECT data, content_type FROM person_photos WHERE person_id = $1', [person.id]);
+    if (!ph) throw new HttpError(404, 'Photo not found.');
+    res.setHeader('Content-Type', ph.content_type);
+    res.setHeader('Cache-Control', 'private, max-age=86400');
+    res.send(ph.data);
+  });
+
+  app.post('/checkin/people/:id/photo', async (req, res) => {
+    if (needLogin(req, res)) return;
+    const person = await db.one('SELECT id, family_id, first_name FROM people WHERE id = $1', [intParam(req.params.id)]);
+    if (!(await canSeePerson(req, person))) throw new HttpError(404, 'That person was not found.');
+    const back = safeNext(req.body.back) || (D.can(req.user, 'leader') ? `/checkin/families/${person.family_id}` : '/checkin/family');
+    if (req.body.remove === '1') {
+      await db.query('DELETE FROM person_photos WHERE person_id = $1', [person.id]);
+      await db.query('UPDATE people SET photo_at = NULL WHERE id = $1', [person.id]);
+      security.flash(req, 'ok', `Photo of ${person.first_name} removed.`);
+      return res.redirect(back);
+    }
+    const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body.photo_data || ''));
+    const buf = m ? Buffer.from(m[2], 'base64') : null;
+    if (!buf || !buf.length || buf.length > 3 * 1024 * 1024) {
+      security.flash(req, 'error', 'That photo couldn’t be used. Try a JPG or PNG under 3 MB.');
+      return res.redirect(back);
+    }
+    await db.query(`INSERT INTO person_photos (person_id, data, content_type) VALUES ($1, $2, $3)
+      ON CONFLICT (person_id) DO UPDATE SET data = EXCLUDED.data, content_type = EXCLUDED.content_type, updated_at = now()`, [person.id, buf, m[1]]);
+    await db.query('UPDATE people SET photo_at = now() WHERE id = $1', [person.id]);
+    D.audit(req.user, 'photo', { familyId: person.family_id, personId: person.id });
+    security.flash(req, 'ok', `Photo of ${person.first_name} saved.`);
+    res.redirect(back);
+  });
+
   app.post('/checkin/people/:id/remove', needRole('leader'), async (req, res) => {
     const p = await db.one('UPDATE people SET active = false, updated_at = now() WHERE id = $1 RETURNING family_id, first_name', [intParam(req.params.id)]);
     if (!p) throw new HttpError(404, 'That person was not found.');
@@ -645,6 +694,7 @@ module.exports = (app) => {
       user = await users.get(row.id);
       await req.regenerateSession();
       req.session.userId = user.id;
+      A.welcome(user, { link: '/checkin/family' });
     }
     let familyId = inv.family_id;
     const existing = await D.familyForUser(user.id);
@@ -891,7 +941,7 @@ module.exports = (app) => {
     return { filter, from, to, weekly, monthly, yearly, byGroup, firstTimers, names: await D.knownEventNames() };
   }
 
-  app.get('/checkin/reports', needRole('leader'), async (req, res) => {
+  app.get('/checkin/reports', needRole('coadmin'), async (req, res) => {
     const data = await reportData(req.query);
     req.ciEvent = await currentEvent(req);
     render(req, res, V.reportsPage(data), { title: 'Reports', tab: 'reports' });
@@ -907,7 +957,7 @@ module.exports = (app) => {
 
   app.get('/checkin/api/help', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
-    res.json(assist.topicsFor(req.user).filter((tp) => !tp.page || !/\/(events|staff|reports)/.test(tp.page) || D.can(req.user, tp.page.includes('staff') ? 'coadmin' : 'leader'))
+    res.json(assist.topicsFor(req.user).filter((tp) => !tp.page || !/\/(events|staff|reports|automations)/.test(tp.page) || D.can(req.user, /staff|reports|automations/.test(tp.page) ? 'coadmin' : 'leader'))
       .map((tp) => ({ id: tp.id, title: tp.title, steps: tp.steps, keys: tp.keys, url: tp.page && !/\/f$/.test(tp.page) ? tp.page : null, tour: tp.tour || null })));
   });
 
@@ -987,7 +1037,7 @@ module.exports = (app) => {
     res.redirect('/checkin/events');
   });
 
-  app.get('/checkin/reports.csv', needRole('leader'), async (req, res) => {
+  app.get('/checkin/reports.csv', needRole('coadmin'), async (req, res) => {
     const { weekly } = await reportData(req.query);
     const cell = (v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
     const lines = ['Date,Event,Kids,Adults,Total', ...weekly.map((w) => [w.event_date, w.name, w.kids, w.adults, w.total].map(cell).join(','))];
@@ -1065,7 +1115,7 @@ module.exports = (app) => {
   });
 
   // ---------------------------------------------------------------- serving calendar
-  const SERVICE_DEFAULTS = { 3: [['Wednesday Night Service', null]], 7: [['Sunday School', '9:30 AM'], ["Children's Church", '10:45 AM']] };
+  const SERVICE_DEFAULTS = { 3: [['Wednesday Night Service', '6:00 PM']], 7: [['Sunday School', '9:30 AM'], ["Children's Church", '10:45 AM']] };
 
   async function ensureMonth(year, month) {
     const first = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -1211,4 +1261,7 @@ module.exports = (app) => {
   app.get('/checkin/install', async (req, res) => {
     render(req, res, V.installPage(), { title: 'Add to your device', tab: 'family' });
   });
+
+  // Inbox, Settings and Automations.
+  social.routes(app, { render, needLogin, needRole, currentEvent });
 };

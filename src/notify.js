@@ -25,6 +25,7 @@ async function pushTo(userIds, message) {
 async function email(user, msg) {
   const s = await settingsStore.get();
   if (!user || !user.email || user.notify_email === false) return;
+  if (user.prefs && user.prefs.email_library === false) return;
   const contact = [s.contact_phone, s.contact_email].filter(Boolean).map(esc).join(' · ');
   await mailer.send({
     to: user.email,
@@ -205,7 +206,7 @@ module.exports = {
   }),
 
   passwordReset: safe(async (user, link) => {
-    await email({ ...user, notify_email: true }, {
+    await email({ ...user, notify_email: true, prefs: null }, {
       subject: 'Reset your library password',
       heading: 'Reset your password',
       paragraphs: ['Someone asked to reset the password for your library account. If that was you, use the button below. The link works for 1 hour.', 'If you didn’t ask for this, you can ignore this email.'],

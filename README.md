@@ -91,27 +91,39 @@ In the Wix editor, add a menu item or button called **Library** that links to th
 
 ## Central Check-In (at /checkin)
 
-Check-in lives in the same Render service as the library, at `/checkin`, and installs on phones, tablets and laptops as its own app ("Central"). The logo menu at the top switches between Library and Check-In.
+Check-in lives in the same Render service as the library, at `/checkin`, and installs on phones, tablets and laptops as its own app ("Central"). When someone opens it in a browser, a banner offers **Download the app** (phones/tablets) or **Add to desktop** (computers). The logo menu at the top switches between Library, Check-In and Inbox.
 
 **First login.** The primary admin (centralbaptistchurchcalendar@gmail.com, Anthony Ryker) is created on first start using `CHECKIN_ADMIN_PASSWORD`, or `ADMIN_PASSWORD` if that isn't set. If that email already has a library account, it simply gets admin rights.
 
-**Roles** (Check-In › Team):
-- **Volunteer:** check families in and out, print name tags, see allergy and medical notes.
-- **Ministry leader:** also add and edit families, see custody details and staff notes, send sign-up links, view reports.
-- **Co-admin:** also manage volunteers and leaders.
+**Roles** (More › Team):
+- **Volunteer:** check families in and out, Quick Check, add a family or guest at the desk, print name tags, scan pickups, take photos, see allergy and medical notes.
+- **Ministry leader:** also edit families, see custody details, send sign-up links, manage Events.
+- **Co-admin:** also Reports, Team, Automations and conversation review.
 - **Primary admin:** everything, including co-admins.
 
-**On Sunday or Wednesday** the event is picked automatically ("Sunday Service" / "Wednesday Service"). Other days, choose or type an event; new names are remembered.
+**Services.** Sunday School (Sundays 9:30), Children's Church (Sundays 10:45, the station switches over at 10:30) and Wednesday Night Service (6:00 PM) are picked automatically by day and time. **More › Events** lists every event you've created; archive old ones to take them off the check-in screen (their attendance stays in Reports).
 
-**Checking in:** search a family (name, a child's name or phone), untick anyone who isn't there, and press **Check in**. Name tags print for each child, plus one pickup tag for the parent with the same 4-letter code and barcode. Parents get an email (and an app notification if they turned them on).
+**Checking in:** search a family (name, a child's name or phone). **Quick Check** next to a family checks everyone in for the current service and prints the kids' tags without opening the family; tap the name instead to untick anyone who isn't there. No match? **Add a new family** (parent, emergency contact, then the kids) or **Quick guest check-in** (a child with no parent here: first name, class, a guardian's phone, and the family they came with).
 
-**Picking up:** on **Pick up**, scan the parent's tag (camera on Android/Chrome, or a handheld barcode scanner) or type the code. People marked "not allowed to pick up" show a red stop warning. **Checked in › Check out all kids** releases everyone at the end of a service.
+**Name tags:** first name, class (Nursery, Toddlers, Kids, Teens, Adults), check-in date and time, the pickup code and barcode, a red picture symbol for each allergy (peanut, tree nut, milk, egg, wheat, soy, sesame, fish, shellfish, bee sting, medicine, latex) and a red cross for medical needs. On the DK-2251 red/black roll the symbols print red.
 
-**Printer (Brother QL-810W):** load the 62mm continuous roll with auto-cut on. The first time you print, choose the Brother, paper **62mm × 100mm**, **landscape**, margins **none**; Chrome remembers it.
+**Printing (Brother QL-810W):** on the laptop connected to the printer open **Printing** and turn on "This device is the printer". Tags from every phone and iPad queue there and print automatically. Load the 62mm continuous roll with auto-cut; the first time, choose paper **62mm × 100mm**, **landscape**, margins **none**.
 
-**Families sign up from home:** Families › Email a sign-up link, or the box on any family page. The parent creates a login and walks through five steps: family, children, health & safety, emergency contacts & pickups, and permission forms (participation release, medical authorization, photo release, e-signature consent). Each signature is stored with the exact wording, date, time and signer. Have a Kansas attorney or the church's insurer review the wording in `src/checkin/agreements.js`. Parents can add a custody alert from home; only a leader can remove one.
+**Scan (pickup):** tap **Scan a pickup tag** and hold the parent's tag to the camera (works on iPhone, iPad, Android and laptops), use a handheld barcode scanner, or type the 4-letter code. Children's photos show to confirm who's going home; people marked "not allowed to pick up" show a red stop warning. **Checked in › Check out all kids** releases everyone at the end.
 
-**Reports:** Check-In › Reports shows each service, monthly and yearly averages, unique people, first-time guests and kids by age group, with a spreadsheet download.
+**Photos:** add a photo for anyone from the family page, at the desk after adding kids, or by parents on My family. Photos are shrunk on the device and only the church team and that family can see them.
+
+**Inbox:** everyone with an account can message other families and the church team, one-to-one or in groups. New messages arrive live, with an app notification and (if unread) an email. Members can mute, leave, block and report; co-admins can review conversations and reported messages (More › Inbox › Review).
+
+**Settings:** each person chooses their notifications (check-in, pickup, messages, greetings, library) and privacy (listed in the directory, show phone/email/children's names, who can start a conversation).
+
+**Automations (co-admins):** welcome email on sign-up (with a link to their account and the church's address, phone and email), check-in and pickup notices, unread-message emails, and birthday, Christmas and Easter greetings. Each can be turned off, reworded and test-sent.
+
+**Policies** (upload PDFs/Word docs), **Serving calendar** (Nursery, Toddlers, Kids, Teens and Adults for every service; admins can import a CSV), **Ask** (search bar) and **HELP** (guides with "Show me" tours) are in the header and More menu.
+
+**Families sign up from home:** Families › Email a sign-up link. The parent creates a login and walks through five steps: family, children, health & safety, emergency contacts & pickups, and permission forms. Each signature is stored with the exact wording, date, time and signer. Have a Kansas attorney or the church's insurer review the wording in `src/checkin/agreements.js`.
+
+**Reports (co-admins):** each service, monthly and yearly averages, first-time guests and kids by class, with a spreadsheet download.
 
 ---
 

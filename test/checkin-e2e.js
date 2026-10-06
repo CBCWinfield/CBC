@@ -217,6 +217,94 @@ class Browser {
   assert.match(r.body, /Date,Event,Kids,Adults,Total/);
   console.log('Report CSV:', r.body.trim().split('\n').slice(1).join(' | '));
 
+
+  // Reports and Team are admin-only now; volunteers are turned away
+  assert.strictEqual((await vol.go('/checkin/reports')).status, 403);
+  assert.strictEqual((await vol.go('/checkin/staff')).status, 403);
+  assert.strictEqual((await vol.go('/checkin/automations')).status, 403);
+  r = await vol.go('/checkin');
+  assert.ok(!/href="\/checkin\/reports"/.test(r.body), 'volunteer menu has no Reports');
+
+  // Welcome automation fired when the parent signed up
+  assert.strictEqual(sql(`SELECT count(*) FROM automation_log WHERE key = 'welcome_signup' AND email = 'dana@example.com'`), '1');
+  // Automations: edit the welcome email, turn greetings off
+  r = await admin.go('/checkin/automations');
+  assert.match(r.body, /Welcome email when someone signs up/);
+  await admin.post('/checkin/automations/welcome_signup', { enabled: '1', subject: 'Welcome to Central, {first_name}!', body: 'Hi {first_name},\n\nSo glad you joined us.' });
+  assert.strictEqual(sql(`SELECT subject FROM automations WHERE key = 'welcome_signup'`), 'Welcome to Central, {first_name}!');
+  await admin.post('/checkin/automations/christmas', {});
+  assert.strictEqual(sql(`SELECT enabled FROM automations WHERE key = 'christmas'`), 'f');
+
+  // Settings: parent turns off check-in emails and hides from the directory
+  r = await parent.go('/checkin/settings');
+  assert.match(r.body, /Notifications/);
+  assert.match(r.body, /Privacy/);
+  await parent.post('/checkin/settings', { email_pickup: '1', push_checkin: '1', push_pickup: '1', email_messages: '1', push_messages: '1', directory: '1', messages_from: 'everyone' });
+  const prefs = JSON.parse(sql(`SELECT prefs FROM users WHERE email = 'dana@example.com'`));
+  assert.strictEqual(prefs.email_checkin, false);
+  assert.strictEqual(prefs.email_pickup, true);
+
+  // Inbox: volunteer messages the parent; parent sees it unread, replies
+  r = await vol.go('/checkin/inbox/new?q=dana');
+  assert.match(r.body, /Dana Miller/);
+  const danaId = sql(`SELECT id FROM users WHERE email = 'dana@example.com'`);
+  r = await vol.post('/checkin/inbox/new', { 'to[]': danaId, body: 'Hi Dana! Emma did great tonight.' });
+  const convId = /\/checkin\/inbox\/(\d+)/.exec(r.location)[1];
+  r = await parent.go('/checkin/inbox');
+  assert.match(r.body, /Emma did great tonight/);
+  assert.match(r.body, /class="ci-unread"/);
+  r = await parent.go(`/checkin/inbox/${convId}`);
+  assert.match(r.body, /Emma did great tonight/);
+  r = await parent.go('/checkin/inbox');
+  assert.ok(!/ci-conv is-unread/.test(r.body), 'read after opening');
+  r = await parent.go(`/checkin/inbox/${convId}`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: new URLSearchParams({ _csrf: parent.csrf, body: 'Thank you!' }) });
+  assert.strictEqual(JSON.parse(r.body).message.body, 'Thank you!');
+  j = JSON.parse((await vol.go(`/checkin/api/inbox/${convId}?after=0`)).body);
+  assert.strictEqual(j.messages.length, 2);
+  // Someone outside the conversation can't read it; an admin can review it
+  const other = new Browser();
+  await other.login('librarian@example.com', 'testpass123');
+  assert.strictEqual((await other.go(`/checkin/inbox/${convId}`)).status, 404);
+  r = await admin.go(`/checkin/inbox/${convId}`);
+  assert.match(r.body, /reviewing this conversation/);
+  // Privacy: hidden from the directory means other families can't find her (the team still can)
+  await parent.post('/checkin/settings', { messages_from: 'everyone' });
+  r = await other.go('/checkin/inbox/new?q=dana');
+  assert.ok(!/Dana Miller/.test(r.body), 'hidden from families');
+  r = await vol.go('/checkin/inbox/new?q=dana');
+  assert.match(r.body, /Dana Miller/);
+  // Report + block
+  const msgId = sql(`SELECT id FROM messages WHERE body LIKE 'Hi Dana%'`);
+  await parent.post(`/checkin/inbox/messages/${msgId}/report`, {});
+  r = await admin.go('/checkin/inbox/review');
+  assert.match(r.body, /Emma did great tonight/);
+  const valId = sql(`SELECT id FROM users WHERE email = 'val@example.com'`);
+  await parent.post(`/checkin/users/${valId}/block`, {});
+  r = await vol.go(`/checkin/inbox/${convId}`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: new URLSearchParams({ _csrf: vol.csrf, body: 'hello?' }) });
+  assert.strictEqual(r.status, 403, 'blocked person can’t message');
+
+
+  // Photos: the team adds one at the desk; the parent can see it; other families can't
+  const emmaId = sql(`SELECT id FROM people WHERE first_name = 'Emma'`);
+  const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  r = await vol.post(`/checkin/people/${emmaId}/photo`, { photo_data: png, back: `/checkin/f/${famId}` });
+  assert.strictEqual(r.location, `/checkin/f/${famId}`);
+  r = await vol.go(`/checkin/f/${famId}`);
+  assert.match(r.body, new RegExp(`/checkin/people/${emmaId}/photo\\?v=`));
+  let ph = await parent.go(`/checkin/people/${emmaId}/photo`);
+  assert.strictEqual(ph.status, 200);
+  assert.strictEqual((await other.go(`/checkin/people/${emmaId}/photo`)).status, 404, 'other families can’t see photos');
+  r = await parent.go('/checkin/family');
+  assert.match(r.body, /Change photo/);
+  await parent.post(`/checkin/people/${emmaId}/photo`, { remove: '1' });
+  assert.strictEqual(sql(`SELECT count(*) FROM person_photos WHERE person_id = ${emmaId}`), '0');
+  r = await vol.go('/checkin/scan');
+  assert.match(r.body, /Scan a pickup tag/);
+  assert.match(r.body, /scan128\.js/);
+
+  // Greeting automation: a child's birthday today sends once
+  sql(`UPDATE people SET birthdate = (CURRENT_DATE - interval '8 years')::date WHERE first_name = 'Lily'`);
+
   // The library was not touched
   assert.strictEqual(sql('SELECT count(*) FROM books'), booksBefore, 'library books unchanged');
   console.log('\nAll check-in checks passed. Books in library:', booksBefore);

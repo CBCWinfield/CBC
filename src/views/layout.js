@@ -22,6 +22,7 @@ function appSwitcher(user, current) {
     ['/', 'Library', 'Borrow books, DVDs and more', 'library'],
     ['/checkin', staff ? 'Check-In' : 'My Family', staff ? 'Check kids and families in and out' : 'Your family, kids and permission forms', 'checkin'],
   ];
+  if (user) items.push(['/checkin/inbox', 'Inbox', 'Messages with families and the church team', 'inbox']);
   return html`<details class="app-switch">
     <summary aria-label="Switch app"><img src="/img/logo-central-black.png" alt="Central Baptist Church" width="122" height="46"><span class="brand-label">${current === 'checkin' ? (staff ? 'Check-In' : 'My Family') : 'Library'}</span><span class="app-switch-caret" aria-hidden="true">▾</span></summary>
     <div class="app-switch-menu">

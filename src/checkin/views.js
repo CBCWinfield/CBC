@@ -14,22 +14,22 @@ const fmtDateKey = (k) => t.fmtLong(t.zoned(...k.split('-').map(Number), 12));
 const dateKeyOf = (d) => (d instanceof Date ? t.dateKey(d) : String(d).slice(0, 10));
 
 // ---------------------------------------------------------------- layout
-function layout({ title, user, csrf, flash = [], body, tab, event, bare = false }) {
+function layout({ title, user, csrf, flash = [], body, tab, event, bare = false, unread = 0 }) {
   const staff = D.rank(user) > 0;
   const tabs = staff ? [
     ['/checkin', 'Check in', 'station', '✓'],
     ['/checkin/roster', 'Checked in', 'roster', '☰'],
-    ['/checkin/scan', 'Pick up', 'scan', '▥'],
+    ['/checkin/scan', 'Scan', 'scan', '▥'],
     ['/checkin/families', 'Families', 'families', '⌂'],
     ['/checkin/print-queue', 'Printing', 'print', '⎙'],
   ] : [];
+  // Everything else lives in the "More" menu.
   const more = [];
-  if (staff) more.push(['/checkin/serve', 'Serving', 'serve']);
+  if (staff) more.push(['/checkin/serve', 'Serving calendar', 'serve']);
   if (D.can(user, 'leader')) more.push(['/checkin/events', 'Events', 'events']);
   if (user) more.push(['/checkin/policies', 'Policies', 'policies']);
-  if (D.can(user, 'leader')) more.push(['/checkin/reports', 'Reports', 'reports']);
-  if (D.can(user, 'coadmin')) more.push(['/checkin/staff', 'Team', 'staff']);
-  if (user) more.push(['/checkin/family', 'My family', 'family']);
+  if (D.can(user, 'coadmin')) more.push(['/checkin/reports', 'Reports', 'reports'], ['/checkin/staff', 'Team', 'staff'], ['/checkin/automations', 'Automations', 'automations']);
+  if (user) more.push(['/checkin/family', 'My family', 'family'], ['/checkin/settings', 'Settings', 'settings'], ['/checkin/install', 'Get the app', 'install']);
   return html`<!doctype html>
 <html lang="en">
 <head>
@@ -48,30 +48,38 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false 
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="/css/style.css?v=6">
-<link rel="stylesheet" href="/css/checkin.css?v=4">
+<link rel="stylesheet" href="/css/checkin.css?v=6">
 <script src="/js/app.js?v=7" defer></script>
-<script src="/js/checkin.js?v=3" defer></script>
+<script src="/js/checkin.js?v=5" defer></script>
 </head>
 <body class="ci${bare ? ' ci-bare' : ''}">
 <a class="skip" href="#main">Skip to content</a>
 <header class="masthead ci-top">
   <div class="ci-top-inner">
     ${appSwitcher(user, 'checkin')}
-    ${event ? html`<a class="ci-event-pill" href="/checkin?change=1" title="Change event"><span class="ci-dot"></span>${event.name} · ${t.fmtDate(t.zoned(...dateKeyOf(event.event_date).split('-').map(Number), 12))}</a>` : ''}
-    ${user ? html`<div class="ci-ask-wrap">
-      <form class="ci-ask" id="ci-ask-form" role="search" autocomplete="off">
-        <label for="ci-ask-input" class="visually-hidden">Ask</label>
-        <span class="ci-ask-icon" aria-hidden="true">?</span>
-        <input id="ci-ask-input" name="q" type="search" placeholder="Ask" maxlength="200" enterkeyhint="search">
-      </form>
-      <button type="button" class="ci-help-btn" id="ci-help-open" data-tour="help">HELP</button>
-    </div>` : ''}
-    <nav class="ci-nav" aria-label="Check-in">
-      ${tabs.map(([href, label, key]) => html`<a href="${href}"${tab === key ? raw(' aria-current="page"') : ''}>${label}</a>`)}
-      ${more.map(([href, label, key]) => html`<a class="ci-nav-more" href="${href}"${tab === key ? raw(' aria-current="page"') : ''}>${label}</a>`)}
-      ${user ? html`<form method="post" action="/logout" class="inline">${csrfField(csrf)}<button class="linklike" type="submit">Log out</button></form>` : html`<a href="/login?next=/checkin">Log in</a>`}
+    ${user ? html`<form class="ci-ask" id="ci-ask-form" role="search" autocomplete="off">
+      <label for="ci-ask-input" class="visually-hidden">Ask</label>
+      <span class="ci-ask-icon" aria-hidden="true">?</span>
+      <input id="ci-ask-input" name="q" type="search" placeholder="Ask" maxlength="200" enterkeyhint="search">
+    </form>` : ''}
+    <nav class="ci-actions" aria-label="Account">
+      ${user ? html`<button type="button" class="ci-help-btn" id="ci-help-open" data-tour="help">HELP</button>
+      <a class="ci-inbox-link" href="/checkin/inbox"${tab === 'inbox' ? raw(' aria-current="page"') : ''} title="Inbox"><span aria-hidden="true">✉</span><span class="ci-inbox-word">Inbox</span>${unread ? html`<span class="ci-unread" aria-label="${unread} unread">${unread > 99 ? '99+' : unread}</span>` : ''}</a>
+      <details class="ci-more">
+        <summary class="${more.some(([, , key]) => key === tab) ? 'is-current' : ''}">More <span aria-hidden="true">▾</span></summary>
+        <div class="ci-more-menu">
+          ${more.map(([href, label, key]) => html`<a href="${href}"${tab === key ? raw(' aria-current="page"') : ''}>${label}</a>`)}
+          <form method="post" action="/logout">${csrfField(csrf)}<button class="linklike" type="submit">Log out</button></form>
+        </div>
+      </details>` : html`<a class="ci-login" href="/login?next=/checkin">Log in</a>`}
     </nav>
   </div>
+  ${tabs.length || event ? html`<div class="ci-subnav${event ? ' has-event' : ''}"><div class="ci-subnav-inner">
+    <nav class="ci-nav" aria-label="Check-in">
+      ${tabs.map(([href, label, key]) => html`<a href="${href}"${tab === key ? raw(' aria-current="page"') : ''}>${label}</a>`)}
+    </nav>
+    ${event ? html`<a class="ci-event-pill" href="/checkin?change=1" title="Change event"><span class="ci-dot"></span>${event.name} · ${t.fmtDate(t.zoned(...dateKeyOf(event.event_date).split('-').map(Number), 12))}</a>` : ''}
+  </div></div>` : ''}
 </header>
 ${user ? html`<div class="ci-ask-panel" id="ci-ask-panel" hidden aria-live="polite">
   <div class="ci-ask-panel-inner"><div class="ci-ask-head"><strong id="ci-ask-q"></strong><button type="button" class="linklike" id="ci-ask-close">Close</button></div>
@@ -107,8 +115,20 @@ function alertsFor(p, user, { full = false } = {}) {
 }
 
 function avatar(p) {
+  const id = p.person_id || p.id;
+  if (p.photo_at && id) return html`<img class="ci-avatar ci-avatar-photo" src="/checkin/people/${id}/photo?v=${new Date(p.photo_at).getTime()}" alt="Photo of ${p.preferred_name || p.first_name}" loading="lazy">`;
   const initials = `${(p.preferred_name || p.first_name || '?')[0]}${(p.last_name || '')[0] || ''}`;
   return html`<span class="ci-avatar ci-avatar-${p.kind}" aria-hidden="true">${initials}</span>`;
+}
+
+// Add or change a person's photo. On phones and tablets this opens the camera or the photo library;
+// the picture is shrunk on the device before it's sent.
+function photoButton(p, csrf, back) {
+  return html`<form method="post" action="/checkin/people/${p.id}/photo" class="ci-photo-form" data-photo-form>
+    ${csrfField(csrf)}<input type="hidden" name="back" value="${back}"><input type="hidden" name="photo_data" data-photo-data>
+    <label class="btn btn-quiet btn-small ci-photo-btn">${p.photo_at ? 'Change photo' : '📷 Add photo'}<input type="file" accept="image/*" data-photo-input hidden></label>
+    ${p.photo_at ? html`<button class="linklike small" type="submit" name="remove" value="1">Remove</button>` : ''}
+  </form>`;
 }
 
 // ---------------------------------------------------------------- station
@@ -135,7 +155,7 @@ function station({ csrf, event, recent, counts }) {
   <section class="ci-search-hero">
     <form action="/checkin" method="get" class="ci-search suggest-wrap" role="search">
       <label for="fam-q" class="visually-hidden">Find a family</label>
-      <input id="fam-q" name="q" type="search" placeholder="Family name, child's name or phone" autocomplete="off" autofocus data-family-search>
+      <input id="fam-q" name="q" type="search" placeholder="Family name, child's name or phone" autocomplete="off" autofocus data-family-search data-csrf="${csrf}">
       <div class="ci-results" id="fam-results" aria-live="polite"></div>
     </form>
     <p class="ci-counts">${plural(counts.kids, 'kid')} · ${plural(counts.adults, 'adult')} checked in · <a href="/checkin/roster">See everyone</a></p>
@@ -155,7 +175,7 @@ function familyRow(f, { csrf, back } = {}) {
     ${f.checked ? html`<span class="badge badge-ok">${f.checked} in</span>` : ''}
   </a>${csrf ? html`<form method="post" action="/checkin/quick/${f.id}" class="ci-quick-form" data-quick-checkin>
     ${csrfField(csrf)}<input type="hidden" name="back" value="${back || '/checkin/families'}">
-    <button class="btn ci-quick-btn" type="submit" data-tour="quick" title="Check in everyone in ${f.name} and print their tags">Check in</button>
+    <button class="btn ci-quick-btn" type="submit" data-tour="quick" title="Check in everyone in ${f.name} and print the kids’ name tags">Quick Check</button>
   </form>` : ''}</li>`;
 }
 
@@ -273,7 +293,7 @@ function printQueue({ csrf, jobs, isPrinter }) {
 }
 
 // ---------------------------------------------------------------- events
-const EVENT_TIMES = { 'Sunday School': 'Sundays 9:30 AM', "Children's Church": 'Sundays 10:45 AM', 'Wednesday Night Service': 'Wednesdays' };
+const EVENT_TIMES = { 'Sunday School': 'Sundays 9:30 AM', "Children's Church": 'Sundays 10:45 AM', 'Wednesday Night Service': 'Wednesdays 6:00 PM' };
 function eventsPage({ csrf, user, names, recent, builtIn, current }) {
   const active = names.filter((n) => !n.archived);
   const archived = names.filter((n) => n.archived);
@@ -356,7 +376,7 @@ function newKidsFlow({ csrf, full, error }) {
     <h1>${family.name}</h1>
     <ol class="ci-steps"><li class="done"><a>Family & emergency contact</a></li><li class="current"><a>Kids</a></li><li><a>Check in</a></li></ol>
     ${error ? html`<p class="flash flash-error" role="alert">${error}</p>` : ''}
-    ${kids.length ? html`<ul class="ci-person-cards">${kids.map((k) => html`<li class="ci-person-card">${avatar(k)}<div class="ci-person-text"><span class="ci-person-name">${D.displayName(k)}</span><span class="ci-person-meta">${[D.ageLabel(k.birthdate), D.groupFor(k)].filter(Boolean).join(' · ')}</span>${alertsFor(k, null).length ? html`<span class="ci-flags">${alertsFor(k, null)}</span>` : ''}</div></li>`)}</ul>` : ''}
+    ${kids.length ? html`<ul class="ci-person-cards">${kids.map((k) => html`<li class="ci-person-card">${avatar(k)}<div class="ci-person-text"><span class="ci-person-name">${D.displayName(k)}</span><span class="ci-person-meta">${[D.ageLabel(k.birthdate), D.groupFor(k)].filter(Boolean).join(' · ')}</span>${alertsFor(k, null).length ? html`<span class="ci-flags">${alertsFor(k, null)}</span>` : ''}</div>${photoButton(k, csrf, `/checkin/new/${family.id}/kids`)}</li>`)}</ul>` : ''}
     <section class="box"><h2 class="box-head">${kids.length ? 'Add another child' : 'Add a child'}</h2><div class="box-body">
       <form method="post" action="/checkin/new/${family.id}/kids" class="stack ci-form" data-tour="new-kid">
         ${csrfField(csrf)}
@@ -441,20 +461,22 @@ function roster({ csrf, user, event, rows, q, show }) {
 // ---------------------------------------------------------------- pickup / scan
 function scanPage({ csrf, event, match, code, error, user }) {
   return html`
-  <h1>Pick up</h1>
-  <p class="muted">Scan the parent's pickup tag, or type the 4-letter code.</p>
+  <script src="/js/scan128.js?v=1" defer></script>
+  <h1>Scan to pick up</h1>
+  <p class="muted">Scan the barcode on the parent’s pickup tag, or type the 4-letter code.</p>
   <div class="ci-scan">
+    <button type="button" class="btn ci-big-btn ci-scan-btn" data-start-scan hidden data-tour="scan-camera">📷 Scan a pickup tag</button>
     <div class="ci-camera" data-scanner hidden>
-      <video playsinline muted></video>
+      <div class="ci-camera-view"><video playsinline muted></video><span class="ci-camera-box" aria-hidden="true"></span></div>
       <p class="small muted" data-scanner-status>Point the camera at the barcode.</p>
+      <button type="button" class="btn btn-quiet btn-small" data-stop-scan>Stop camera</button>
     </div>
-    <button type="button" class="btn btn-quiet" data-start-scan hidden>Use the camera</button>
     <form method="post" action="/checkin/scan" class="ci-code-form" data-scan-form>
       ${csrfField(csrf)}
       <input type="hidden" name="event_id" value="${event.id}">
       <label for="scan-code">Pickup code</label>
       <div class="ci-inline"><input id="scan-code" name="code" value="${code || ''}" autocomplete="off" autocapitalize="characters" maxlength="12" placeholder="e.g. 7KXM" autofocus><button class="btn" type="submit">Find</button></div>
-      <p class="hint">Handheld barcode scanners work too: scan into this box.</p>
+      <p class="hint">Handheld USB or Bluetooth barcode scanners work too: scan into this box.</p>
     </form>
   </div>
   ${error ? html`<p class="flash flash-error" role="alert">${error}</p>` : ''}
@@ -482,7 +504,7 @@ function familiesPage({ csrf, rows, q, user, event }) {
   <div class="ci-section-head"><h1>Families</h1>
     <div class="ci-family-tools">${D.can(user, 'leader') ? html`<a class="btn btn-small" href="/checkin/new">New family</a> <a class="btn btn-quiet btn-small" href="/checkin/invite">Email a sign-up link</a>` : ''}</div></div>
   <form class="ci-filter" method="get" action="/checkin/families"><input type="search" name="q" value="${q || ''}" placeholder="Search families, people, phone or email"></form>
-  <p class="small muted">${event ? html`<strong>Check in</strong> checks the whole family in for <strong>${event.name}</strong> and prints their tags. Tap a family to choose who’s here.` : html`Tap a family to check them in. <a href="/checkin?change=1">Choose an event</a> to use one-tap check-in.`}</p>
+  <p class="small muted">${event ? html`<strong>Quick Check</strong> checks the whole family in for <strong>${event.name}</strong> and prints the kids’ name tags. Tap a family’s name instead to choose who’s here.` : html`Tap a family to check them in. <a href="/checkin?change=1">Choose an event</a> to use Quick Check.`}</p>
   <ul class="ci-family-list" data-tour="families">${rows.map((f) => familyRow(f, event ? { csrf, back: `/checkin/families${q ? `?q=${encodeURIComponent(q)}` : ''}` } : {}))}</ul>
   ${!rows.length ? html`<p class="muted">No families found.</p>` : ''}`;
 }
@@ -535,7 +557,7 @@ function familyAdmin({ csrf, user, full, invites = [] }) {
       <span class="ci-person-meta">${p.kind === 'child' ? [p.birthdate ? `${D.ageLabel(p.birthdate)} · born ${t.fmtDateYear(t.zoned(...dateKeyOf(p.birthdate).split('-').map(Number), 12))}` : '', p.grade].filter(Boolean).join(' · ') : [p.relationship, p.email, p.phone].filter(Boolean).join(' · ')}</span>
       ${alertsFor(p, user, { full: true }).length ? html`<span class="ci-flags">${alertsFor(p, user, { full: true })}</span>` : ''}
     </div>
-    <a class="btn btn-quiet btn-small" href="/checkin/people/${p.id}">Edit</a>
+    <div class="ci-card-actions">${photoButton(p, csrf, `/checkin/families/${family.id}`)}<a class="btn btn-quiet btn-small" href="/checkin/people/${p.id}">Edit</a></div>
   </li>`;
   return html`
   <p class="crumb"><a href="/checkin/families">Families</a></p>
@@ -950,8 +972,9 @@ function familyHome({ csrf, user, full, recent, pushEnabled }) {
   return html`<div class="ci-narrow">
     <h1>${family.name}</h1>
     ${missing.length ? html`<div class="ci-alert ci-alert-warn"><strong>Almost done:</strong> please sign the permission forms so your kids can check in. <a href="/checkin/welcome/agreements">Sign now</a></div>` : ''}
-    <section class="box"><h2 class="box-head">Your children</h2><div class="box-body">
-      <ul class="ci-person-cards">${kids.map((k) => html`<li class="ci-person-card">${avatar(k)}<div class="ci-person-text"><span class="ci-person-name">${D.displayName(k)}</span><span class="ci-person-meta">${[D.ageLabel(k.birthdate), k.grade].filter(Boolean).join(' · ')}</span>${alertsFor(k, user, { full: true }).length ? html`<span class="ci-flags">${alertsFor(k, user, { full: true })}</span>` : ''}</div></li>`)}</ul>
+    <section class="box"><h2 class="box-head">Your family</h2><div class="box-body">
+      <ul class="ci-person-cards">${[...kids, ...adults].map((k) => html`<li class="ci-person-card">${avatar(k)}<div class="ci-person-text"><span class="ci-person-name">${D.displayName(k)}</span><span class="ci-person-meta">${k.kind === 'child' ? [D.ageLabel(k.birthdate), k.grade].filter(Boolean).join(' · ') : k.relationship || 'Parent'}</span>${alertsFor(k, user, { full: true }).length ? html`<span class="ci-flags">${alertsFor(k, user, { full: true })}</span>` : ''}</div>${photoButton(k, csrf, '/checkin/family')}</li>`)}</ul>
+      <p class="small muted">A photo helps volunteers recognize each child at pickup. Only the church team and your family can see it.</p>
       <p><a href="/checkin/welcome/kids">Add or edit children</a> · <a href="/checkin/welcome/health">Health & safety</a></p></div></section>
     <section class="box"><h2 class="box-head">Recent check-ins</h2><div class="box-body">
       ${recent.length ? html`<ul class="ci-mini-list">${recent.map((r) => html`<li><span>${r.first_name} · ${r.event_name}</span><span class="small muted">${t.fmtDateTime(r.checked_in_at)}${r.checked_out_at ? ` · picked up ${t.fmtTime(r.checked_out_at)}` : ''}</span></li>`)}</ul>` : html`<p class="muted">No check-ins yet.</p>`}

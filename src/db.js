@@ -304,6 +304,14 @@ const MIGRATIONS = [
       ALTER TABLE people ADD COLUMN IF NOT EXISTS is_guest boolean NOT NULL DEFAULT false;
       ALTER TABLE people ADD COLUMN IF NOT EXISTS class_override text;
       ALTER TABLE people ADD COLUMN IF NOT EXISTS guest_note text;
+      -- Photos live in their own table so lists of people stay light.
+      ALTER TABLE people ADD COLUMN IF NOT EXISTS photo_at timestamptz;
+      CREATE TABLE IF NOT EXISTS person_photos (
+        person_id int PRIMARY KEY REFERENCES people(id) ON DELETE CASCADE,
+        data bytea NOT NULL,
+        content_type text NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
 
       CREATE TABLE IF NOT EXISTS policies (
         id serial PRIMARY KEY,
@@ -378,6 +386,73 @@ const MIGRATIONS = [
       INSERT INTO event_names (name, created_at)
         SELECT DISTINCT ON (lower(name)) name, created_at FROM events ORDER BY lower(name), created_at
         ON CONFLICT DO NOTHING;
+
+      -- Each person's notification and privacy choices (missing keys use the defaults in prefs.js).
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS prefs jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+      -- Automatic emails the admins can switch on/off and reword.
+      CREATE TABLE IF NOT EXISTS automations (
+        key text PRIMARY KEY,
+        enabled boolean NOT NULL DEFAULT true,
+        subject text,
+        body text,
+        updated_by int REFERENCES users(id) ON DELETE SET NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS automation_log (
+        id serial PRIMARY KEY,
+        key text NOT NULL,
+        ref text NOT NULL,
+        email text,
+        user_id int REFERENCES users(id) ON DELETE SET NULL,
+        sent_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (key, ref)
+      );
+
+      -- Inbox: conversations between users (one-to-one or groups).
+      CREATE TABLE IF NOT EXISTS conversations (
+        id serial PRIMARY KEY,
+        title text,
+        is_group boolean NOT NULL DEFAULT false,
+        created_by int REFERENCES users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        last_message_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS conversation_members (
+        conversation_id int NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        user_id int NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        joined_at timestamptz NOT NULL DEFAULT now(),
+        last_read_at timestamptz,
+        last_emailed_at timestamptz,
+        muted boolean NOT NULL DEFAULT false,
+        left_at timestamptz,
+        PRIMARY KEY (conversation_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS conversation_members_user ON conversation_members (user_id);
+      CREATE TABLE IF NOT EXISTS messages (
+        id serial PRIMARY KEY,
+        conversation_id int NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        user_id int REFERENCES users(id) ON DELETE SET NULL,
+        body text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        deleted_at timestamptz
+      );
+      CREATE INDEX IF NOT EXISTS messages_conv ON messages (conversation_id, id);
+      CREATE TABLE IF NOT EXISTS message_reports (
+        id serial PRIMARY KEY,
+        message_id int NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        user_id int REFERENCES users(id) ON DELETE SET NULL,
+        reason text,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        resolved_at timestamptz,
+        resolved_by int REFERENCES users(id) ON DELETE SET NULL
+      );
+      CREATE TABLE IF NOT EXISTS user_blocks (
+        user_id int NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        blocked_id int NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, blocked_id)
+      );
     `,
   },
 ];

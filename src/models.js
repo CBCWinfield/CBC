@@ -80,7 +80,7 @@ const books = {
 };
 
 const USER_COLS = `id, email, first_name, last_name, phone, address, city, state, zip, about, role, status,
-  library_code, notify_email, created_at, approved_at, last_login_at, checkin_role`;
+  library_code, notify_email, created_at, approved_at, last_login_at, checkin_role, prefs`;
 
 const users = {
   get: (id) => db.one(`SELECT ${USER_COLS} FROM users WHERE id = $1`, [id]),

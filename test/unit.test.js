@@ -143,3 +143,20 @@ test('suggestions: titles first, writers, library numbers, typing in progress', 
   assert.ok(suggest('devot', idx).categories.some((c) => c.category === 'Devotional'));
   assert.strictEqual(suggest('x', idx).books.length, 0, 'waits for two letters');
 });
+
+test('check-in: Easter dates, allergy detection, greeting paragraphs, privacy defaults', () => {
+  const A = require('../src/checkin/automations');
+  assert.strictEqual(A.easterKey(2026), '2026-04-05');
+  assert.strictEqual(A.easterKey(2027), '2027-03-28');
+  assert.strictEqual(A.easterKey(2030), '2030-04-21');
+  const allergens = require('../src/checkin/allergens');
+  assert.deepStrictEqual(allergens.detect('Peanuts and tree nuts, bee stings'), ['peanut', 'treenut', 'bee']);
+  assert.deepStrictEqual(allergens.detect('none'), []);
+  const paras = A.paragraphs('Hi {first_name},\n\nWelcome <b>!', { first_name: 'Dana <x>' });
+  assert.deepStrictEqual(paras, ['Hi Dana &lt;x&gt;,', 'Welcome &lt;b&gt;!']);
+  const P = require('../src/checkin/prefs');
+  assert.strictEqual(P.of({ prefs: {} }).directory, true);
+  assert.strictEqual(P.of({ prefs: {} }).show_phone, false);
+  assert.strictEqual(P.wants({ prefs: { email_checkin: false } }, 'email_checkin'), false);
+  assert.strictEqual(P.wants({ prefs: {}, notify_email: false }, 'email_messages'), false);
+});

@@ -6,8 +6,11 @@ const { pushTo, url } = require('../notify');
 const { esc } = require('../lib/html');
 const t = require('../lib/time');
 
+const prefs = require('./prefs');
+const A = require('./automations');
+
 const CHURCH = 'Central Baptist Church';
-const FOOTER = `${CHURCH}<br>904 Wheat Rd, Winfield, KS 67156<br>(620) 221-2980`;
+const FOOTER = A.FOOTER;
 
 const safe = (fn) => async (...args) => {
   try { await fn(...args); } catch (err) { console.error('Check-in notice failed:', err.message); }
@@ -15,23 +18,23 @@ const safe = (fn) => async (...args) => {
 
 // Adults in the family who should hear about their kids (have an email or an app login).
 const guardians = (familyId) => db.many(
-  `SELECT p.*, u.notify_email FROM people p LEFT JOIN users u ON u.id = p.user_id
+  `SELECT p.*, u.notify_email, u.prefs FROM people p LEFT JOIN users u ON u.id = p.user_id
    WHERE p.family_id = $1 AND p.kind = 'adult' AND p.active ORDER BY p.is_primary DESC, p.id`, [familyId],
 );
 
 const list = (names) => (names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`);
 
-async function emailGuardians(familyId, msg) {
+// Emails the parents who want this kind of notice; returns the app users who want the push version.
+async function emailGuardians(familyId, msg, kind) {
   const adults = await guardians(familyId);
-  const to = [...new Set(adults.filter((a) => a.email && a.notify_email !== false).map((a) => a.email))];
+  const to = [...new Set(adults.filter((a) => a.email && (!a.user_id ? true : prefs.wants(a, `email_${kind}`))).map((a) => a.email))];
   if (to.length) await mailer.send({ to, libraryName: CHURCH, footer: FOOTER, ...msg });
-  const userIds = adults.map((a) => a.user_id).filter(Boolean);
-  return userIds;
+  return adults.filter((a) => a.user_id && prefs.of(a)[`push_${kind}`] !== false).map((a) => a.user_id);
 }
 
 module.exports = {
   checkedIn: safe(async ({ familyId, kids, event, at }) => {
-    if (!kids.length) return;
+    if (!kids.length || !(await A.enabled('checkin_notice'))) return;
     const names = kids.map((k) => k.preferred_name || k.first_name);
     const when = t.fmtTime(at);
     const userIds = await emailGuardians(familyId, {
@@ -42,18 +45,18 @@ module.exports = {
         'Keep your pickup tag. You’ll need it to pick up at the end of the service.',
       ],
       button: { label: 'Open the check-in app', url: url('/checkin/family') },
-    });
+    }, 'checkin');
     await pushTo(userIds, { title: 'Checked in at Central', body: `${list(names)} checked in to ${event.name} at ${when}.`, url: '/checkin/family' });
   }),
 
   checkedOut: safe(async ({ familyId, kids, event, at, to }) => {
-    if (!kids.length) return;
+    if (!kids.length || !(await A.enabled('pickup_notice'))) return;
     const names = kids.map((k) => k.preferred_name || k.first_name);
     const userIds = await emailGuardians(familyId, {
       subject: `${list(names)} picked up from Central Baptist Church`,
       heading: `${list(names)} ${names.length > 1 ? 'have' : 'has'} been picked up`,
       paragraphs: [`${esc(list(names))} checked out of <strong>${esc(event.name)}</strong> at ${esc(t.fmtTime(at))}${to ? ` with ${esc(to)}` : ''}.`],
-    });
+    }, 'pickup');
     await pushTo(userIds, { title: 'Picked up', body: `${list(names)} checked out of ${event.name}.`, url: '/checkin/family' });
   }),
 
