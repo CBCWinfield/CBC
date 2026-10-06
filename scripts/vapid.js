@@ -7,4 +7,4 @@ const { publicKey, privateKey } = generateKeys();
 console.log('Add these to your Render environment variables:\n');
 console.log(`VAPID_PUBLIC_KEY=${publicKey}`);
 console.log(`VAPID_PRIVATE_KEY=${privateKey}`);
-console.log('VAPID_SUBJECT=mailto:your-library-email@example.com');
+console.log('VAPID_SUBJECT=mailto:centralbaptistchurchcalendar@gmail.com');
