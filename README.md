@@ -37,7 +37,7 @@ The app creates its own tables the first time it starts.
 | `ADMIN_PASSWORD` | a temporary password for the librarian (change it after first login) |
 | `ADMIN_FIRST_NAME` / `ADMIN_LAST_NAME` | the librarian's name |
 | `RESEND_API_KEY` | from Resend (step 3) |
-| `EMAIL_FROM` | e.g. `CBC Library <library@yourchurch.org>` |
+| `EMAIL_FROM` | optional; defaults to `Central Baptist Church <noreply@mail.cbcwinfield.org>` (verified in Resend) |
 | `EMAIL_REPLY_TO` | where replies should go, e.g. the librarian's email (optional) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | optional, for phone notifications (step 5) |
 
