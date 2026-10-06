@@ -39,7 +39,7 @@ class Browser {
   // Event picker (or auto event on Sunday/Wednesday)
   r = await admin.go('/checkin?change=1');
   assert.match(r.body, /What are we checking in for\?/);
-  r = await admin.follow(await admin.post('/checkin/event', { name: 'Sunday Service' }));
+  r = await admin.follow(await admin.post('/checkin/event', { name: 'Sunday School' }));
   assert.match(r.body, /Recent families/);
 
   // New family with a child who has an allergy and a custody alert
@@ -67,19 +67,33 @@ class Browser {
   const eventId = /name="event_id" value="(\d+)"/.exec(r.body)[1];
   // Volunteer unticks the parent: only kids check in
   const kidsIds = people.slice(0, 2);
+  // Not the printer device: tags go to the print queue
   r = await admin.post(`/checkin/f/${famId}`, { event_id: eventId, 'people[]': kidsIds });
-  assert.match(r.location, /^\/checkin\/print\?/);
+  assert.strictEqual(r.location, '/checkin');
   r = await admin.go(r.location);
+  assert.match(r.body, /Name tags sent to the printer/);
+  r = await admin.go('/checkin/print-queue');
+  assert.match(r.body, /This device is the printer/);
+  assert.match(r.body, /Emma, Noah \+ parent tag/);
+  j = JSON.parse((await admin.go('/checkin/api/print-jobs')).body);
+  assert.strictEqual(j.length, 1);
+  r = await admin.go(`/checkin/print?embed=1&jobs=${j[0].id}`);
+  assert.match(r.body, /data-embed/);
   const labels = (r.body.match(/class="label /g) || []).length;
   assert.strictEqual(labels, 3, 'two name tags and one parent pickup tag');
-  assert.match(r.body, /Allergy: Peanuts/);
+  assert.match(r.body, /Allergy:<\/strong> Peanuts/);
+  assert.match(r.body, /aria-label="Peanut allergy"/, 'peanut symbol on the tag');
+  assert.match(r.body, /<figcaption>Peanut<\/figcaption>/);
+  assert.match(r.body, /class="l-class">Kids</);
+  assert.match(r.body, /class="l-class">Toddlers</);
   const code = /<small>Code<\/small>([A-Z0-9]{4})/.exec(r.body)[1];
+  assert.strictEqual(JSON.parse((await admin.go('/checkin/api/print-jobs')).body).length, 0, 'job marked printed');
   console.log('Printed 3 labels, pickup code', code);
 
   // Roster shows both kids in their age groups
   r = await admin.go('/checkin/roster');
-  assert.match(r.body, /Central Kids/);
-  assert.match(r.body, /Nursery/);
+  assert.match(r.body, /ci-group-label">Kids/);
+  assert.match(r.body, /ci-group-label">Toddlers/);
 
   // Wrong code, then right code at pickup
   r = await admin.post('/checkin/scan', { event_id: eventId, code: 'ZZZZ' });
@@ -91,8 +105,17 @@ class Browser {
   r = await admin.follow(await admin.post('/checkin/release', { event_id: eventId, 'attendance[]': att, to: 'Dana Miller (Mother)' }));
   assert.match(r.body, /Released Emma, Noah/);
 
-  // Check in again, then "check out all"
-  await admin.post(`/checkin/f/${famId}`, { event_id: eventId, 'people[]': people });
+  // This device becomes the printer: check-in goes straight to the tags
+  admin.cookies.ci_printer = '1';
+  r = await admin.post(`/checkin/f/${famId}`, { event_id: eventId, 'people[]': people });
+  assert.match(r.location, /^\/checkin\/print\?jobs=\d+/);
+  delete admin.cookies.ci_printer;
+  // Reprint from the roster goes through the queue
+  r = await admin.go('/checkin/roster');
+  assert.match(r.body, /action="\/checkin\/reprint"/);
+  r = await admin.post('/checkin/reprint', { event_id: eventId, family_id: famId, people: people[0], parent: '0' });
+  assert.strictEqual(r.location, '/checkin/roster');
+  // Then "check out all"
   r = await admin.follow(await admin.post('/checkin/checkout-all', { event_id: eventId }));
   assert.match(r.body, /2 children checked out/);
 
@@ -131,15 +154,65 @@ class Browser {
   assert.strictEqual((await vol.go('/checkin')).status, 200);
   assert.strictEqual((await vol.go('/checkin/staff')).status, 403);
   assert.strictEqual((await vol.go(`/checkin/families/${famId}`)).status, 403);
-  await vol.post('/checkin/event', { name: 'Sunday Service' });
+  await vol.post('/checkin/event', { name: 'Sunday School' });
   r = await vol.go(`/checkin/f/${famId}`);
   assert.match(r.body, /Custody alert: get a leader/, 'volunteer sees the alert but not the details');
   assert.ok(!/Father may not pick up/.test(r.body));
 
+  // Families list: one-tap check-in for the current service
+  r = await admin.go('/checkin/families');
+  assert.match(r.body, new RegExp(`action="/checkin/quick/${famId}"`));
+  r = await admin.follow(await admin.post(`/checkin/quick/${famId}`, { back: '/checkin/families' }));
+  assert.match(r.body, /The Miller Family: \d+ checked in for Sunday School/);
+  r = await admin.follow(await admin.post(`/checkin/quick/${famId}`, { back: '/checkin/families' }));
+  assert.match(r.body, /already checked in/);
+
+  // Not found at the desk: add a family, then the kids
+  r = await admin.post('/checkin/new', { first_name: 'Sam', last_name: 'Ortiz', phone: '620-555-0177', relationship: 'Father', ec_name: 'Ana Ortiz', ec_phone: '620-555-0178' });
+  const newFam = /\/checkin\/new\/(\d+)\/kids/.exec(r.location)[1];
+  r = await admin.post(`/checkin/new/${newFam}/kids`, { first_name: 'Mia', last_name: 'Ortiz', class_override: 'Toddlers', allergies: 'Milk, eggs' });
+  assert.ok(r.location);
+  assert.strictEqual(sql(`SELECT count(*) FROM emergency_contacts WHERE family_id = ${newFam}`), '1');
+
+  // Quick guest with the family they came with
+  r = await admin.follow(await admin.post('/checkin/guest', { first_name: 'Jayden', phone: '620-555-0144', class_override: 'Kids', host_family_id: famId }));
+  assert.match(r.body, /Jayden checked in as a guest with The Miller Family/);
+
+  // Ask + HELP
+  j = JSON.parse((await admin.go('/checkin/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': admin.csrf }, body: JSON.stringify({ q: 'who has allergies' }) })).body);
+  assert.match(j.answer, /allerg/);
+  assert.ok(j.items.some((x) => /Lily/.test(x.title) && /Bee/.test(x.sub)));
+  j = JSON.parse((await admin.go('/checkin/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': admin.csrf }, body: JSON.stringify({ q: 'how do I archive an event' }) })).body);
+  assert.ok(j.topics.some((x) => x.id === 'events'));
+  j = JSON.parse((await admin.go('/checkin/api/help')).body);
+  assert.ok(j.find((x) => x.id === 'tags'));
+  r = await admin.go('/checkin');
+  assert.match(r.body, /id="ci-ask-input"/);
+  assert.match(r.body, />HELP</);
+
+  // Events: listed, archive, restore; regular services can't be archived
+  await admin.post('/checkin/event', { name: 'VBS Night 1' });
+  r = await admin.go('/checkin/events');
+  assert.match(r.body, /VBS Night 1/);
+  const vbsId = sql("SELECT id FROM event_names WHERE name = 'VBS Night 1'");
+  const ssId = sql("SELECT id FROM event_names WHERE name = 'Sunday School'");
+  r = await admin.follow(await admin.post(`/checkin/events/${vbsId}/archive`, {}));
+  assert.match(r.body, /VBS Night 1 archived/);
+  r = await admin.go('/checkin?change=1');
+  assert.ok(!/value="VBS Night 1"/.test(r.body), 'archived event not offered');
+  r = await admin.follow(await admin.post(`/checkin/events/${ssId}/archive`, {}));
+  assert.match(r.body, /regular service and stays/);
+  r = await admin.follow(await admin.post(`/checkin/events/${vbsId}/restore`, {}));
+  assert.match(r.body, /back on the check-in screen/);
+  await admin.post('/checkin/events', { name: 'Christmas Eve' });
+  assert.strictEqual(sql("SELECT archived FROM event_names WHERE name = 'Christmas Eve'"), 'f');
+  assert.strictEqual((await vol.go('/checkin/events')).status, 403, 'volunteers can’t manage events');
+  await admin.post('/checkin/event', { name: 'Sunday School' });
+
   // Reports
   r = await admin.go('/checkin/reports');
   assert.match(r.body, /Attendance reports/);
-  assert.match(r.body, /Sunday Service/);
+  assert.match(r.body, /Sunday School/);
   r = await admin.go('/checkin/reports.csv');
   assert.match(r.body, /Date,Event,Kids,Adults,Total/);
   console.log('Report CSV:', r.body.trim().split('\n').slice(1).join(' | '));

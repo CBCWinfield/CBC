@@ -6,6 +6,7 @@ const P = require('../views/parts');
 const D = require('./data');
 const { AGREEMENTS } = require('./agreements');
 const { appSwitcher } = require('../views/layout');
+const allergens = require('./allergens');
 
 const csrfField = P.csrfField;
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -20,8 +21,12 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false 
     ['/checkin/roster', 'Checked in', 'roster', '☰'],
     ['/checkin/scan', 'Pick up', 'scan', '▥'],
     ['/checkin/families', 'Families', 'families', '⌂'],
+    ['/checkin/print-queue', 'Printing', 'print', '⎙'],
   ] : [];
   const more = [];
+  if (staff) more.push(['/checkin/serve', 'Serving', 'serve']);
+  if (D.can(user, 'leader')) more.push(['/checkin/events', 'Events', 'events']);
+  if (user) more.push(['/checkin/policies', 'Policies', 'policies']);
   if (D.can(user, 'leader')) more.push(['/checkin/reports', 'Reports', 'reports']);
   if (D.can(user, 'coadmin')) more.push(['/checkin/staff', 'Team', 'staff']);
   if (user) more.push(['/checkin/family', 'My family', 'family']);
@@ -43,9 +48,9 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false 
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="/css/style.css?v=6">
-<link rel="stylesheet" href="/css/checkin.css?v=2">
+<link rel="stylesheet" href="/css/checkin.css?v=4">
 <script src="/js/app.js?v=7" defer></script>
-<script src="/js/checkin.js?v=1" defer></script>
+<script src="/js/checkin.js?v=3" defer></script>
 </head>
 <body class="ci${bare ? ' ci-bare' : ''}">
 <a class="skip" href="#main">Skip to content</a>
@@ -53,6 +58,14 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false 
   <div class="ci-top-inner">
     ${appSwitcher(user, 'checkin')}
     ${event ? html`<a class="ci-event-pill" href="/checkin?change=1" title="Change event"><span class="ci-dot"></span>${event.name} · ${t.fmtDate(t.zoned(...dateKeyOf(event.event_date).split('-').map(Number), 12))}</a>` : ''}
+    ${user ? html`<div class="ci-ask-wrap">
+      <form class="ci-ask" id="ci-ask-form" role="search" autocomplete="off">
+        <label for="ci-ask-input" class="visually-hidden">Ask</label>
+        <span class="ci-ask-icon" aria-hidden="true">?</span>
+        <input id="ci-ask-input" name="q" type="search" placeholder="Ask" maxlength="200" enterkeyhint="search">
+      </form>
+      <button type="button" class="ci-help-btn" id="ci-help-open" data-tour="help">HELP</button>
+    </div>` : ''}
     <nav class="ci-nav" aria-label="Check-in">
       ${tabs.map(([href, label, key]) => html`<a href="${href}"${tab === key ? raw(' aria-current="page"') : ''}>${label}</a>`)}
       ${more.map(([href, label, key]) => html`<a class="ci-nav-more" href="${href}"${tab === key ? raw(' aria-current="page"') : ''}>${label}</a>`)}
@@ -60,6 +73,17 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false 
     </nav>
   </div>
 </header>
+${user ? html`<div class="ci-ask-panel" id="ci-ask-panel" hidden aria-live="polite">
+  <div class="ci-ask-panel-inner"><div class="ci-ask-head"><strong id="ci-ask-q"></strong><button type="button" class="linklike" id="ci-ask-close">Close</button></div>
+  <p id="ci-ask-answer"></p><ul id="ci-ask-items" class="ci-ask-items"></ul><p id="ci-ask-topics" class="ci-ask-topics"></p></div>
+</div>
+<div class="ci-modal" id="ci-help" hidden role="dialog" aria-modal="true" aria-labelledby="ci-help-title">
+  <div class="ci-modal-box">
+    <div class="ci-modal-head"><h2 id="ci-help-title">How can we help?</h2><button type="button" class="ci-modal-x" data-help-close aria-label="Close">×</button></div>
+    <input type="search" id="ci-help-search" placeholder="Search help: print, guest, allergy, pickup…" autocomplete="off">
+    <div id="ci-help-body" class="ci-help-body"><p class="muted">Loading…</p></div>
+  </div>
+</div>` : ''}
 <main id="main" class="ci-main">
 ${flash.length ? html`<div class="flashes">${flash.map((f) => html`<p class="flash flash-${f.type}" role="${f.type === 'error' ? 'alert' : 'status'}">${f.message}</p>`)}</div>` : ''}
 ${body}
@@ -72,7 +96,10 @@ ${tabs.length ? html`<nav class="ci-tabbar" aria-label="Check-in sections">${tab
 // ---------------------------------------------------------------- shared bits
 function alertsFor(p, user, { full = false } = {}) {
   const out = [];
-  if (p.allergies) out.push(html`<span class="ci-flag ci-flag-allergy" title="${p.allergies}">Allergy${full ? html`: ${p.allergies}` : ''}</span>`);
+  if (p.allergies) {
+    const keys = allergens.detect(p.allergies);
+    out.push(html`<span class="ci-flag ci-flag-allergy" title="${p.allergies}"><span class="ci-allergen-icons">${keys.map((k) => raw(allergens.icon(k)))}</span>${full ? html`Allergy: ${p.allergies}` : keys.filter((k) => k !== 'other').map((k) => allergens.LABELS[k]).join(', ') || 'Allergy'}</span>`);
+  }
   if (p.medical_notes || p.medications) out.push(html`<span class="ci-flag ci-flag-medical" title="${[p.medical_notes, p.medications].filter(Boolean).join(' · ')}">Medical${full ? html`: ${[p.medical_notes, p.medications].filter(Boolean).join(' · ')}` : ''}</span>`);
   if (p.special_needs) out.push(html`<span class="ci-flag ci-flag-needs">${full ? html`Needs: ${p.special_needs}` : 'Special needs'}</span>`);
   if (p.custody_alert) out.push(html`<span class="ci-flag ci-flag-custody">${D.can(user, 'leader') && full && p.custody_notes ? html`Custody: ${p.custody_notes}` : 'Custody alert: get a leader'}</span>`);
@@ -86,13 +113,13 @@ function avatar(p) {
 
 // ---------------------------------------------------------------- station
 function eventPicker({ csrf, names, suggested, current }) {
-  const choices = [...new Set([suggested, 'Sunday Service', 'Wednesday Service', ...names].filter(Boolean))];
+  const choices = [...new Set([suggested, 'Sunday School', "Children's Church", 'Wednesday Night Service', ...names].filter(Boolean))];
   return html`<section class="ci-card ci-event-pick">
     <h1>What are we checking in for?</h1>
     <p class="muted">${t.fmtLong(new Date())}</p>
     <form method="post" action="/checkin/event" class="ci-event-choices">
       ${csrfField(csrf)}
-      ${choices.map((n) => html`<button class="ci-choice${current && current.name === n ? ' is-current' : ''}" type="submit" name="name" value="${n}">${n}${n === suggested ? html`<small>Today</small>` : ''}</button>`)}
+      ${choices.map((n) => html`<button class="ci-choice${current && current.name === n ? ' is-current' : ''}" type="submit" name="name" value="${n}">${n}${EVENT_TIMES[n] ? html`<small class="ci-choice-time">${EVENT_TIMES[n]}</small>` : ''}${n === suggested ? html`<small>Today</small>` : ''}</button>`)}
     </form>
     <form method="post" action="/checkin/event" class="ci-new-event">
       ${csrfField(csrf)}
@@ -114,17 +141,22 @@ function station({ csrf, event, recent, counts }) {
     <p class="ci-counts">${plural(counts.kids, 'kid')} · ${plural(counts.adults, 'adult')} checked in · <a href="/checkin/roster">See everyone</a></p>
   </section>
   <section class="ci-section">
-    <div class="ci-section-head"><h2>Recent families</h2><a class="btn btn-quiet btn-small" href="/checkin/families/new">New family</a></div>
-    <ul class="ci-family-list">${recent.map((f) => familyRow(f))}</ul>
+    <div class="ci-section-head"><h2>Recent families</h2><span class="ci-family-tools"><a class="btn btn-quiet btn-small" href="/checkin/guest">Quick guest</a><a class="btn btn-quiet btn-small" href="/checkin/new">New family</a></span></div>
+    <ul class="ci-family-list">${recent.map((f) => familyRow(f, { csrf, back: '/checkin' }))}</ul>
   </section>`;
 }
 
-function familyRow(f) {
-  return html`<li><a class="ci-family-row" href="/checkin/f/${f.id}">
+// A family in a list. With csrf, a one-tap "Check in" button checks the whole family in
+// for the service happening now and prints their tags.
+function familyRow(f, { csrf, back } = {}) {
+  return html`<li class="${csrf ? 'ci-family-item' : ''}"><a class="ci-family-row" href="/checkin/f/${f.id}">
     <span class="ci-family-name">${f.name}${f.status === 'new' ? html` <span class="badge badge-info">New</span>` : ''}</span>
     <span class="ci-family-members">${f.members || 'No one added yet'}</span>
     ${f.checked ? html`<span class="badge badge-ok">${f.checked} in</span>` : ''}
-  </a></li>`;
+  </a>${csrf ? html`<form method="post" action="/checkin/quick/${f.id}" class="ci-quick-form" data-quick-checkin>
+    ${csrfField(csrf)}<input type="hidden" name="back" value="${back || '/checkin/families'}">
+    <button class="btn ci-quick-btn" type="submit" data-tour="quick" title="Check in everyone in ${f.name} and print their tags">Check in</button>
+  </form>` : ''}</li>`;
 }
 
 function familyCheckin({ csrf, user, full, event, attendance }) {
@@ -173,30 +205,197 @@ function familyCheckin({ csrf, user, full, event, attendance }) {
 // ---------------------------------------------------------------- labels
 const code128 = require('./code128');
 
-function labelsPage({ labels, returnTo, autoPrint = true }) {
+// Medical = red square with a cross; allergies use their own picture symbols (allergens.js).
+const MARK_MEDICAL = raw('<svg class="mark mark-medical" viewBox="0 0 40 40" aria-label="Medical"><rect x="1" y="1" width="38" height="38" rx="5" fill="#D0021B"/><path d="M16 8h8v8h8v8h-8v8h-8v-8H8v-8h8z" fill="#fff"/></svg>');
+
+function labelsPage({ labels, returnTo, autoPrint = true, embed = false }) {
   return html`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Name tags</title>
-<link rel="stylesheet" href="/css/labels.css?v=1">
-<script src="/js/labels.js?v=1" defer></script>
-</head><body data-return="${returnTo}"${autoPrint ? raw(' data-autoprint') : ''}>
-<div class="no-print label-toolbar">
+<link rel="stylesheet" href="/css/labels.css?v=3">
+<script src="/js/labels.js?v=2" defer></script>
+</head><body data-return="${returnTo}"${autoPrint ? raw(' data-autoprint') : ''}${embed ? raw(' data-embed') : ''}>
+${embed ? '' : html`<div class="no-print label-toolbar">
   <p><strong>${labels.length} label${labels.length === 1 ? '' : 's'} ready.</strong> In the print window choose the Brother QL-810W, paper <strong>62mm × 100mm</strong>, <strong>landscape</strong>, margins <strong>none</strong>.</p>
+  <p class="small">With the red/black DK-2251 roll the allergy and medical symbols print in red; on the standard roll they print in black.</p>
   <button type="button" data-print>Print again</button> <a href="${returnTo}">Done</a>
-</div>
+</div>`}
 ${labels.map((l) => (l.kind === 'child' ? html`<section class="label child-label">
-  <div class="l-head"><img src="/img/logo-central-black.png" alt=""><span>${l.event} · ${l.date}</span></div>
-  <div class="l-name">${l.first}</div>
-  <div class="l-last">${l.last}${l.group ? html` · ${l.group}` : ''}</div>
-  ${l.alert ? html`<div class="l-alert">${l.alert}</div>` : html`<div class="l-alert l-none"></div>`}
+  <div class="l-head"><img src="/img/logo-central-black.png" alt=""><span>${l.when}</span></div>
+  <div class="l-main">
+    <div class="l-text">
+      <div class="l-name">${l.first}</div>
+      <div class="l-class">${l.cls}</div>
+      ${l.allergies.length ? html`<div class="l-note"><strong>Allergy:</strong> ${l.allergyText}</div>` : ''}
+      ${l.medical ? html`<div class="l-note"><strong>Medical:</strong> see leader</div>` : ''}
+    </div>
+    ${l.allergies.length || l.medical ? html`<div class="l-marks">
+      ${l.allergies.slice(0, 3).map((k) => html`<figure class="l-sym">${raw(allergens.icon(k))}<figcaption>${allergens.LABELS[k]}</figcaption></figure>`)}
+      ${l.medical ? html`<figure class="l-sym">${MARK_MEDICAL}<figcaption>Medical</figcaption></figure>` : ''}
+    </div>` : ''}
+  </div>
   <div class="l-foot"><div class="l-code"><small>Pickup code</small>${l.code}</div><div class="l-barcode">${raw(code128.svg(l.code, { height: 40 }))}</div></div>
 </section>` : html`<section class="label parent-label">
-  <div class="l-head"><img src="/img/logo-central-black.png" alt=""><span>${l.event} · ${l.date}</span></div>
-  <div class="l-title">Pickup tag · keep this</div>
+  <div class="l-head"><img src="/img/logo-central-black.png" alt=""><span>${l.when}</span></div>
+  <div class="l-title">Parent pickup tag · keep this</div>
   <div class="l-family">${l.family}</div>
   <div class="l-kids">${l.kids}</div>
   <div class="l-foot"><div class="l-code l-code-big"><small>Code</small>${l.code}</div><div class="l-barcode">${raw(code128.svg(l.code, { height: 46 }))}</div></div>
 </section>`))}
 </body></html>`;
+}
+
+// ---------------------------------------------------------------- print queue
+function printQueue({ csrf, jobs, isPrinter }) {
+  const waiting = jobs.filter((j) => j.status === 'queued');
+  const done = jobs.filter((j) => j.status !== 'queued');
+  const badge = { printed: html`<span class="badge badge-ok">Printed</span>`, cancelled: html`<span class="badge badge-muted">Cancelled</span>` };
+  return html`
+  <div class="ci-section-head"><div><h1>Printing</h1><p class="muted">Name tags from every check-in device wait here for the printer.</p></div></div>
+  <section class="ci-card ci-printer-card${isPrinter ? ' is-on' : ''}" data-tour="printer">
+    <label class="ci-switch"><input type="checkbox" data-printer-toggle${checked(isPrinter)}><span><strong>This device is the printer</strong><br><span class="small muted">Turn this on for the laptop or computer connected to the Brother QL-810W. Keep this page open and tags print automatically.</span></span></label>
+    <p class="ci-printer-status small" data-printer-status>${isPrinter ? 'Watching for new name tags…' : 'Off. Tags checked in on this device go to the printer device.'}</p>
+  </section>
+  <section class="ci-section" data-tour="queue">
+    <div class="ci-section-head"><h2>Waiting <span class="muted" data-waiting-count>${waiting.length}</span></h2>
+      ${waiting.length ? html`<a class="btn btn-small" href="/checkin/print?jobs=${waiting.map((j) => j.id).join(',')}&return=/checkin/print-queue">Print all waiting</a>` : ''}</div>
+    ${waiting.length ? html`<ul class="ci-queue">${waiting.map((j) => html`<li class="ci-queue-row">
+      <div class="ci-person-text"><span class="ci-person-name">${j.family_name}</span><span class="ci-person-meta">${j.summary}${j.include_parent ? ' + parent tag' : ''} · ${j.event_name} · ${t.fmtTime(j.created_at)}${j.by_name ? ` · by ${j.by_name}` : ''}</span></div>
+      <div class="ci-row-actions"><a class="btn btn-small" href="/checkin/print?jobs=${j.id}&return=/checkin/print-queue">Print</a>
+      <form method="post" action="/checkin/print-jobs/${j.id}/cancel" class="inline">${csrfField(csrf)}<button class="btn btn-quiet btn-small" type="submit">Cancel</button></form></div>
+    </li>`)}</ul>` : html`<p class="muted">Nothing waiting. New tags show up here as families check in.</p>`}
+  </section>
+  ${done.length ? html`<section class="ci-section"><h2>Earlier today</h2><ul class="ci-queue">${done.map((j) => html`<li class="ci-queue-row is-done">
+    <div class="ci-person-text"><span class="ci-person-name">${j.family_name}</span><span class="ci-person-meta">${j.summary} · ${j.event_name} · ${t.fmtTime(j.printed_at || j.created_at)}</span></div>
+    ${badge[j.status]}
+    ${j.status === 'printed' ? html`<a class="btn btn-quiet btn-small" href="/checkin/print?jobs=${j.id}&return=/checkin/print-queue">Print again</a>` : ''}
+  </li>`)}</ul></section>` : ''}
+  <iframe class="ci-print-frame" data-print-frame title="Printing" aria-hidden="true" tabindex="-1"></iframe>`;
+}
+
+// ---------------------------------------------------------------- events
+const EVENT_TIMES = { 'Sunday School': 'Sundays 9:30 AM', "Children's Church": 'Sundays 10:45 AM', 'Wednesday Night Service': 'Wednesdays' };
+function eventsPage({ csrf, user, names, recent, builtIn, current }) {
+  const active = names.filter((n) => !n.archived);
+  const archived = names.filter((n) => n.archived);
+  const row = (n) => {
+    const fixed = builtIn.includes(n.name);
+    return html`<li class="ci-event-row${n.archived ? ' is-archived' : ''}">
+      <div class="ci-person-text">
+        <span class="ci-person-name">${n.name}${fixed ? html` <span class="badge badge-info">Regular service</span>` : ''}</span>
+        <span class="ci-person-meta">${[EVENT_TIMES[n.name], n.times ? `held ${plural(n.times, 'time')}` : 'not held yet', n.last_date ? `last ${t.fmtDate(t.zoned(...n.last_date.split('-').map(Number), 12))}` : '', n.checkins ? plural(n.checkins, 'check-in') : '', n.archived && n.archived_at ? `archived ${t.fmtDate(n.archived_at)}` : ''].filter(Boolean).join(' · ')}</span>
+        ${n.notes ? html`<span class="small muted">${n.notes}</span>` : ''}
+      </div>
+      <div class="ci-row-actions">
+        ${n.checkins ? html`<a class="btn btn-quiet btn-small" href="/checkin/reports?event=${encodeURIComponent(n.name)}">Attendance</a>` : ''}
+        ${n.archived ? html`<form method="post" action="/checkin/events/${n.id}/restore" class="inline">${csrfField(csrf)}<button class="btn btn-small" type="submit">Restore</button></form>`
+    : html`<form method="post" action="/checkin/event" class="inline">${csrfField(csrf)}<input type="hidden" name="name" value="${n.name}"><button class="btn btn-quiet btn-small" type="submit"${current && current.name === n.name ? raw(' disabled') : ''}>${current && current.name === n.name ? 'Checking in now' : 'Check in for this'}</button></form>
+          ${fixed ? '' : html`<form method="post" action="/checkin/events/${n.id}/archive" class="inline" data-confirm="Archive ${n.name}? It comes off the check-in screen. Its attendance stays in Reports."><button class="btn btn-small" type="submit" data-tour="archive">Archive</button>${csrfField(csrf)}</form>`}`}
+        ${!fixed && D.can(user, 'coadmin') ? html`<details class="ci-rename"><summary class="btn btn-quiet btn-small">Rename</summary>
+          <form method="post" action="/checkin/events/${n.id}/rename" class="ci-inline">${csrfField(csrf)}<input name="name" value="${n.name}" maxlength="80" required aria-label="New name"><button class="btn btn-small" type="submit">Save</button></form></details>` : ''}
+      </div>
+    </li>`;
+  };
+  return html`
+  <div class="ci-section-head"><div><h1>Events</h1><p class="muted">Every event you’ve created. Archive old ones to take them off the check-in screen; their attendance stays in Reports.</p></div></div>
+  <form method="post" action="/checkin/events" class="ci-card ci-event-add">
+    ${csrfField(csrf)}
+    <label for="ev-add"><strong>Add an event</strong></label>
+    <div class="ci-inline"><input id="ev-add" name="name" maxlength="80" placeholder="e.g. VBS 2027, Youth Lock-in, Christmas Eve" required><button class="btn" type="submit">Add</button></div>
+    <input name="notes" maxlength="300" placeholder="Note (optional): dates, room, who’s leading">
+  </form>
+  <section class="ci-section" data-tour="events">
+    <h2>On the check-in screen <span class="muted">${active.length}</span></h2>
+    <ul class="ci-events">${active.map(row)}</ul>
+  </section>
+  <section class="ci-section">
+    <h2>Archived <span class="muted">${archived.length}</span></h2>
+    ${archived.length ? html`<ul class="ci-events">${archived.map(row)}</ul>` : html`<p class="muted">Nothing archived yet.</p>`}
+  </section>
+  <section class="ci-section">
+    <h2>Recent dates</h2>
+    <ul class="ci-events">${recent.map((e) => html`<li class="ci-event-row">
+      <div class="ci-person-text"><span class="ci-person-name">${e.name}</span><span class="ci-person-meta">${fmtDateKey(e.event_date)} · ${e.total ? `${plural(e.kids, 'kid')}, ${plural(e.total - e.kids, 'adult')}` : 'no one checked in'}</span></div>
+      <div class="ci-row-actions">${e.total ? '' : html`<form method="post" action="/checkin/events/day/${e.id}/delete" class="inline" data-confirm="Remove ${e.name} on this date? No one was checked in.">${csrfField(csrf)}<button class="btn btn-quiet btn-small" type="submit">Remove</button></form>`}</div>
+    </li>`)}</ul>
+  </section>`;
+}
+
+// ---------------------------------------------------------------- add a family at the desk
+function newFamilyFlow({ csrf, name = '', error, v = {} }) {
+  const last = String(name || '').replace(/^the\s+/i, '').replace(/\s+family$/i, '').trim();
+  const f = (n, label, opts = {}) => html`<div class="field${opts.cls ? ' ' + opts.cls : ''}"><label for="nf-${n}">${label}</label><input id="nf-${n}" name="${n}" type="${opts.type || 'text'}" value="${v[n] ?? opts.value ?? ''}"${opts.req ? raw(' required') : ''}${opts.ac ? raw(` autocomplete="${opts.ac}"`) : ''}${opts.ph ? html` placeholder="${opts.ph}"` : ''}>${opts.hint ? html`<p class="hint">${opts.hint}</p>` : ''}</div>`;
+  return html`<div class="ci-narrow">
+    <p class="crumb"><a href="/checkin">Back to search</a></p>
+    <h1>Add a new family</h1>
+    <ol class="ci-steps"><li class="current"><a>Family & emergency contact</a></li><li><a>Kids</a></li><li><a>Check in</a></li></ol>
+    ${error ? html`<p class="flash flash-error" role="alert">${error}</p>` : ''}
+    <form method="post" action="/checkin/new" class="stack ci-form" data-tour="new-family">
+      ${csrfField(csrf)}
+      <section class="box"><h2 class="box-head">Parent or guardian</h2><div class="box-body stack">
+        <div class="row">${f('first_name', 'First name', { req: true, ac: 'given-name' })}${f('last_name', 'Last name', { req: true, value: last ? last.replace(/\b\w/g, (c) => c.toUpperCase()) : '', ac: 'family-name' })}</div>
+        <div class="row">${f('phone', 'Mobile phone', { type: 'tel', req: true, ac: 'tel' })}${f('email', 'Email', { type: 'email', ac: 'email', hint: 'So we can send check-in notices and their sign-up link.' })}</div>
+        <div class="field short"><label for="nf-rel">Relationship</label><select id="nf-rel" name="relationship">${RELATIONSHIPS.map((r) => html`<option${selected(r, v.relationship)}>${r}</option>`)}</select></div>
+      </div></section>
+      <section class="box"><h2 class="box-head">Emergency contact</h2><div class="box-body stack">
+        <p class="small muted">Someone other than the parent we can call if we can't reach them.</p>
+        <div class="row">${f('ec_name', 'Name')}${f('ec_relationship', 'Relationship', { ph: 'e.g. Grandma' })}${f('ec_phone', 'Phone', { type: 'tel' })}</div>
+      </div></section>
+      <section class="box"><h2 class="box-head">Family</h2><div class="box-body stack">
+        ${f('family_name', 'Family name', { value: last ? `The ${last.replace(/\b\w/g, (c) => c.toUpperCase())} Family` : '', hint: 'Leave blank to use “The [last name] Family”.' })}
+        <label class="check"><input type="checkbox" name="send_invite" value="1" checked> Email the parent a link to finish their family profile and sign the permission forms</label>
+      </div></section>
+      <div class="ci-sticky-actions"><button class="btn ci-big-btn" type="submit">Next: add kids</button></div>
+    </form>
+  </div>`;
+}
+
+function newKidsFlow({ csrf, full, error }) {
+  const { family, kids } = full;
+  return html`<div class="ci-narrow">
+    <p class="crumb"><a href="/checkin">Back to search</a></p>
+    <h1>${family.name}</h1>
+    <ol class="ci-steps"><li class="done"><a>Family & emergency contact</a></li><li class="current"><a>Kids</a></li><li><a>Check in</a></li></ol>
+    ${error ? html`<p class="flash flash-error" role="alert">${error}</p>` : ''}
+    ${kids.length ? html`<ul class="ci-person-cards">${kids.map((k) => html`<li class="ci-person-card">${avatar(k)}<div class="ci-person-text"><span class="ci-person-name">${D.displayName(k)}</span><span class="ci-person-meta">${[D.ageLabel(k.birthdate), D.groupFor(k)].filter(Boolean).join(' · ')}</span>${alertsFor(k, null).length ? html`<span class="ci-flags">${alertsFor(k, null)}</span>` : ''}</div></li>`)}</ul>` : ''}
+    <section class="box"><h2 class="box-head">${kids.length ? 'Add another child' : 'Add a child'}</h2><div class="box-body">
+      <form method="post" action="/checkin/new/${family.id}/kids" class="stack ci-form" data-tour="new-kid">
+        ${csrfField(csrf)}
+        <div class="row"><div class="field"><label for="nk-first">First name</label><input id="nk-first" name="first_name" required autofocus></div>
+          <div class="field"><label for="nk-last">Last name</label><input id="nk-last" name="last_name" value="${(full.adults[0] || {}).last_name || ''}" required></div></div>
+        <div class="row"><div class="field"><label for="nk-bday">Birthday</label><input id="nk-bday" name="birthdate" type="date"><p class="hint">Sets the class automatically.</p></div>
+          <div class="field"><label for="nk-class">Or pick a class</label><select id="nk-class" name="class_override"><option value="">By birthday</option>${D.CLASSES.map((c) => html`<option>${c}</option>`)}</select></div></div>
+        <div class="field"><label for="nk-allergies">Allergies <span class="muted">(leave blank if none)</span></label><input id="nk-allergies" name="allergies"></div>
+        <div class="field"><label for="nk-medical">Medical conditions or medications <span class="muted">(optional)</span></label><input id="nk-medical" name="medical_notes"></div>
+        <button class="btn btn-quiet" type="submit">Add child</button>
+      </form></div></section>
+    <div class="ci-sticky-actions"><a class="btn ci-big-btn${kids.length ? '' : ' btn-quiet'}" href="/checkin/f/${family.id}">${kids.length ? 'Done: check them in' : 'Skip: check in adults only'}</a></div>
+  </div>`;
+}
+
+function guestPage({ csrf, name = '', error, v = {} }) {
+  return html`<div class="ci-narrow">
+    <p class="crumb"><a href="/checkin">Back to search</a></p>
+    <h1>Quick guest check-in</h1>
+    <p class="muted">For a child visiting without a parent, like a friend who came with another family. Only a few details are needed.</p>
+    ${error ? html`<p class="flash flash-error" role="alert">${error}</p>` : ''}
+    <form method="post" action="/checkin/guest" class="stack ci-form" data-guest-form>
+      ${csrfField(csrf)}
+      <div class="row"><div class="field"><label for="g-first">Child's first name</label><input id="g-first" name="first_name" value="${v.first_name || name}" required autofocus></div>
+        <div class="field"><label for="g-last">Last name <span class="muted">(optional)</span></label><input id="g-last" name="last_name" value="${v.last_name || ''}"></div></div>
+      <div class="row">
+        <div class="field"><label for="g-class">Class</label><select id="g-class" name="class_override" required><option value="">Choose…</option>${D.CLASSES.map((c) => html`<option${selected(c, v.class_override)}>${c}</option>`)}</select></div>
+        <div class="field"><label for="g-phone">Parent or guardian's phone</label><input id="g-phone" name="phone" type="tel" value="${v.phone || ''}" required></div>
+      </div>
+      <div class="field"><label for="g-allergies">Allergies <span class="muted">(ask: leave blank if none)</span></label><input id="g-allergies" name="allergies" value="${v.allergies || ''}"></div>
+      <fieldset class="ci-custody"><legend>Who did they come with?</legend>
+        <input type="hidden" name="host_family_id" value="${v.host_family_id || ''}" data-host-id>
+        <div class="field suggest-wrap"><label for="g-host">Family or friend they came with</label><input id="g-host" type="search" autocomplete="off" placeholder="Search a family" data-host-search value="${v.host_name || ''}"><div class="ci-results" data-host-results></div>
+          <p class="hint" data-host-chosen>${v.host_name ? `Coming with ${v.host_name}. Their pickup tag covers this child.` : 'The guest will share that family’s pickup code.'}</p></div>
+        <label class="check"><input type="checkbox" name="on_own" value="1"${checked(v.on_own)} data-on-own> They came on their own (or the parent is in the service)</label>
+      </fieldset>
+      <div class="ci-sticky-actions"><button class="btn ci-big-btn" type="submit">Check in guest</button></div>
+    </form>
+  </div>`;
 }
 
 // ---------------------------------------------------------------- roster
@@ -230,7 +429,7 @@ function roster({ csrf, user, event, rows, q, show }) {
       <span class="ci-code">${r.security_code}</span>
       <div class="ci-row-actions">
         ${!r.checked_out_at ? html`
-          ${r.kind === 'child' ? html`<a class="btn btn-quiet btn-small" href="/checkin/print?event=${event.id}&family=${r.family_id}&people=${r.person_id}&parent=0">Reprint</a>` : ''}
+          ${r.kind === 'child' ? html`<form method="post" action="/checkin/reprint" class="inline">${csrfField(csrf)}<input type="hidden" name="event_id" value="${event.id}"><input type="hidden" name="family_id" value="${r.family_id}"><input type="hidden" name="people" value="${r.person_id}"><input type="hidden" name="parent" value="0"><button class="btn btn-quiet btn-small" type="submit">Reprint</button></form>` : ''}
           <form method="post" action="/checkin/attendance/${r.id}/out" class="inline">${csrfField(csrf)}<button class="btn btn-small" type="submit">Check out</button></form>
           <form method="post" action="/checkin/attendance/${r.id}/remove" class="inline" data-confirm="Remove ${r.first_name} from tonight's list? Use this if they were checked in by mistake.">${csrfField(csrf)}<button class="btn btn-quiet btn-small" type="submit" title="Checked in by mistake">Remove</button></form>` : ''}
       </div>
@@ -278,12 +477,13 @@ function scanPage({ csrf, event, match, code, error, user }) {
 }
 
 // ---------------------------------------------------------------- families (staff)
-function familiesPage({ rows, q, user }) {
+function familiesPage({ csrf, rows, q, user, event }) {
   return html`
   <div class="ci-section-head"><h1>Families</h1>
-    <div class="ci-family-tools">${D.can(user, 'leader') ? html`<a class="btn btn-small" href="/checkin/families/new">New family</a> <a class="btn btn-quiet btn-small" href="/checkin/invite">Email a sign-up link</a>` : ''}</div></div>
+    <div class="ci-family-tools">${D.can(user, 'leader') ? html`<a class="btn btn-small" href="/checkin/new">New family</a> <a class="btn btn-quiet btn-small" href="/checkin/invite">Email a sign-up link</a>` : ''}</div></div>
   <form class="ci-filter" method="get" action="/checkin/families"><input type="search" name="q" value="${q || ''}" placeholder="Search families, people, phone or email"></form>
-  <ul class="ci-family-list">${rows.map(familyRow)}</ul>
+  <p class="small muted">${event ? html`<strong>Check in</strong> checks the whole family in for <strong>${event.name}</strong> and prints their tags. Tap a family to choose who’s here.` : html`Tap a family to check them in. <a href="/checkin?change=1">Choose an event</a> to use one-tap check-in.`}</p>
+  <ul class="ci-family-list" data-tour="families">${rows.map((f) => familyRow(f, event ? { csrf, back: `/checkin/families${q ? `?q=${encodeURIComponent(q)}` : ''}` } : {}))}</ul>
   ${!rows.length ? html`<p class="muted">No families found.</p>` : ''}`;
 }
 
@@ -497,6 +697,130 @@ function reportsPage({ filter, names, weekly, monthly, yearly, byGroup, firstTim
   </div>`;
 }
 
+// ---------------------------------------------------------------- policies
+const fmtSize = (n) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+function policiesPage({ csrf, user, rows, acks, ackReport }) {
+  const admin = D.can(user, 'coadmin');
+  return html`
+  <div class="ci-section-head"><div><h1>Policies</h1><p class="muted">Child safety, check-in procedures and other documents for ${admin ? 'the team and families' : 'you to read'}.</p></div></div>
+  ${rows.length ? html`<ul class="ci-policy-list">${rows.map((p) => html`<li class="ci-card ci-policy">
+    <div class="ci-policy-icon" aria-hidden="true">${/pdf/.test(p.mime || '') ? 'PDF' : /word|doc/.test(p.mime || '') ? 'DOC' : /image/.test(p.mime || '') ? 'IMG' : 'TXT'}</div>
+    <div class="ci-person-text">
+      <span class="ci-person-name">${p.title}</span>
+      ${p.description ? html`<span class="ci-person-meta">${p.description}</span>` : ''}
+      <span class="small muted">${p.audience === 'everyone' ? 'Team and families' : 'Team only'} · updated ${t.fmtDateYear(p.updated_at)}${p.size ? ` · ${fmtSize(p.size)}` : ''}</span>
+      ${admin && p.requires_ack && ackReport[p.id] ? html`<details class="small"><summary>${ackReport[p.id].done.length} of ${ackReport[p.id].total} team members have read this</summary>
+        <p>${ackReport[p.id].missing.length ? html`Still to read: ${ackReport[p.id].missing.join(', ')}` : 'Everyone on the team has read it.'}</p></details>` : ''}
+    </div>
+    <div class="ci-row-actions">
+      ${p.filename ? html`<a class="btn btn-small" href="/checkin/policies/${p.id}/file" target="_blank" rel="noopener">Open</a>` : ''}
+      ${p.requires_ack ? (acks.has(p.id) ? html`<span class="badge badge-ok">You read this</span>`
+        : html`<form method="post" action="/checkin/policies/${p.id}/ack" class="inline">${csrfField(csrf)}<button class="btn btn-quiet btn-small" type="submit">I've read this</button></form>`) : ''}
+      ${admin ? html`<form method="post" action="/checkin/policies/${p.id}/delete" class="inline" data-confirm="Delete “${p.title}”?">${csrfField(csrf)}<button class="btn btn-quiet btn-small" type="submit">Delete</button></form>` : ''}
+    </div>
+  </li>`)}</ul>` : html`<div class="empty"><p>No policies have been added yet.</p></div>`}
+  ${admin ? html`<section class="box"><h2 class="box-head">Add a policy</h2><div class="box-body">
+    <form method="post" action="/checkin/policies" class="stack ci-form" data-policy-form>
+      ${csrfField(csrf)}
+      <div class="field"><label for="po-title">Title</label><input id="po-title" name="title" required placeholder="e.g. Child Safety Policy"></div>
+      <div class="field"><label for="po-desc">Short description <span class="muted">(optional)</span></label><input id="po-desc" name="description"></div>
+      <div class="field"><label for="po-file">File (PDF, Word document or picture, up to 15 MB)</label><input id="po-file" type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt" data-policy-file><p class="hint" data-policy-info></p></div>
+      <input type="hidden" name="file_name" data-file-name><input type="hidden" name="file_data" data-file-data>
+      <div class="row">
+        <div class="field"><label for="po-aud">Who can see it</label><select id="po-aud" name="audience"><option value="team">Check-in team only</option><option value="everyone">Team and families</option></select></div>
+      </div>
+      <label class="check"><input type="checkbox" name="requires_ack" value="1"> Team members must confirm they've read it</label>
+      <button class="btn" type="submit">Add policy</button>
+    </form></div></section>` : ''}`;
+}
+
+// ---------------------------------------------------------------- serving calendar
+const AREAS = ['Nursery', 'Toddlers', 'Kids', 'Teens', 'Adults'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function servingMonth({ csrf, user, month, weeks, services, mine, prev, next, label }) {
+  const admin = D.can(user, 'coadmin');
+  const byDate = new Map();
+  for (const sv of services) (byDate.get(sv.service_date) || byDate.set(sv.service_date, []).get(sv.service_date)).push(sv);
+  const todayKey = t.dateKey(new Date());
+  return html`
+  <div class="ci-section-head">
+    <div><h1>Serving calendar</h1><p class="muted">Tap a service to see who's serving and sign up.</p></div>
+    <div class="ci-family-tools">
+      <a class="btn btn-quiet btn-small" href="/checkin/serve?month=${prev}" aria-label="Previous month">‹</a>
+      <strong class="ci-month">${label}</strong>
+      <a class="btn btn-quiet btn-small" href="/checkin/serve?month=${next}" aria-label="Next month">›</a>
+      ${admin ? html`<a class="btn btn-quiet btn-small" href="/checkin/serve/import">Import</a>` : ''}
+    </div>
+  </div>
+  ${mine.length ? html`<div class="ci-alert ci-alert-ok"><strong>You're serving:</strong> ${mine.map((m) => `${t.fmtDate(t.zoned(...m.service_date.split('-').map(Number), 12))} ${m.name} (${m.area})`).join(' · ')}</div>` : ''}
+  <div class="ci-cal" role="grid" aria-label="${label}">
+    ${WEEKDAYS.map((d) => html`<div class="ci-cal-dow" role="columnheader">${d}</div>`)}
+    ${weeks.flat().map((day) => {
+      const list = byDate.get(day.key) || [];
+      return html`<div class="ci-cal-day${day.inMonth ? '' : ' is-out'}${day.key === todayKey ? ' is-today' : ''}${list.length ? ' has-services' : ''}" role="gridcell">
+        <span class="ci-cal-num">${day.n}</span>
+        ${list.map((sv) => html`<a class="ci-cal-svc${sv.cancelled ? ' is-cancelled' : ''}" href="/checkin/serve/${sv.id}">
+          <span class="ci-cal-name">${sv.name}</span>${sv.start_time ? html`<span class="ci-cal-time">${sv.start_time}</span>` : ''}
+          <span class="ci-cal-fill" aria-label="${sv.filled} of 5 areas have someone">${AREAS.map((a) => html`<i class="${sv.areas.includes(a) ? 'on' : ''}" title="${a}"></i>`)}</span>
+        </a>`)}
+      </div>`;
+    })}
+  </div>
+  <p class="small muted">Each dot is one area: Nursery, Toddlers, Kids, Teens, Adults. Green means someone is signed up.</p>
+  ${admin ? html`<section class="box"><h2 class="box-head">Add a special service</h2><div class="box-body">
+    <form method="post" action="/checkin/serve/add" class="row ci-form">${csrfField(csrf)}
+      <div class="field short"><label for="sv-date">Date</label><input id="sv-date" type="date" name="date" required></div>
+      <div class="field"><label for="sv-name">Name</label><input id="sv-name" name="name" required placeholder="e.g. VBS Night 1"></div>
+      <div class="field short"><label for="sv-time">Time</label><input id="sv-time" name="start_time" placeholder="6:30 PM"></div>
+      <button class="btn btn-small ci-add-btn" type="submit">Add</button>
+    </form></div></section>` : ''}`;
+}
+
+function servingDay({ csrf, user, service, slots, team }) {
+  const admin = D.can(user, 'coadmin');
+  const date = t.fmtLong(t.zoned(...service.service_date.split('-').map(Number), 12));
+  return html`
+  <p class="crumb"><a href="/checkin/serve?month=${service.service_date.slice(0, 7)}">Serving calendar</a></p>
+  <div class="ci-section-head"><div><h1>${service.name}</h1><p class="muted">${date}${service.start_time ? ` · ${service.start_time}` : ''}${service.cancelled ? ' · Cancelled' : ''}</p></div></div>
+  <div class="ci-areas">${AREAS.map((area) => {
+    const here = slots.filter((x) => x.area === area);
+    const meIn = here.find((x) => x.user_id === user.id);
+    return html`<section class="ci-area ci-card">
+      <h2>${area}</h2>
+      <ul class="ci-mini-list">${here.map((x) => html`<li><span>${x.name}${x.note ? html`<br><span class="small muted">${x.note}</span>` : ''}</span>
+        ${admin || x.user_id === user.id ? html`<form method="post" action="/checkin/serve/slots/${x.id}/delete" class="inline">${csrfField(csrf)}<button class="linklike small" type="submit">Remove</button></form>` : ''}</li>`)}</ul>
+      ${!here.length ? html`<p class="small muted">No one yet.</p>` : ''}
+      ${!meIn && !service.cancelled ? html`<form method="post" action="/checkin/serve/${service.id}/join" class="inline">${csrfField(csrf)}<input type="hidden" name="area" value="${area}"><button class="btn btn-small" type="submit">Sign me up</button></form>` : ''}
+      ${admin ? html`<form method="post" action="/checkin/serve/${service.id}/assign" class="ci-assign">${csrfField(csrf)}<input type="hidden" name="area" value="${area}">
+        <input name="who" list="team-list" placeholder="Add a name" aria-label="Add someone to ${area}" required><button class="btn btn-quiet btn-small" type="submit">Add</button></form>` : ''}
+    </section>`;
+  })}</div>
+  ${admin ? html`<datalist id="team-list">${team.map((u) => html`<option value="${u.first_name} ${u.last_name}">`)}</datalist>
+    <section class="box"><h2 class="box-head">Service details</h2><div class="box-body">
+      <form method="post" action="/checkin/serve/${service.id}" class="row ci-form">${csrfField(csrf)}
+        <div class="field short"><label for="sd-time">Time</label><input id="sd-time" name="start_time" value="${service.start_time || ''}"></div>
+        <label class="check"><input type="checkbox" name="cancelled" value="1"${checked(service.cancelled)}> Cancelled this week</label>
+        <button class="btn btn-quiet btn-small ci-add-btn" type="submit">Save</button>
+      </form></div></section>` : ''}`;
+}
+
+function servingImport({ csrf, result }) {
+  return html`
+  <p class="crumb"><a href="/checkin/serve">Serving calendar</a></p>
+  <h1>Import the serving schedule</h1>
+  <p>Upload a spreadsheet saved as CSV with these columns: <strong>date</strong> (like 2026-10-11), <strong>service</strong> (Sunday School, Children's Church, Wednesday Night Service, or any other name), <strong>area</strong> (Nursery, Toddlers, Kids, Teens or Adults), <strong>name</strong>, and optionally <strong>email</strong> to link it to their login.</p>
+  <p><a href="/checkin/serve/template.csv" download>Download a template</a></p>
+  ${result ? html`<div class="card card-note" role="status"><h2>Import finished</h2><p>${result.added} added${result.skipped.length ? `, ${result.skipped.length} skipped` : ''}.</p>
+    ${result.skipped.length ? html`<ul class="small">${result.skipped.slice(0, 30).map((x) => html`<li>Row ${x.row}: ${x.reason}</li>`)}</ul>` : ''}</div>` : ''}
+  <form method="post" action="/checkin/serve/import" class="stack ci-form" id="import-form">${csrfField(csrf)}
+    <div class="field"><label for="csv-file">CSV file</label><input type="file" id="csv-file" accept=".csv,text/csv"><p class="hint" id="csv-info"></p></div>
+    <div class="field" id="csv-paste"><label for="csv-text">Or paste the rows</label><textarea id="csv-text" name="csv" rows="8" required placeholder="date,service,area,name,email"></textarea></div>
+    <button class="btn" type="submit">Import</button>
+  </form>`;
+}
+
 // ---------------------------------------------------------------- parents
 function joinPage({ csrf, invite, email, error, loggedIn }) {
   return html`<section class="ci-card ci-narrow">
@@ -664,6 +988,6 @@ function installPage() {
 }
 
 module.exports = {
-  layout, eventPicker, station, familyCheckin, labelsPage, roster, scanPage, familiesPage, familyAdmin, personPage, newFamilyPage,
-  invitePage, staffPage, reportsPage, joinPage, wizard, familyHome, installPage, familyRow, STEPS,
+  layout, eventPicker, station, familyCheckin, labelsPage, printQueue, eventsPage, newFamilyFlow, newKidsFlow, guestPage, roster, scanPage, familiesPage, familyAdmin, personPage, newFamilyPage,
+  invitePage, staffPage, reportsPage, policiesPage, servingMonth, servingDay, servingImport, AREAS, joinPage, wizard, familyHome, installPage, familyRow, STEPS,
 };

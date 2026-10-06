@@ -38,40 +38,59 @@ function ageLabel(birthdate) {
   }
   return `${a} yr${a === 1 ? '' : 's'}`;
 }
-// Age group used on rosters and labels.
+// Class used on rosters and name tags: Nursery (babies), Toddlers, Kids, Teens, Adults.
+const CLASSES = ['Nursery', 'Toddlers', 'Kids', 'Teens'];
 function groupFor(person) {
   if (person.kind === 'adult') return 'Adults';
+  if (person.class_override && CLASSES.includes(person.class_override)) return person.class_override;
   const a = ageOn(person.birthdate);
   if (a == null) return 'Kids';
-  if (a <= 2) return 'Nursery';
-  if (a <= 5) return 'Preschool';
-  if (a <= 11) return 'Central Kids';
-  if (a <= 18) return 'Central Teens';
+  if (a < 2) return 'Nursery';
+  if (a <= 4) return 'Toddlers';
+  if (a <= 11) return 'Kids';
+  if (a <= 18) return 'Teens';
   return 'Adults';
 }
-const GROUP_ORDER = ['Nursery', 'Preschool', 'Central Kids', 'Kids', 'Central Teens', 'Adults'];
+const GROUP_ORDER = ['Nursery', 'Toddlers', 'Kids', 'Teens', 'Adults'];
 
 const displayName = (p) => `${p.preferred_name || p.first_name} ${p.last_name}`;
 
-// Default event name for today: Sunday Service / Wednesday Service.
+// Default event for the day and time: Sunday School before 10:30 on Sundays, Children's Church
+// from 10:30, and Wednesday Night Service on Wednesdays. Other days: none (the volunteer chooses).
 function defaultEventName(now = new Date()) {
-  const wd = t.parts(now).weekday;
-  if (wd === 7) return 'Sunday Service';
-  if (wd === 3) return 'Wednesday Service';
+  const p = t.parts(now);
+  if (p.weekday === 7) return p.hour * 60 + p.minute < 10 * 60 + 30 ? 'Sunday School' : "Children's Church";
+  if (p.weekday === 3) return 'Wednesday Night Service';
   return null;
 }
 
 async function eventFor(name, dateKey, userId) {
   const clean = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 80);
   if (!clean) return null;
-  const found = await db.one('SELECT * FROM events WHERE lower(name) = lower($1) AND event_date = $2', [clean, dateKey]);
+  // Use the saved spelling of a name if there is one; starting an archived event brings it back.
+  const saved = await saveEventName(clean, userId);
+  const evName = saved ? saved.name : clean;
+  const found = await db.one('SELECT * FROM events WHERE lower(name) = lower($1) AND event_date = $2', [evName, dateKey]);
   if (found) return found;
-  return db.one('INSERT INTO events (name, event_date, created_by) VALUES ($1, $2, $3) ON CONFLICT (name, event_date) DO UPDATE SET name = EXCLUDED.name RETURNING *', [clean, dateKey, userId || null]);
+  return db.one('INSERT INTO events (name, event_date, created_by) VALUES ($1, $2, $3) ON CONFLICT (name, event_date) DO UPDATE SET name = EXCLUDED.name RETURNING *', [evName, dateKey, userId || null]);
 }
 
-// Event names used before, most used first (for the event picker).
+async function saveEventName(name, userId) {
+  const existing = await db.one('SELECT * FROM event_names WHERE lower(name) = lower($1)', [name]);
+  if (existing) {
+    if (existing.archived) await db.query('UPDATE event_names SET archived = false, archived_at = NULL WHERE id = $1', [existing.id]);
+    return existing;
+  }
+  return db.one('INSERT INTO event_names (name, created_by) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *', [name, userId || null]);
+}
+
+// The three regular services: always offered, can't be archived.
+const BUILT_IN_EVENTS = ['Sunday School', "Children's Church", 'Wednesday Night Service'];
+
+// Event names used before, most used first (for the event picker). Archived names are left out.
 const knownEventNames = async () => (await db.many(
-  `SELECT name, count(*)::int AS n FROM events GROUP BY name ORDER BY n DESC, name LIMIT 30`,
+  `SELECT n.name, (SELECT count(*) FROM events e WHERE lower(e.name) = lower(n.name))::int AS used
+     FROM event_names n WHERE NOT n.archived ORDER BY used DESC, n.name LIMIT 30`,
 )).map((r) => r.name);
 
 const familyPeople = (familyId) => db.many(
@@ -134,6 +153,6 @@ const familyForUser = (userId) => db.one(
 );
 
 module.exports = {
-  RANK, ROLE_LABEL, rank, can, newCode, ageOn, ageLabel, groupFor, GROUP_ORDER, displayName,
-  defaultEventName, eventFor, knownEventNames, familyPeople, familyFull, agreementStatus, searchFamilies, audit, familyForUser,
+  RANK, ROLE_LABEL, rank, can, newCode, ageOn, ageLabel, groupFor, GROUP_ORDER, CLASSES, displayName,
+  defaultEventName, eventFor, saveEventName, BUILT_IN_EVENTS, knownEventNames, familyPeople, familyFull, agreementStatus, searchFamilies, audit, familyForUser,
 };

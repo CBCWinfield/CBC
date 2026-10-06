@@ -297,6 +297,89 @@ const MIGRATIONS = [
       );
     `,
   },
+  {
+    // Check-in, round two: guests, class override, policies and the serving calendar.
+    version: 5,
+    sql: `
+      ALTER TABLE people ADD COLUMN IF NOT EXISTS is_guest boolean NOT NULL DEFAULT false;
+      ALTER TABLE people ADD COLUMN IF NOT EXISTS class_override text;
+      ALTER TABLE people ADD COLUMN IF NOT EXISTS guest_note text;
+
+      CREATE TABLE IF NOT EXISTS policies (
+        id serial PRIMARY KEY,
+        title text NOT NULL,
+        description text,
+        filename text,
+        mime text,
+        data bytea,
+        size int,
+        audience text NOT NULL DEFAULT 'team' CHECK (audience IN ('team','everyone')),
+        requires_ack boolean NOT NULL DEFAULT false,
+        created_by int REFERENCES users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS policy_acks (
+        policy_id int NOT NULL REFERENCES policies(id) ON DELETE CASCADE,
+        user_id int NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        acked_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (policy_id, user_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS serve_services (
+        id serial PRIMARY KEY,
+        service_date date NOT NULL,
+        name text NOT NULL,
+        start_time text,
+        cancelled boolean NOT NULL DEFAULT false,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (service_date, name)
+      );
+      CREATE TABLE IF NOT EXISTS serve_slots (
+        id serial PRIMARY KEY,
+        service_id int NOT NULL REFERENCES serve_services(id) ON DELETE CASCADE,
+        area text NOT NULL CHECK (area IN ('Nursery','Toddlers','Kids','Teens','Adults')),
+        user_id int REFERENCES users(id) ON DELETE CASCADE,
+        name text NOT NULL,
+        email text,
+        note text,
+        created_by int REFERENCES users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS serve_slots_service ON serve_slots (service_id);
+      CREATE INDEX IF NOT EXISTS serve_slots_user ON serve_slots (user_id);
+
+      CREATE TABLE IF NOT EXISTS print_jobs (
+        id serial PRIMARY KEY,
+        event_id int NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+        family_id int NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+        people text NOT NULL,
+        include_parent boolean NOT NULL DEFAULT true,
+        summary text,
+        status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','printed','cancelled')),
+        created_by int REFERENCES users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        printed_at timestamptz,
+        printed_by int REFERENCES users(id) ON DELETE SET NULL
+      );
+      CREATE INDEX IF NOT EXISTS print_jobs_status ON print_jobs (status, created_at);
+
+      -- Saved event names (the choices on the station). Archived names stop showing as choices.
+      CREATE TABLE IF NOT EXISTS event_names (
+        id serial PRIMARY KEY,
+        name text NOT NULL,
+        archived boolean NOT NULL DEFAULT false,
+        notes text,
+        created_by int REFERENCES users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        archived_at timestamptz
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS event_names_lower ON event_names (lower(name));
+      INSERT INTO event_names (name, created_at)
+        SELECT DISTINCT ON (lower(name)) name, created_at FROM events ORDER BY lower(name), created_at
+        ON CONFLICT DO NOTHING;
+    `,
+  },
 ];
 
 async function migrate() {
