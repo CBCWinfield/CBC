@@ -423,7 +423,11 @@ class Browser {
   // Membership: apply from the Prayer Wall, a check-in admin approves, library card number issued
   const applicant = new Browser();
   r = await applicant.go('/checkin/prayer');
-  assert.ok(/\/login\?next=%2Fcheckin%2Fprayer/.test(r.location || ''), 'signed-out visitors go to log in');
+  assert.strictEqual(r.status, 200, 'signed-out visitors see the Prayer Wall preview');
+  assert.match(r.body, /Join your church family in prayer/);
+  assert.match(r.body, /apply\?next=%2Fcheckin%2Fprayer/);
+  assert.match(r.body, /name="next" value="\/checkin\/prayer"/);
+  assert.ok(!/grandmother’s surgery/.test(r.body), 'no real prayer requests are shown to signed-out visitors');
   r = await applicant.go('/login?next=/checkin/prayer');
   assert.match(r.body, /Apply for a membership account/);
   assert.match(r.body, /apply\?next=%2Fcheckin%2Fprayer/);

@@ -50,7 +50,7 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=Montserrat:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="/css/style.css?v=9">
-<link rel="stylesheet" href="/css/checkin.css?v=10">
+<link rel="stylesheet" href="/css/checkin.css?v=12">
 <script src="/js/app.js?v=7" defer></script>
 <script src="/js/checkin.js?v=8" defer></script>
 </head>

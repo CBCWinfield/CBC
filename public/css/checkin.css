@@ -749,3 +749,30 @@ a.ci-name-link:hover { text-decoration: underline; }
 .ci-foot { text-align: center; font-size: 0.82rem; color: var(--ink-soft); padding: 18px 12px 90px; }
 .ci-foot a { color: inherit; }
 @media (min-width: 900px) { .ci-foot { padding-bottom: 24px; } }
+
+/* Prayer Wall preview for signed-out visitors: the wall at ~70%, sign-in box on a 70% frosted panel */
+.pw-gate-wrap { position: relative; }
+.pw-gate-preview { opacity: 0.7; filter: saturate(0.95); pointer-events: none; user-select: none; max-height: 1500px; overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 75%, transparent 100%); mask-image: linear-gradient(180deg, #000 75%, transparent 100%); }
+.pw-gate { position: absolute; inset: 0; display: flex; justify-content: center; align-items: flex-start; padding: 330px 16px 40px; }
+.pw-gate-card { --pw-ink: #18211A; --pw-soft: #5A6A5D; --pw-line: #E3EADF; --pw-green: #1B4D1F; --pw-leaf: #2E7D32; --pw-gold: #C9A227;
+  position: sticky; top: 96px; width: min(440px, 100%); padding: 30px 28px 24px; border-radius: 24px; text-align: center;
+  background: rgba(255, 255, 255, 0.7); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.85); box-shadow: 0 30px 70px -30px rgba(14, 42, 17, 0.6), 0 0 0 1px rgba(27, 77, 31, 0.08); }
+.pw-gate-icon { width: 60px; height: 60px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center; font-size: 1.8rem; background: linear-gradient(135deg, #3A8A3E, #1B5E20); box-shadow: 0 10px 24px -10px rgba(27, 94, 32, 0.9); }
+.pw-gate-card h1 { margin: 0 0 6px; font-family: var(--serif); font-size: clamp(1.4rem, 4vw, 1.75rem); color: #10331A; line-height: 1.2; }
+.pw-gate-lead { margin: 0 0 18px; color: #33443A; }
+.pw-gate-form { display: grid; gap: 6px; text-align: left; }
+.pw-gate-form label { font-weight: 700; font-size: 0.9rem; color: #1E2B22; margin-top: 4px; }
+.pw-gate-form input { height: 48px; border: 1.5px solid rgba(27, 77, 31, 0.25); border-radius: 12px; padding: 0 14px; font: inherit; background: rgba(255, 255, 255, 0.92); }
+.pw-gate-form input:focus { outline: none; border-color: #2E7D32; box-shadow: 0 0 0 4px rgba(140, 198, 63, 0.3); }
+.pw-gate-submit { width: 100%; min-height: 50px; margin-top: 12px; font-size: 1.05rem; }
+.pw-gate-forgot { justify-self: center; margin-top: 6px; font-size: 0.9rem; color: #1B4D1F; }
+.pw-gate-or { display: flex; align-items: center; gap: 10px; margin: 18px 0 12px; color: #4A5A4F; font-size: 0.9rem; font-weight: 700; }
+.pw-gate-or::before, .pw-gate-or::after { content: ''; flex: 1; height: 1px; background: rgba(27, 77, 31, 0.2); }
+.pw-gate-join { width: 100%; min-height: 48px; }
+.pw-gate-note { margin: 14px 0 0; font-size: 0.78rem; color: #4A5A4F; }
+@media (max-width: 640px) {
+  .pw-gate { padding-top: 250px; }
+  .pw-gate-card { top: 76px; padding: 24px 18px 18px; border-radius: 20px; }
+}

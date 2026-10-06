@@ -251,6 +251,42 @@ function singlePage({ csrf, user, p, comments, due }) {
   </div>`;
 }
 
+// Signed-out visitors see the Prayer Wall faintly behind a sign-in box.
+// The requests shown are examples only, so no one's real prayer is ever visible without signing in.
+function gatePage({ csrf, next }) {
+  const ago = (days) => new Date(Date.now() - days * DAY - 3600000);
+  const sample = [
+    { id: 1, user_id: 901, author: 'Ellen M.', author_first: 'Ellen', body: 'Please pray for my husband’s knee surgery on Thursday, and for a quick and full recovery. Thank you, church family.', created_at: ago(0.2), praying: 14, i_pray: false, comments: 5, pray_names: 'Ruth A.|Daniel H.', status: 'open', audience: 'everyone' },
+    { id: 2, user_id: 902, anonymous: true, body: 'Praying for peace in our home and wisdom for us as parents this season.', created_at: ago(1), praying: 9, i_pray: false, comments: 3, pray_names: 'Carol S.', status: 'open', audience: 'everyone' },
+    { id: 3, user_id: 903, author: 'Micah N.', author_first: 'Micah', body: 'Pray for safe travels and open hearts for our mission team going to Juárez.', created_at: ago(9), praying: 22, i_pray: false, comments: 8, pray_names: 'Lacy R.|Kitty C.', status: 'answered', answered_note: 'Everyone made it home safe, and the family moved into their new house. Thank you for praying!', answered_at: ago(2), audience: 'everyone' },
+    { id: 4, user_id: 904, author: 'James R.', author_first: 'James', body: 'My mom starts a new job on Monday. Pray she finds favor, good friends, and peace there.', created_at: ago(3), praying: 6, i_pray: false, comments: 1, pray_names: 'Stacey H.', status: 'open', audience: 'everyone' },
+  ];
+  const viewer = { id: -1, first_name: 'friend', last_name: '' };
+  const preview = wallPage({ csrf: '', user: viewer, prayers: sample, comments: new Map(), openId: 0, filter: '', seenBefore: null, st: { open: 12, week: 48, answered: 7 }, due: [], newN: 0 });
+  return html`<div class="pw-gate-wrap">
+    <div class="pw-gate-preview" inert aria-hidden="true">${preview}</div>
+    <div class="pw-gate">
+      <section class="pw-gate-card" aria-labelledby="gate-h">
+        <div class="pw-gate-icon" aria-hidden="true">🙏</div>
+        <h1 id="gate-h">Join your church family in prayer</h1>
+        <p class="pw-gate-lead">Sign in to share a request, pray for others, and see who’s praying for you.</p>
+        <form method="post" action="/login" class="pw-gate-form">
+          ${csrfField(csrf)}<input type="hidden" name="next" value="${next}">
+          <label for="g-email">Email</label>
+          <input id="g-email" name="email" type="email" autocomplete="email" required>
+          <label for="g-pw">Password</label>
+          <input id="g-pw" name="password" type="password" autocomplete="current-password" required>
+          <button class="pw-btn pw-btn-primary pw-gate-submit" type="submit">Sign in</button>
+          <a class="pw-gate-forgot" href="/forgot">Forgot your password?</a>
+        </form>
+        <div class="pw-gate-or"><span>New to Central?</span></div>
+        <a class="pw-btn pw-btn-soft pw-gate-join" href="/apply?next=${encodeURIComponent(next)}">Create a free account</a>
+        <p class="pw-gate-note">The requests behind this box are examples. Real prayer requests are only visible to signed-in members.</p>
+      </section>
+    </div>
+  </div>`;
+}
+
 // ---------------------------------------------------------------- routes
 function routes(app, { render, needLogin, currentEvent }) {
   const withEvent = async (req) => { if (D.can(req.user, 'volunteer')) req.ciEvent = await currentEvent(req); };
@@ -264,8 +300,14 @@ function routes(app, { render, needLogin, currentEvent }) {
     return true;
   };
 
+  const gate = (req, res) => {
+    if (req.user) return false;
+    render(req, res, gatePage({ csrf: res.locals.csrf, next: req.originalUrl && req.originalUrl.startsWith('/checkin/prayer') ? req.originalUrl : '/checkin/prayer' }), { title: 'Prayer Wall', tab: 'prayer' });
+    return true;
+  };
+
   app.get('/checkin/prayer', async (req, res) => {
-    if (needLogin(req, res)) return;
+    if (gate(req, res)) return;
     await withEvent(req);
     if (waiting(req, res)) return;
     const filter = ['new', 'praying', 'mine', 'answered'].includes(req.query.f) ? req.query.f : '';
@@ -280,7 +322,7 @@ function routes(app, { render, needLogin, currentEvent }) {
   });
 
   app.get('/checkin/prayer/:id', async (req, res) => {
-    if (needLogin(req, res)) return;
+    if (gate(req, res)) return;
     await withEvent(req);
     if (waiting(req, res)) return;
     const [p] = await list(req.user, { id: intParam(req.params.id) });
