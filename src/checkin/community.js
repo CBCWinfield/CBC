@@ -185,4 +185,4 @@ function routes(app, { render, needLogin, needRole, currentEvent }) {
   });
 }
 
-module.exports = { routes, BUILT_IN_TEMPLATES, GROUPS };
+module.exports = { routes, BUILT_IN_TEMPLATES, GROUPS, groupMembers };

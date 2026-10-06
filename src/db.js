@@ -583,6 +583,29 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS prayers_created_idx ON prayers (created_at DESC);
     `,
   },
+  {
+    // Custom workflows built on the Automations page.
+    version: 9,
+    sql: `
+      CREATE TABLE IF NOT EXISTS workflows (
+        id serial PRIMARY KEY,
+        name text NOT NULL,
+        trigger text NOT NULL,
+        config jsonb NOT NULL DEFAULT '{}'::jsonb,
+        audience text,
+        channels jsonb NOT NULL DEFAULT '["email"]'::jsonb,
+        subject text,
+        body text NOT NULL,
+        button_label text,
+        button_url text,
+        enabled boolean NOT NULL DEFAULT true,
+        created_by int REFERENCES users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        last_run_at timestamptz
+      );
+    `,
+  },
 ];
 
 async function migrate() {

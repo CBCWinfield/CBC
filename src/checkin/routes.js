@@ -19,6 +19,7 @@ const social = require('./social');
 const safety = require('./safety');
 const community = require('./community');
 const prayer = require('./prayer');
+const workflows = require('./workflows');
 const { intParam, clean, safeNext } = require('../routes/guards');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -1315,4 +1316,6 @@ module.exports = (app) => {
   community.routes(app, { render, needLogin, needRole, currentEvent });
   // The Prayer Wall.
   prayer.routes(app, { render, needLogin, currentEvent });
+  // Custom workflows (Automations › + Workflow).
+  workflows.routes(app, { render, needRole, currentEvent });
 };

@@ -420,6 +420,32 @@ class Browser {
   r = await admin.go('/checkin/prayer');
   assert.match(r.body, /Pray for our volunteers/);
 
+  // Custom workflows (Automations › + Workflow)
+  r = await admin.go('/checkin/automations');
+  assert.match(r.body, /\+<\/span> Workflow/);
+  assert.match(r.body, /Thank first-time guests/, 'presets offered when there are no workflows');
+  r = await vol.go('/checkin/workflows/new');
+  assert.ok(r.status === 403 || /login|Only|not allowed|permission/i.test(r.body) || r.status === 302, 'volunteers cannot build workflows');
+  r = await admin.go('/checkin/workflows/new?preset=serving');
+  assert.match(r.body, /You’re serving \{serve_date\}/);
+  r = await admin.go('/checkin/workflows/new?preset=volunteers');
+  assert.match(r.body, /<option value="5" selected>Friday/, 'preset day is selected');
+  assert.match(r.body, /<option value="team" selected>/, 'preset audience is selected');
+  r = await admin.post('/checkin/workflows', { name: '', trigger: 'signup', body: 'x', 'channels[]': 'email' });
+  assert.match(r.body, /Give the workflow a name/);
+  r = await admin.post('/checkin/workflows', { name: 'Team huddle', trigger: 'schedule', repeat: 'weekly', weekday: '3', time: '17:30', audience: 'team', 'channels[]': ['inbox', 'email'], subject: 'Huddle tonight', body: 'Hi {first_name}, huddle at 5:30 in the fellowship hall.', enabled: '1', action: 'save' });
+  const wfId = sql(`SELECT id FROM workflows WHERE name = 'Team huddle'`);
+  assert.ok(wfId, 'workflow created');
+  r = await admin.go('/checkin/automations');
+  assert.match(r.body, /Team huddle/);
+  assert.match(r.body, /Every Wednesday at 5:30 PM to everyone on the check-in team/);
+  r = await admin.post(`/checkin/workflows/${wfId}`, { name: 'Team huddle', trigger: 'schedule', repeat: 'weekly', weekday: '3', time: '17:30', audience: 'team', 'channels[]': ['inbox'], subject: 'Huddle tonight', body: 'Hi {first_name}, huddle at 5:30 in the fellowship hall.', enabled: '1', action: 'now' });
+  assert.match(sql(`SELECT body FROM messages ORDER BY id DESC LIMIT 1`), /Hi Val, huddle at 5:30/, 'send now delivers a personalized inbox message');
+  await admin.post(`/checkin/workflows/${wfId}/toggle`, {});
+  assert.strictEqual(sql(`SELECT enabled::text FROM workflows WHERE id = ${wfId}`), 'false');
+  await admin.post(`/checkin/workflows/${wfId}/delete`, {});
+  assert.strictEqual(sql(`SELECT count(*) FROM workflows WHERE id = ${wfId}`), '0');
+
   // Anniversary on the parent's family step
   r = await parent.go('/checkin/welcome/family');
   assert.match(r.body, /Wedding anniversary/);

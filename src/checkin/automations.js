@@ -233,11 +233,14 @@ async function daily(now = new Date()) {
 }
 
 function start() {
-  const tick = () => daily().catch((err) => console.error('Greeting run failed:', err.message));
+  const tick = () => {
+    daily().catch((err) => console.error('Greeting run failed:', err.message));
+    require('./workflows').run().catch((err) => console.error('Workflow run failed:', err.message));
+  };
   setTimeout(tick, 60 * 1000).unref();
-  setInterval(tick, 30 * 60 * 1000).unref();
+  setInterval(tick, 15 * 60 * 1000).unref(); // every 15 minutes, so scheduled workflows go out close to their time
 }
 
 const recentLog = () => db.many(`SELECT l.*, u.first_name, u.last_name FROM automation_log l LEFT JOIN users u ON u.id = l.user_id ORDER BY l.sent_at DESC LIMIT 25`);
 
-module.exports = { CHURCH, FOOTER, DEFS, settings, get, enabled, save, welcome, sendTest, daily, start, easterKey, recentLog, paragraphs };
+module.exports = { logOnce: once, CHURCH, FOOTER, DEFS, settings, get, enabled, save, welcome, sendTest, daily, start, easterKey, recentLog, paragraphs };

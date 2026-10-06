@@ -652,3 +652,83 @@ a.ci-name-link:hover { text-decoration: underline; }
   .pw-pray { padding: 0 14px 0 11px; }
   .pw-checkin { flex-direction: column; padding: 16px; }
 }
+
+/* ================================================================ Workflows */
+.wf-page-head { align-items: flex-start; max-width: 860px; }
+.wf-add { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; border-radius: 999px; padding-left: 16px; padding-right: 18px; }
+.wf-add span { font-size: 1.25rem; line-height: 1; font-weight: 700; }
+.wf-section { max-width: 860px; margin: 8px 0 28px; }
+.wf-section-head h2 { margin: 0 0 2px; }
+.wf-section-head p { margin: 0 0 12px; }
+.wf-builtin-title { margin: 8px 0 12px; }
+.wf-grid { display: grid; gap: 10px; }
+.wf-card { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid #C9D3C4; border-radius: 14px; padding: 14px 16px; display: grid; gap: 10px; }
+.wf-card.is-on { border-left-color: var(--green); }
+.wf-card-top { display: flex; gap: 12px; align-items: center; }
+.wf-icon { flex: none; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--sage); font-size: 1.25rem; }
+.wf-card-text { flex: 1; min-width: 0; display: grid; }
+.wf-name { font-weight: 700; color: var(--ink); text-decoration: none; font-size: 1.02rem; }
+.wf-name:hover { color: var(--green-deep); text-decoration: underline; }
+.wf-when { font-size: 0.88rem; color: var(--ink-soft); }
+.wf-toggle-form { margin: 0; }
+.wf-switch { position: relative; width: 48px; height: 28px; border-radius: 999px; border: 0; background: #C9D3C4; cursor: pointer; transition: background 0.15s; padding: 0; }
+.wf-switch span { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); transition: transform 0.15s; }
+.wf-switch.is-on { background: var(--green); }
+.wf-switch.is-on span { transform: translateX(20px); }
+.wf-card-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: center; }
+.wf-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.wf-chip { font-size: 0.78rem; padding: 3px 9px; border-radius: 999px; background: #F1F5EE; border: 1px solid var(--line); color: var(--ink-soft); }
+.wf-sent { font-size: 0.82rem; color: var(--ink-soft); }
+.wf-empty { border: 1.5px dashed var(--line); border-radius: 14px; padding: 16px; background: #FBFCFA; }
+.wf-empty p { margin: 0 0 10px; }
+.wf-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.wf-preset { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); text-decoration: none; color: var(--ink); }
+.wf-preset span { grid-row: span 2; font-size: 1.3rem; }
+.wf-preset small { color: var(--ink-soft); }
+.wf-preset:hover { border-color: var(--green); background: var(--sage); }
+
+.wf-builder { max-width: 760px; }
+.wf-presets-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--ink-soft); font-size: 0.9rem; }
+.wf-mini-preset { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); text-decoration: none; color: var(--green-deep); font-weight: 700; font-size: 0.82rem; }
+.wf-mini-preset:hover { background: var(--sage); }
+.wf-form { display: grid; gap: 14px; margin-top: 10px; }
+.wf-step { display: flex; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+.wf-step-n { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--green); color: #fff; font-weight: 700; font-family: var(--serif); }
+.wf-step-body { flex: 1; min-width: 0; display: grid; gap: 10px; }
+.wf-label { font-weight: 700; font-family: var(--serif); font-size: 1.02rem; }
+.wf-step-body > input, .wf-step-body > textarea { width: 100%; }
+.wf-triggers { display: grid; gap: 8px; }
+.wf-trigger { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; transition: border-color 0.15s; }
+.wf-trigger-pick { display: flex; gap: 12px; align-items: center; padding: 11px 14px; cursor: pointer; }
+.wf-trigger-pick input { width: 18px; height: 18px; accent-color: var(--green); }
+.wf-trigger-pick strong { display: block; }
+.wf-trigger-pick small { color: var(--ink-soft); }
+.wf-trigger-icon { font-size: 1.3rem; }
+.wf-config { display: none; padding: 4px 14px 14px 44px; gap: 8px; }
+.wf-trigger:has(input[type=radio]:checked) { border-color: var(--green); background: #F7FBF4; }
+.wf-trigger:has(input[type=radio]:checked) .wf-config { display: grid; }
+.wf-row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.wf-row label, .wf-block { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.wf-row select, .wf-row input, .wf-block select { height: 38px; border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; font: inherit; background: #fff; }
+.wf-num { width: 76px; }
+.wf-row:has(option[value=weekly]:checked) :is(.wf-only-monthly, .wf-only-once),
+.wf-row:has(option[value=monthly]:checked) :is(.wf-only-weekly, .wf-only-once),
+.wf-row:has(option[value=once]:checked) :is(.wf-only-weekly, .wf-only-monthly) { display: none; }
+.wf-channels { display: flex; gap: 8px; flex-wrap: wrap; }
+.wf-channel { position: relative; cursor: pointer; }
+.wf-channel input { position: absolute; opacity: 0; inset: 0; }
+.wf-channel span { display: inline-flex; gap: 6px; align-items: center; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; font-weight: 700; color: var(--ink-soft); }
+.wf-channel input:checked + span { background: var(--sage); border-color: var(--green); color: var(--green-deep); }
+.wf-channel input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+.wf-button-row label { flex: 1 1 240px; display: grid; gap: 4px; font-size: 0.9rem; font-weight: 700; }
+.wf-button-row input { width: 100%; }
+.wf-enable { display: flex; gap: 8px; align-items: center; font-weight: 700; }
+.wf-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.wf-delete { margin-top: 18px; }
+.wf-delete .linklike { color: var(--danger); }
+@media (max-width: 640px) {
+  .wf-page-head { flex-direction: column; }
+  .wf-step { padding: 14px; gap: 10px; }
+  .wf-step-n { width: 26px; height: 26px; font-size: 0.85rem; }
+  .wf-config { padding-left: 14px; }
+}

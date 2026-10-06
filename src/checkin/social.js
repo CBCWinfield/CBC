@@ -295,10 +295,13 @@ function settingsPage({ csrf, user, prefs, blocked, pushEnabled }) {
   </section>`;
 }
 
-function automationsPage({ csrf, list, log }) {
+function automationsPage({ csrf, list, log, workflows = [] }) {
   return html`
-  <h1>Automations</h1>
-  <p class="muted">Emails the app sends by itself. Turn each one on or off, and reword the ones with a message. Every email ends with the church’s address, phone and email. People can still opt out of their own notices in Settings.</p>
+  <div class="ci-section-head wf-page-head"><div><h1>Automations</h1>
+  <p class="muted">Emails the app sends by itself. Turn each one on or off, and reword the ones with a message. Every email ends with the church’s address, phone and email. People can still opt out of their own notices in Settings.</p></div>
+    <a class="btn wf-add" href="/checkin/workflows/new"><span aria-hidden="true">+</span> Workflow</a></div>
+  ${require('./workflows').listSection({ csrf, workflows })}
+  <h2 class="wf-builtin-title">Built-in automations</h2>
   ${list.map((a) => html`<form method="post" action="/checkin/automations/${a.key}" class="ci-card ci-auto${a.enabled ? ' is-on' : ''}">
     ${csrfField(csrf)}
     <div class="ci-auto-head">
@@ -317,7 +320,7 @@ function automationsPage({ csrf, list, log }) {
     </div>
   </form>`)}
   <section class="ci-section"><h2>Recently sent</h2>
-    ${log.length ? html`<ul class="ci-queue">${log.map((l) => html`<li class="ci-queue-row is-done"><span class="ci-person-text"><span class="ci-person-name">${(A.DEFS.find((d) => d.key === l.key) || { title: l.key }).title}</span><span class="ci-person-meta">${l.email || ''} · ${when(l.sent_at)}</span></span></li>`)}</ul>` : html`<p class="muted">Nothing sent yet.</p>`}
+    ${log.length ? html`<ul class="ci-queue">${log.map((l) => html`<li class="ci-queue-row is-done"><span class="ci-person-text"><span class="ci-person-name">${(A.DEFS.find((d) => d.key === l.key) || workflows.find((w) => `wf-${w.id}` === l.key) && { title: `Workflow: ${workflows.find((w) => `wf-${w.id}` === l.key).name}` } || { title: l.key }).title}</span><span class="ci-person-meta">${l.email || ''} · ${when(l.sent_at)}</span></span></li>`)}</ul>` : html`<p class="muted">Nothing sent yet.</p>`}
   </section>`;
 }
 
@@ -504,7 +507,7 @@ function routes(app, { render, needLogin, needRole, currentEvent }) {
   // ---- Automations (admins)
   app.get('/checkin/automations', needRole('coadmin'), async (req, res) => {
     await withEvent(req);
-    render(req, res, automationsPage({ csrf: res.locals.csrf, list: await A.settings(), log: await A.recentLog() }), { title: 'Automations', tab: 'automations' });
+    render(req, res, automationsPage({ csrf: res.locals.csrf, list: await A.settings(), log: await A.recentLog(), workflows: await require('./workflows').all() }), { title: 'Automations', tab: 'automations' });
   });
 
   app.post('/checkin/automations/:key', needRole('coadmin'), async (req, res) => {
