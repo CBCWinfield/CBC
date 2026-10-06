@@ -6,14 +6,14 @@
 - Church Membership: Church membership is preferred but not strictly required. Non-members who have not undergone formal church discipline are eligible to serve, allowing them to explore their God-given talents.
 - Special Roles: Nursery staffing may eventually include paid part-time employees as growth and funding allow. Non-members serving with children (outside nursery) will be screened for doctrinal alignment.
 - Background Check: Must pass a church-issued background check prior to beginning service. Background checks must be renewed every 2 years.
-- Training Requirement: All adult volunteers must complete the designated 3rd-party child abuse and reporting training curriculum provided by Central Baptist Church.
+- Training Requirement: All adult volunteers must read this manual and complete the child abuse prevention and reporting training in Central Check-In (More › Training) before serving. Their check-in access unlocks once it is complete.
 - Minor Volunteer Policy: An exception to the background check rule exists for any minor who serves. Minor volunteers must be in good standing, exhibit good character, and always serve alongside an approved adult volunteer (minors cannot serve alone). Youth volunteers are also exempt from child abuse training; the legal and ministry responsibility always rests with the adult with whom that youth volunteer is serving.
 
 # How to Volunteer
 
 - 1. Express Interest: Verbally notify any church staff member or leadership.
 - 2. Provide Contact Details: Contact the church office with your full name, phone number, and email address.
-- 3. Screening & Onboarding: Upon background check clearance and prayerful consideration by the Youth Pastor, the volunteer will receive a copy of this manual and will be onboarded by completing the child abuse training provided by the church’s 3rd-party service.
+- 3. Screening & Onboarding: Upon background check clearance and prayerful consideration by the Youth Pastor, the volunteer will be added to Central Check-In and onboarded by reading this manual and completing the child abuse training in the app.
 
 # 2. Ministry Schedules & Annual Events
 
@@ -100,9 +100,9 @@ Response Protocol:
 
 - Life-Threatening Emergency: Call 911 immediately. Send a volunteer to notify the parent/guardian and a pastor or deacon.
 - Minor Injuries: Render immediate care using proper protective gloves/masks. Once stable, notify the Youth Pastor or Deacon, who will contact parents and determine if paramedics are necessary.
-- Incident Reports: Complete an official Incident & Injury Report Form for all injuries, major misbehavior, or emergency events. Forms are available through the Youth Pastor and must be submitted within 24 hours.
-- Mandatory Child Abuse Reporting: As an official policy of Central Baptist Church, any suspected child abuse or neglect involving a minor (17 and under) must be reported immediately to law enforcement or child protective services. Direct Duty: If a child reports sexual abuse or physical abuse in confidence to you, you must personally file the report. Do not delegate this duty to a superior. Call the Winfield Police Department directly to fulfill this obligation.
-- Storage of Reporting: Incident forms are filed with the Youth Pastor and kept in secure church archives for liability and insurance compliance.
+- Incident Reports: Complete an incident report in Central Check-In (More › Incident reports) for all injuries, major misbehavior, or emergency events within 24 hours. The Youth Pastor and church admins are notified automatically.
+- Mandatory Child Abuse Reporting: As an official policy of Central Baptist Church, any suspected child abuse or neglect involving a minor (17 and under) must be reported immediately to law enforcement or child protective services. Direct Duty: If a child reports sexual abuse or physical abuse in confidence to you, you must personally file the report. Do not delegate this duty to a superior. Call the Winfield Police Department or the Kansas Protection Report Center (1-800-922-5330, 24/7) directly to fulfill this obligation.
+- Storage of Reporting: Incident reports are stored securely in Central Check-In, visible only to the Youth Pastor and church admins, and kept for liability and insurance compliance.
 
 # 6. Off-Site Activities & Special Events
 

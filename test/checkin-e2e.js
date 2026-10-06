@@ -169,6 +169,8 @@ class Browser {
   assert.match(r.body, /<strong>Two-Adult Rule:<\/strong>/);
   assert.match(r.body, /class="ci-pdf"/);
   assert.ok(!/KidCheck/i.test(r.body));
+  assert.match(r.body, /More › Incident reports/);
+  assert.ok(!/3rd-party service/.test(r.body));
   await vol.post(`/checkin/policies/${manualId}/ack`, { confirm: '1' });
   assert.strictEqual((await vol.go(`/checkin/policies/${manualId}/file`)).status, 200);
   r = await vol.go(`/checkin/policies/${polId}`);
