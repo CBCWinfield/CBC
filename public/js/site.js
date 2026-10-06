@@ -13,14 +13,6 @@
     menu.addEventListener('click', function (e) { if (e.target.closest('a')) set(false); });
     window.addEventListener('resize', function () { if (window.innerWidth > 1060 && !menu.hidden) set(false); });
   }
-  // Real wheat photo: show it once it loads; otherwise keep the drawn wheat.
-  var photo = document.querySelector('.hero-photo');
-  if (photo) {
-    var show = function () { if (photo.naturalWidth > 400) photo.closest('.hero').classList.add('has-photo'); else photo.remove(); };
-    if (photo.complete) { if (photo.naturalWidth) show(); else photo.remove(); }
-    photo.addEventListener('load', show);
-    photo.addEventListener('error', function () { photo.remove(); });
-  }
   // Close the desktop "More" menu when clicking elsewhere.
   document.addEventListener('click', function (e) {
     document.querySelectorAll('.nav-more[open]').forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute('open'); });

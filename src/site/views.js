@@ -12,27 +12,35 @@ const longDate = (key) => t.fmtLong(t.zoned(...key.split('-').map(Number), 12));
 const upcoming = () => C.EVENTS.filter((e) => e.date >= t.dateKey(new Date()));
 const years = () => new Date().getFullYear() - CHURCH.founded;
 
-// A wheat field drawn along the bottom of the opening banner. Deterministic, so it's the same every load.
+// A wheat field drawn along the bottom of the opening banner, swaying in a light wind.
+// Mostly even height, a few tall stalks and a few short ones. Deterministic, so it's the same every load.
 function wheatField() {
-  let seed = 7;
+  let seed = 11;
   const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
   const stalks = [];
-  for (let i = 0; i < 110; i++) {
-    const x = (i / 110) * 1440 + rnd() * 10;
-    const h = 70 + rnd() * 120;
-    const lean = (rnd() - 0.5) * 22;
-    const top = 260 - h;
+  const N = 96;
+  for (let i = 0; i < N; i++) {
+    const x = (i / N) * 1440 + (rnd() - 0.5) * 12;
+    const kind = rnd();
+    const h = kind < 0.1 ? 175 + rnd() * 30 : kind < 0.2 ? 72 + rnd() * 18 : 118 + rnd() * 16; // tall / short / most
+    const lean = 4 + rnd() * 6; // everything leans a little the same way, like a steady breeze
+    const top = 262 - h;
+    const n = h > 160 ? 8 : h < 95 ? 5 : 7;
+    const tipX = x + lean;
     const grains = [];
-    for (let g = 0; g < 7; g++) {
-      const gy = top + g * 7;
-      const gx = x + lean * ((gy - 260) / -h);
-      grains.push(`<ellipse cx="${(gx - 3.2).toFixed(1)}" cy="${gy.toFixed(1)}" rx="2.6" ry="5.4" transform="rotate(-24 ${(gx - 3.2).toFixed(1)} ${gy.toFixed(1)})"/>`);
-      grains.push(`<ellipse cx="${(gx + 3.2).toFixed(1)}" cy="${(gy + 3).toFixed(1)}" rx="2.6" ry="5.4" transform="rotate(24 ${(gx + 3.2).toFixed(1)} ${(gy + 3).toFixed(1)})"/>`);
+    for (let g = 0; g < n; g++) {
+      const gy = top + 6 + g * 7;
+      const gx = tipX - lean * (g / (n + 6));
+      grains.push(`<ellipse cx="${(gx - 3.1).toFixed(1)}" cy="${gy.toFixed(1)}" rx="2.5" ry="5.2" transform="rotate(-26 ${(gx - 3.1).toFixed(1)} ${gy.toFixed(1)})"/>`);
+      grains.push(`<ellipse cx="${(gx + 3.1).toFixed(1)}" cy="${(gy + 3).toFixed(1)}" rx="2.5" ry="5.2" transform="rotate(26 ${(gx + 3.1).toFixed(1)} ${(gy + 3).toFixed(1)})"/>`);
     }
+    const awns = `<path class="awn" d="M${tipX.toFixed(1)} ${(top + 4).toFixed(1)} l${(lean * 0.3).toFixed(1)} -12"/>`;
     const tone = rnd() > 0.55 ? 'w1' : rnd() > 0.5 ? 'w2' : 'w3';
-    stalks.push(`<g class="stalk ${tone}" style="--d:${(rnd() * 0.9).toFixed(2)}s"><path d="M${x.toFixed(1)} 262 Q ${(x + lean * 0.4).toFixed(1)} ${(260 - h / 2).toFixed(1)} ${(x + lean).toFixed(1)} ${(top + 46).toFixed(1)}"/>${grains.join('')}</g>`);
+    const wave = ((x / 1440) * 2.6).toFixed(2); // the gust travels left to right across the field
+    const dur = (4.6 + rnd() * 1.6).toFixed(2);
+    stalks.push(`<g class="stalk ${tone}" style="--d:${(rnd() * 0.8).toFixed(2)}s"><g class="sway" style="--w:${wave}s;--t:${dur}s"><path d="M${x.toFixed(1)} 262 Q ${(x + lean * 0.25).toFixed(1)} ${(262 - h * 0.55).toFixed(1)} ${tipX.toFixed(1)} ${(top + 4).toFixed(1)}"/>${awns}${grains.join('')}</g></g>`);
   }
-  return raw(`<svg class="wheat" viewBox="0 0 1440 260" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">${stalks.join('')}</svg>`);
+  return raw(`<svg class="wheat" viewBox="0 0 1440 262" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">${stalks.join('')}</svg>`);
 }
 
 const NAV = [['/about', 'About'], ['/ministries', 'Ministries'], ['/sermons', 'Sermons'], ['/events', 'Events'], ['/staff', 'Staff'], ['/connect', 'Connect']];
@@ -60,8 +68,8 @@ function layout({ title, desc, page, body, base = '' }) {
 <link rel="icon" href="/img/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/img/icon-192.png">
 <link rel="preload" href="/fonts/bricolage.woff" as="font" type="font/woff" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=7">
-<script src="/js/site.js?v=2" defer></script>
+<link rel="stylesheet" href="/css/site.css?v=8">
+<script src="/js/site.js?v=3" defer></script>
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
 <body class="page-${page}">
@@ -173,7 +181,6 @@ function home({ latest, base }) {
         <a class="btn btn-ghost btn-lg" href="#latest">Watch the latest sermon</a>
       </div>
     </div>
-    <img class="hero-photo" src="/img/wheat-hero.jpg" alt="" width="1920" height="1280" fetchpriority="high" decoding="async">
     ${wheatField()}
   </section>
 

@@ -45,15 +45,6 @@ function readForm(b) {
 }
 
 module.exports = (app) => {
-  // Homepage wheat photo (a local public/img/wheat-hero.jpg wins, via the static file handler).
-  app.get('/img/wheat-hero.jpg', async (req, res) => {
-    const img = await require('./photo').get();
-    if (!img) return res.status(404).send('Not found');
-    res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=604800');
-    res.send(img);
-  });
-
   const page = (path, key, render, meta) => app.get(`/site${path}`, async (req, res) => show(req, res, key, await render(req, res), meta));
 
   page('', 'home', async (req) => V.home({ latest: (await yt.recent())[0], base: baseFor(req) }));
