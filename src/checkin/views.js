@@ -25,7 +25,7 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
   ] : [];
   // Everything else lives in the "More" menu.
   const more = [];
-  if (D.can(user, 'coadmin')) more.push(['/checkin/admin', 'Admin dashboard', 'admin'], ['/checkin/members', pendingMembers ? `Membership requests (${pendingMembers})` : 'Membership requests', 'members']);
+  if (D.can(user, 'coadmin')) more.push(['/checkin/admin', 'Admin dashboard', 'admin'], ['/checkin/members', pendingMembers ? `Membership requests (${pendingMembers})` : 'Membership requests', 'members'], ['/checkin/inquiries', 'Website messages', 'inquiries']);
   if (staff) more.push(['/checkin/serve', 'Serving calendar', 'serve'], ['/checkin/incidents', 'Incident reports', 'incidents']);
   if (D.isTeam(user)) more.push(['/checkin/training', user.checkinLocked ? 'Training (to do)' : 'Training', 'training']);
   if (D.can(user, 'leader')) more.push(['/checkin/events', 'Events', 'events']);

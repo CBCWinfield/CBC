@@ -614,6 +614,24 @@ const MIGRATIONS = [
       ALTER TABLE users ADD COLUMN IF NOT EXISTS signup_source text;
     `,
   },
+  {
+    // Messages from the church website's Connect and Serve forms.
+    version: 11,
+    sql: `
+      CREATE TABLE IF NOT EXISTS site_inquiries (
+        id serial PRIMARY KEY,
+        kind text NOT NULL,
+        name text NOT NULL,
+        email text,
+        phone text,
+        topic text,
+        message text,
+        handled_at timestamptz,
+        handled_by int REFERENCES users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+    `,
+  },
 ];
 
 async function migrate() {

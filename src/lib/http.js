@@ -17,6 +17,9 @@ const MIME = {
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.txt': 'text/plain; charset=utf-8',
   '.csv': 'text/csv; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8',
 };
@@ -143,6 +146,7 @@ class App {
   async handle(req, res) {
     decorate(req, res);
     try {
+      if (this.beforeMatch) this.beforeMatch(req); // e.g. serve the church website on its own domain
       const found = this.match(req.method, req.path);
       const chain = [...this.middleware];
       if (found) {

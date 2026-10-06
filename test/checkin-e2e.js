@@ -448,6 +448,47 @@ class Browser {
   r = await vol.go('/checkin/members');
   assert.ok(r.status !== 200 || !/Membership requests<\/h1>/.test(r.body), 'volunteers cannot approve memberships');
 
+  // Church website: every page, the church domain, old Wix links, and the contact/serve forms
+  const visitor = new Browser();
+  for (const pth of ['/site', '/site/visit', '/site/about', '/site/ministries', '/site/sermons', '/site/events', '/site/staff', '/site/give', '/site/connect', '/site/serve', '/site/partners']) {
+    r = await visitor.go(pth);
+    assert.strictEqual(r.status, 200, `${pth} loads`);
+    assert.match(r.body, /904 Wheat Rd/, `${pth} shows the address`);
+  }
+  // fetch() won't send a custom Host header, so ask the way a browser on cbcwinfield.org would
+  const asHost = (host, pth) => new Promise((resolve, reject) => {
+    const u = new URL(BASE + pth);
+    require('http').get({ hostname: u.hostname, port: u.port, path: u.pathname, headers: { Host: host } }, (res) => {
+      let b = ''; res.on('data', (c) => { b += c; }); res.on('end', () => resolve({ status: res.statusCode, location: res.headers.location, body: b }));
+    }).on('error', reject);
+  });
+  r = await asHost('cbcwinfield.org', '/');
+  assert.match(r.body, /A church family on Wheat Road/, 'cbcwinfield.org shows the church home page');
+  r = await asHost('www.cbcwinfield.org', '/staff');
+  assert.match(r.body, /Blake &amp; Ruth Orr/);
+  r = await asHost('cbcwinfield.org', '/blank-5');
+  assert.strictEqual(r.location, '/staff', 'old Wix staff link redirects');
+  r = await asHost('cbcwinfield.org', '/css/site.css');
+  assert.strictEqual(r.status, 200, 'shared files still load on the church domain');
+  r = await visitor.go('/site/nothing-here');
+  assert.strictEqual(r.status, 404);
+  r = await visitor.go('/site/connect');
+  visitor.csrf = /name="_csrf" value="([^"]+)"/.exec(r.body)[1];
+  r = await visitor.post('/site/connect', { name: 'Martha Lane', email: 'not-an-email', message: 'Hi' });
+  assert.match(r.body, /valid email/);
+  r = await visitor.post('/site/connect', { name: 'Martha Lane', email: 'martha@example.com', phone: '620-555-0123', message: 'Is there a nursery during worship?' });
+  assert.strictEqual(r.location, '/site/connect?sent=1');
+  r = await visitor.post('/site/serve', { name: 'Martha Lane', email: 'martha@example.com', topic: 'Church library' });
+  assert.strictEqual(r.location, '/site/serve?sent=1');
+  r = await visitor.post('/site/connect', { name: 'Bot', email: 'bot@example.com', message: 'spam', website: 'http://spam' });
+  assert.strictEqual(sql(`SELECT count(*) FROM site_inquiries WHERE name = 'Bot'`), '0', 'honeypot catches bots');
+  r = await admin.go('/checkin/inquiries');
+  assert.match(r.body, /Is there a nursery during worship/);
+  assert.match(r.body, /Wants to serve: Church library/);
+  const inqId = sql(`SELECT id FROM site_inquiries WHERE kind = 'connect' ORDER BY id DESC LIMIT 1`);
+  await admin.post(`/checkin/inquiries/${inqId}/handled`, {});
+  assert.ok(sql(`SELECT handled_at IS NOT NULL FROM site_inquiries WHERE id = ${inqId}`) === 't');
+
   // Custom workflows (Automations › + Workflow)
   r = await admin.go('/checkin/automations');
   assert.match(r.body, /\+<\/span> Workflow/);

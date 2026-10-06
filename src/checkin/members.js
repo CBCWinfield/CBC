@@ -76,4 +76,36 @@ function routes(app, { render, needRole, currentEvent }) {
   });
 }
 
-module.exports = { routes };
+// ---------------------------------------------------------------- website messages
+const KIND = { connect: ['✉', 'Message'], visit: ['👋', 'Planning a visit'], serve: ['🙋', 'Wants to serve'] };
+function inquiriesPage({ csrf, rows, showAll }) {
+  return html`
+  <div class="ci-section-head"><div><h1>Website messages</h1>
+    <p class="muted">Messages, visit plans and volunteer offers from the church website. Each one is also emailed to the church office.</p></div>
+    <a class="btn btn-quiet btn-small" href="/checkin/inquiries${showAll ? '' : '?all=1'}">${showAll ? 'Show only new' : 'Show answered too'}</a></div>
+  ${rows.length ? html`<div class="mr-list">${rows.map((q) => html`<article class="ci-card mr-card${q.handled_at ? ' is-done' : ''}">
+    <div class="mr-top"><span class="ci-avatar ci-avatar-adult" aria-hidden="true">${(KIND[q.kind] || ['✉'])[0]}</span>
+      <div class="mr-who"><strong>${q.name}</strong><span class="small muted">${(KIND[q.kind] || [, 'Message'])[1]}${q.topic && q.kind !== 'visit' ? `: ${q.topic}` : ''} · ${t.fmtDateTime(q.created_at)}</span></div>
+      ${q.handled_at ? html`<span class="badge badge-ok">Answered</span>` : html`<span class="badge badge-warn">New</span>`}</div>
+    <dl class="mr-facts"><div><dt>Email</dt><dd><a href="mailto:${q.email}">${q.email}</a></dd></div>${q.phone ? html`<div><dt>Phone</dt><dd><a href="tel:${q.phone}">${q.phone}</a></dd></div>` : ''}</dl>
+    ${q.message ? html`<p class="mr-about pre">${q.message}</p>` : ''}
+    ${q.handled_at ? '' : html`<div class="mr-actions"><a class="btn" href="mailto:${q.email}?subject=${encodeURIComponent('Central Baptist Church')}">Reply by email</a>
+      <form method="post" action="/checkin/inquiries/${q.id}/handled" class="inline">${csrfField(csrf)}<button class="btn btn-quiet" type="submit">Mark answered</button></form></div>`}
+  </article>`)}</div>` : html`<div class="empty ci-card"><p><strong>No new messages.</strong></p><p>When someone uses the contact, plan-a-visit or serve forms on the website, it shows up here.</p></div>`}`;
+}
+
+function inquiryRoutes(app, { render, needRole, currentEvent }) {
+  app.get('/checkin/inquiries', needRole('coadmin'), async (req, res) => {
+    req.ciEvent = await currentEvent(req);
+    const showAll = req.query.all === '1';
+    const rows = await db.many(`SELECT * FROM site_inquiries ${showAll ? '' : 'WHERE handled_at IS NULL'} ORDER BY created_at DESC LIMIT 200`);
+    render(req, res, inquiriesPage({ csrf: res.locals.csrf, rows, showAll }), { title: 'Website messages', tab: 'inquiries' });
+  });
+  app.post('/checkin/inquiries/:id/handled', needRole('coadmin'), async (req, res) => {
+    await db.query('UPDATE site_inquiries SET handled_at = now(), handled_by = $2 WHERE id = $1', [intParam(req.params.id), req.user.id]);
+    security.flash(req, 'ok', 'Marked as answered.');
+    res.redirect('/checkin/inquiries');
+  });
+}
+
+module.exports = { routes: (app, deps) => { routes(app, deps); inquiryRoutes(app, deps); } };

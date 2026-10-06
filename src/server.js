@@ -55,6 +55,15 @@ app.use(async (req, res, next) => {
   await next();
 });
 
+// The church website (cbcwinfield.org) is served from /site; on the church's own domain
+// its pages answer at the root, e.g. cbcwinfield.org/about -> /site/about.
+const SITE_HOSTS = (process.env.SITE_HOSTS || 'cbcwinfield.org,www.cbcwinfield.org').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
+const SHARED = /^\/(css|js|img|fonts|sermons|site|privacy|terms|healthz|sw\.js|manifest|favicon|robots\.txt)/;
+app.beforeMatch = (req) => {
+  const host = String(req.headers.host || '').split(':')[0].toLowerCase();
+  if (SITE_HOSTS.includes(host) && !SHARED.test(req.path)) req.path = `/site${req.path === '/' ? '' : req.path}`;
+};
+require('./site/routes')(app);
 require('./routes/public')(app);
 require('./routes/sermons')(app);
 require('./routes/account')(app);
