@@ -50,3 +50,24 @@ html, body { overflow-x: hidden; }
   .sx-more { text-align: center; font-size: 0.95rem; }
   .sx-more a { display: inline-block; padding: 10px 14px; }
 }
+
+/* Brand tint: a soft Central-green wash over the YouTube pictures that lifts on hover */
+.sx-tint .sx-thumb::after { content: ''; position: absolute; inset: 0; pointer-events: none; transition: opacity 0.3s ease;
+  background: linear-gradient(180deg, rgba(27, 77, 31, 0.25) 0%, rgba(27, 77, 31, 0.55) 60%, rgba(14, 42, 17, 0.85) 100%); mix-blend-mode: multiply; }
+.sx-tint .sx-thumb::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: rgba(46, 125, 50, 0.18); }
+.sx-tint .sx-thumb:hover::after, .sx-tint .sx-thumb:focus-visible::after { opacity: 0.55; }
+.sx-thumb .sx-play { z-index: 1; }
+.sx-frame { border: 2px solid rgba(140, 198, 63, 0.75); }
+
+/* Latest sermon (featured) */
+.sx-featured body, body.sx-featured { padding: 4px; }
+.sx-feature .sx-frame { border-radius: 18px; box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.7); }
+.sx-feature .sx-play svg { width: 92px; height: 66px; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45)); }
+.sx-badge { position: absolute; z-index: 1; top: 14px; left: 14px; padding: 5px 12px; border-radius: 999px; background: #8CC63F; color: #0E2A11;
+  font-family: 'Montserrat', system-ui, sans-serif; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.sx-feature-text { padding: 2px 2px 0; }
+.sx-feature .sx-title { font-size: clamp(1.05rem, 2.6vw, 1.4rem); -webkit-line-clamp: 2; margin-top: 12px; }
+@media (max-width: 560px) {
+  .sx-feature .sx-play svg { width: 72px; height: 52px; }
+  .sx-badge { top: 10px; left: 10px; font-size: 0.7rem; }
+}

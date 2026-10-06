@@ -1,13 +1,19 @@
 /* Sermon carousel: play a sermon in its own box, arrows to scroll. */
 (function () {
   'use strict';
-  var track = document.querySelector('.sx-track');
+  // Use YouTube's big picture when it exists, otherwise the standard one.
+  document.querySelectorAll('img[data-fallback]').forEach(function (img) {
+    img.addEventListener('error', function () { if (img.src !== img.dataset.fallback) img.src = img.dataset.fallback; });
+    if (img.complete && img.naturalWidth && img.naturalWidth < 200) img.src = img.dataset.fallback; // YouTube's 120px "no image" placeholder
+    img.addEventListener('load', function () { if (img.naturalWidth < 200 && img.src !== img.dataset.fallback) img.src = img.dataset.fallback; });
+  });
+  var track = document.querySelector('.sx-track') || document.querySelector('.sx-feature');
   if (!track) return;
   var playing = null;
   function thumbFor(id, title) {
     var b = document.createElement('button');
     b.className = 'sx-thumb'; b.type = 'button'; b.setAttribute('data-video', id); b.setAttribute('aria-label', 'Play ' + title);
-    b.innerHTML = '<img src="https://i.ytimg.com/vi/' + id + '/hqdefault.jpg" alt="" width="480" height="360"><span class="sx-play" aria-hidden="true"><svg viewBox="0 0 68 48" width="56" height="40"><path d="M66.5 7.7c-.8-2.9-3-5.2-5.9-6C55.3.3 34 .3 34 .3s-21.3 0-26.6 1.4c-2.9.8-5.1 3.1-5.9 6C.1 13 .1 24 .1 24s0 11 1.4 16.3c.8 2.9 3 5.2 5.9 6 5.3 1.4 26.6 1.4 26.6 1.4s21.3 0 26.6-1.4c2.9-.8 5.1-3.1 5.9-6C67.9 35 67.9 24 67.9 24s0-11-1.4-16.3z" fill="#2E7D32"/><path d="M45 24 27 14v20z" fill="#fff"/></svg></span>';
+    b.innerHTML = '<img src="https://i.ytimg.com/vi/' + id + '/hqdefault.jpg" alt="" width="480" height="360">' + (document.body.classList.contains('sx-featured') ? '<span class="sx-badge">Latest sermon</span>' : '') + '<span class="sx-play" aria-hidden="true"><svg viewBox="0 0 68 48" width="56" height="40"><path d="M66.5 7.7c-.8-2.9-3-5.2-5.9-6C55.3.3 34 .3 34 .3s-21.3 0-26.6 1.4c-2.9.8-5.1 3.1-5.9 6C.1 13 .1 24 .1 24s0 11 1.4 16.3c.8 2.9 3 5.2 5.9 6 5.3 1.4 26.6 1.4 26.6 1.4s21.3 0 26.6-1.4c2.9-.8 5.1-3.1 5.9-6C67.9 35 67.9 24 67.9 24s0-11-1.4-16.3z" fill="#2E7D32"/><path d="M45 24 27 14v20z" fill="#fff"/></svg></span>';
     return b;
   }
   track.addEventListener('click', function (e) {

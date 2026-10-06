@@ -67,6 +67,9 @@ class Browser {
   r = await pat.get('/sermons/embed');
   assert.strictEqual(r.status, 200);
   assert.match(r.body, /See all sermons on YouTube/);
+  r = await pat.get('/sermons/latest');
+  assert.strictEqual(r.status, 200);
+  assert.match(r.body, /latest sermon/i);
 
   // Patron applies (manual approval)
   r = await pat.post('/apply', {
