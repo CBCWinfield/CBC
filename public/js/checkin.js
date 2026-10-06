@@ -718,3 +718,60 @@
     window.addEventListener('pagehide', stop);
   }
 })();
+
+/* Prayer Wall: tap "Pray" without reloading, auto-growing text boxes, tidy menus. */
+(function () {
+  'use strict';
+  if (!document.querySelector('.pw')) return;
+  var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!form.matches || !form.matches('[data-pray]') || !window.fetch) return;
+    e.preventDefault();
+    var btn = form.querySelector('.pw-pray');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    var body = new URLSearchParams(new FormData(form));
+    if (!body.get('_csrf')) body.set('_csrf', csrf);
+    fetch(form.action, { method: 'POST', credentials: 'same-origin', headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+      .then(function (r) { if (!r.ok) throw new Error('bad'); return r.json(); })
+      .then(function (d) {
+        btn.classList.toggle('is-on', d.mine);
+        btn.setAttribute('aria-pressed', d.mine ? 'true' : 'false');
+        btn.querySelector('.pw-pray-label').textContent = d.mine ? 'Praying' : 'Pray';
+        btn.querySelector('[data-pray-n]').textContent = d.praying || '';
+        var card = form.closest('.pw-card');
+        var txt = card && card.querySelector('[data-pray-text]');
+        if (txt) txt.textContent = d.text;
+        if (d.mine) {
+          btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop');
+          var f = document.createElement('span'); f.className = 'pw-float'; f.textContent = '🙏'; f.setAttribute('aria-hidden', 'true');
+          btn.appendChild(f); setTimeout(function () { f.remove(); }, 950);
+          if (navigator.vibrate) navigator.vibrate(12);
+        }
+      })
+      .catch(function () { form.submit(); })
+      .then(function () { btn.disabled = false; });
+  });
+
+  // Text boxes grow as you type; Enter posts an encouragement (Shift+Enter for a new line).
+  function grow(t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 320) + 'px'; }
+  document.querySelectorAll('.pw textarea').forEach(function (t) { t.addEventListener('input', function () { grow(t); }); });
+  document.querySelectorAll('.pw-reply textarea').forEach(function (t) {
+    t.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && t.value.trim()) { e.preventDefault(); t.form.requestSubmit ? t.form.requestSubmit() : t.form.submit(); }
+    });
+  });
+  // Opening the comments puts the cursor in the reply box.
+  document.querySelectorAll('.pw-comments').forEach(function (d) {
+    d.addEventListener('toggle', function () { if (d.open && !d.dataset.seen) { d.dataset.seen = '1'; var t = d.querySelector('.pw-reply textarea'); if (t && window.matchMedia('(hover: hover)').matches) t.focus({ preventScroll: true }); } });
+  });
+  // Close the ••• menu when tapping elsewhere.
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('.pw-menu[open]').forEach(function (m) { if (!m.contains(e.target)) m.removeAttribute('open'); });
+  });
+  // Don't double-post a request.
+  var compose = document.querySelector('[data-pw-compose]');
+  if (compose) compose.addEventListener('submit', function () { var b = compose.querySelector('button[type=submit]'); setTimeout(function () { b.disabled = true; b.textContent = 'Sharing…'; }, 0); });
+})();

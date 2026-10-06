@@ -572,6 +572,17 @@ const MIGRATIONS = [
         WHERE key = 'contact_email' AND (value #>> '{}' = '' OR value #>> '{}' ILIKE '%example.com%');
     `,
   },
+  {
+    version: 8,
+    sql: `
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS prayer_seen_at timestamptz;
+      ALTER TABLE prayers ADD COLUMN IF NOT EXISTS checkin_at timestamptz;
+      ALTER TABLE prayers ADD COLUMN IF NOT EXISTS checkin_count int NOT NULL DEFAULT 0;
+      ALTER TABLE prayers ADD COLUMN IF NOT EXISTS checkin_pending boolean NOT NULL DEFAULT false;
+      ALTER TABLE prayers ADD COLUMN IF NOT EXISTS answered_at timestamptz;
+      CREATE INDEX IF NOT EXISTS prayers_created_idx ON prayers (created_at DESC);
+    `,
+  },
 ];
 
 async function migrate() {

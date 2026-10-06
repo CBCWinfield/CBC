@@ -33,6 +33,8 @@ We're so glad you're here. If you have any questions, reply to this email or giv
   },
   { key: 'checkin_notice', title: 'Check-in notice to parents', when: 'When a child is checked in. Parents can turn it off for themselves in Settings.' },
   { key: 'pickup_notice', title: 'Pickup notice to parents', when: 'When a child is checked out or picked up.' },
+  { key: 'prayer_weekly', title: 'Weekly prayer reminder', when: 'Monday mornings: everyone praying for an open request gets their prayer list (and the week’s new requests) by email and app notification, until the request is answered or removed.' },
+  { key: 'prayer_checkin', title: '“Has God answered?” check-in', when: 'Asks the person who posted a prayer request whether it was answered: once a week for the first month, then once a month, until they mark it answered or remove it.' },
   { key: 'message_email', title: 'Email about unread messages', when: 'When someone gets a new message and hasn’t read it (at most one email per conversation every 30 minutes).' },
   {
     key: 'birthday_child', title: 'Happy birthday to children', when: 'Morning of a child’s birthday, emailed to their parents.',
@@ -226,6 +228,7 @@ async function daily(now = new Date()) {
       sent[holiday]++;
     }
   }
+  Object.assign(sent, await require('./prayer').jobs(now, on, once));
   return sent;
 }
 

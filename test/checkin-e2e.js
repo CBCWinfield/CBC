@@ -387,9 +387,25 @@ class Browser {
   const prId = sql(`SELECT id FROM prayers ORDER BY id DESC LIMIT 1`);
   await vol.post(`/checkin/prayer/${prId}/pray`, {});
   await admin.post(`/checkin/prayer/${prId}/pray`, {});
+  r = await other.go('/checkin/inbox');
+  assert.match(r.body, /ci-unread-prayer[^>]*>1</, 'header shows 1 new prayer request');
   r = await other.go('/checkin/prayer');
   assert.match(r.body, /grandmother’s surgery/);
-  assert.match(r.body, /2 people are praying/);
+  assert.match(r.body, /and 1 other are praying/);
+  assert.match(r.body, /pw-new">New</, 'new request is marked');
+  r = await other.go('/checkin/inbox');
+  assert.ok(!/ci-unread-prayer/.test(r.body), 'badge clears after visiting the wall');
+  r = await other.go(`/checkin/prayer/${prId}`);
+  assert.match(r.body, /grandmother’s surgery/);
+  assert.ok(!/Has God answered/.test(r.body), 'check-in is only for the person who asked');
+  // Check-in prompt for the person who asked
+  sql(`UPDATE prayers SET checkin_pending = true, checkin_count = 1 WHERE id = ${prId}`);
+  r = await parent.go('/checkin/prayer');
+  assert.match(r.body, /Has God answered your prayer/);
+  await parent.post(`/checkin/prayer/${prId}/still`, {});
+  r = await parent.go('/checkin/prayer');
+  assert.ok(!/Has God answered your prayer/.test(r.body), 'still praying clears the prompt');
+  assert.strictEqual(sql(`SELECT status FROM prayers WHERE id = ${prId}`), 'open');
   await admin.post(`/checkin/prayer/${prId}/pray`, {});
   assert.strictEqual(sql(`SELECT count(*) FROM prayer_praying WHERE prayer_id = ${prId}`), '1', 'second click un-prays');
   await other.post(`/checkin/prayer/${prId}/comments`, { body: 'Praying for her!' });

@@ -18,6 +18,7 @@ const A = require('./automations');
 const social = require('./social');
 const safety = require('./safety');
 const community = require('./community');
+const prayer = require('./prayer');
 const { intParam, clean, safeNext } = require('../routes/guards');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -43,7 +44,7 @@ const needRole = (role) => async (req, res, next) => {
 };
 
 function render(req, res, body, opts = {}) {
-  res.send(V.layout({ body, user: req.user, csrf: res.locals.csrf, flash: security.takeFlash(req), event: req.ciEvent, unread: req.ciUnread || 0, ...opts }).toString());
+  res.send(V.layout({ body, user: req.user, csrf: res.locals.csrf, flash: security.takeFlash(req), event: req.ciEvent, unread: req.ciUnread || 0, prayerNew: req.ciPrayerNew || 0, ...opts }).toString());
 }
 
 // Current event for this device (kept in the session, only valid today).
@@ -141,6 +142,7 @@ module.exports = (app) => {
     // Unread message count for the Inbox badge on check-in pages.
     if (req.user && req.method === 'GET' && req.path.startsWith('/checkin') && !req.path.startsWith('/checkin/api/')) {
       req.ciUnread = await social.unreadCount(req.user.id).catch(() => 0);
+      req.ciPrayerNew = await prayer.newCount(req.user).catch(() => 0);
     }
     await next();
   });
@@ -1309,6 +1311,8 @@ module.exports = (app) => {
   social.routes(app, { render, needLogin, needRole, currentEvent });
   // Training, required policies, incident reports and the admin dashboard.
   safety.routes(app, { render, needLogin, needRole, currentEvent });
-  // Group messages and the Prayer Wall.
+  // Group messages.
   community.routes(app, { render, needLogin, needRole, currentEvent });
+  // The Prayer Wall.
+  prayer.routes(app, { render, needLogin, currentEvent });
 };

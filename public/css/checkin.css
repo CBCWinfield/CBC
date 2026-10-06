@@ -453,25 +453,6 @@ a.ci-name-link:hover { text-decoration: underline; }
 .ci-msg:not(.is-mine) .ci-bubble.is-broadcast { border-color: var(--green); background: #F6FAF2; }
 .ci-bc-link { display: block; margin-top: 6px; color: #fff; font-size: 0.85rem; }
 
-/* Prayer wall */
-.ci-prayers { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 12px; }
-.ci-prayer { display: grid; gap: 8px; }
-.ci-prayer.is-answered { border-color: var(--gilt); }
-.ci-prayer-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.ci-prayer-head .ci-avatar { width: 40px; height: 40px; }
-.ci-prayer-head .badge { margin-left: auto; }
-.ci-prayer-body { margin: 0; font-size: 1.05rem; }
-.ci-prayer-praise { margin: 0; padding: 10px 12px; background: #F3F9E8; border-radius: 10px; }
-.ci-prayer-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 8px; }
-.ci-pray-btn { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; font: inherit; font-weight: 700; cursor: pointer; color: var(--green-deep); }
-.ci-pray-btn.is-on { background: var(--green); border-color: var(--green); color: #fff; }
-.ci-pray-count { color: var(--ink-soft); font-size: 0.92rem; }
-.ci-comment-link { margin-left: auto; text-decoration: none; color: var(--green-deep); font-size: 0.92rem; }
-.ci-comments { display: grid; gap: 8px; background: #F6F8F4; border-radius: 10px; padding: 10px 12px; }
-.ci-comment p { margin: 2px 0 0; }
-.ci-comment-form { position: static; background: transparent; border: 0; padding: 0; }
-.ci-prayer-opts { display: flex; gap: 16px; flex-wrap: wrap; }
-.ci-prayer-manage summary { cursor: pointer; color: var(--ink-soft); }
 .ci-test-print { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0; }
 @media print {
   .ci-top, .ci-tabbar, .crumb, form, .btn, .ci-install { display: none !important; }
@@ -482,3 +463,192 @@ a.ci-name-link:hover { text-decoration: underline; }
 .ci-video-card { margin: 0; display: grid; gap: 6px; }
 .ci-cert ul { padding-left: 20px; }
 .ci-cert li { margin-bottom: 10px; }
+
+/* ================================================================ Prayer Wall */
+.ci-prayer-link .ci-prayer-icon { font-size: 1.05rem; line-height: 1; }
+.ci-unread-prayer { background: #C9A227; color: #1A1400; }
+
+.pw { --pw-ink: #18211A; --pw-soft: #5A6A5D; --pw-line: #E3EADF; --pw-card: #FFFFFF; --pw-wash: #F6F8F3;
+  --pw-green: #1B4D1F; --pw-leaf: #2E7D32; --pw-lime: #8CC63F; --pw-gold: #C9A227; --pw-gold-wash: #FBF6E4;
+  --pw-serif: 'Lora', Georgia, 'Times New Roman', serif;
+  max-width: 720px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; color: var(--pw-ink); }
+
+/* hero */
+.pw-hero { position: relative; overflow: hidden; border-radius: 22px; padding: 34px 30px 26px; color: #F4F8EF; text-align: center;
+  background: radial-gradient(120% 90% at 50% -10%, #3C7A33 0%, #1B4D1F 45%, #0E2A11 100%); box-shadow: 0 18px 40px -24px rgba(14, 42, 17, 0.75); }
+.pw-hero-glow { position: absolute; inset: -40% -10% auto; height: 120%; background: radial-gradient(closest-side, rgba(255, 236, 170, 0.28), transparent 70%); pointer-events: none; }
+.pw-hero > *:not(.pw-hero-glow) { position: relative; }
+.pw-eyebrow { margin: 0 0 6px; font-family: var(--serif); font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--pw-lime); font-weight: 700; }
+.pw-hero h1 { margin: 0; font-family: var(--serif); font-size: clamp(2rem, 5vw, 2.7rem); font-weight: 700; letter-spacing: -0.01em; color: #fff; }
+.pw-verse { margin: 14px auto 0; max-width: 34em; }
+.pw-verse p { margin: 0; font-family: var(--pw-serif); font-style: italic; font-size: 1.12rem; line-height: 1.55; color: #EAF2E3; }
+.pw-verse cite { display: block; margin-top: 6px; font-style: normal; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pw-lime); }
+.pw-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 22px 0 0; padding: 14px 6px 0; border-top: 1px solid rgba(255, 255, 255, 0.14); }
+.pw-stats div { display: flex; flex-direction: column-reverse; gap: 2px; }
+.pw-stats dd { margin: 0; font-family: var(--serif); font-size: 1.6rem; font-weight: 700; color: #fff; line-height: 1.1; }
+.pw-stats dt { font-size: 0.78rem; color: #C9D8C2; }
+
+/* buttons */
+.pw-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px; padding: 0 18px; border-radius: 999px; border: 1px solid transparent; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease; }
+.pw-btn:active { transform: scale(0.97); }
+.pw-btn-primary { background: var(--pw-leaf); color: #fff; box-shadow: 0 6px 16px -8px rgba(46, 125, 50, 0.8); }
+.pw-btn-primary:hover { background: var(--pw-green); }
+.pw-btn-gold { background: var(--pw-gold); color: #1A1400; }
+.pw-btn-gold:hover { background: #B48F17; }
+.pw-btn-soft { background: #EAF3E4; color: var(--pw-green); border-color: #CFE3C4; }
+.pw-btn-ghost { background: transparent; color: var(--pw-soft); border-color: var(--pw-line); }
+
+/* avatars */
+.pw-avatar { flex: none; display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font-family: var(--serif); font-weight: 700; font-size: 0.95rem; color: #fff; }
+.pw-avatar-sm { width: 32px; height: 32px; font-size: 0.72rem; }
+.pw-avatar-anon { background: linear-gradient(135deg, #F1F5EE, #DCE7D5); font-size: 1.25rem; }
+.pw-avatar-sm.pw-avatar-anon { font-size: 0.95rem; }
+.pw-tone-0 { background: linear-gradient(135deg, #3E8E41, #1B5E20); }
+.pw-tone-1 { background: linear-gradient(135deg, #C9A227, #9A7A12); }
+.pw-tone-2 { background: linear-gradient(135deg, #4F7CAC, #2E5077); }
+.pw-tone-3 { background: linear-gradient(135deg, #B5651D, #84460F); }
+.pw-tone-4 { background: linear-gradient(135deg, #7A6FB0, #514785); }
+.pw-tone-5 { background: linear-gradient(135deg, #2F8F83, #1C665D); }
+
+/* composer */
+.pw-compose { background: var(--pw-card); border: 1px solid var(--pw-line); border-radius: 20px; padding: 16px 18px; display: grid; gap: 12px; box-shadow: 0 10px 30px -22px rgba(24, 33, 26, 0.5); }
+.pw-compose-row { display: flex; gap: 12px; align-items: flex-start; }
+.pw-compose textarea { flex: 1; min-height: 52px; border: 0; resize: vertical; font: inherit; font-size: 1.08rem; line-height: 1.5; padding: 10px 2px; background: transparent; color: var(--pw-ink); outline: none; }
+.pw-compose textarea::placeholder { color: #8A988C; }
+.pw-compose:focus-within { border-color: #B7D3A8; box-shadow: 0 0 0 4px rgba(140, 198, 63, 0.18), 0 10px 30px -22px rgba(24, 33, 26, 0.5); }
+.pw-compose-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid var(--pw-line); }
+.pw-compose-foot .pw-btn { margin-left: auto; }
+.pw-toggle { position: relative; display: inline-flex; cursor: pointer; }
+.pw-toggle input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.pw-toggle span { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--pw-line); font-size: 0.88rem; color: var(--pw-soft); background: var(--pw-wash); transition: all 0.15s ease; }
+.pw-toggle span::before { content: ''; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #AEBBAA; background: #fff; transition: all 0.15s ease; }
+.pw-toggle input:checked + span { background: #EAF3E4; border-color: #9CC68A; color: var(--pw-green); font-weight: 700; }
+.pw-toggle input:checked + span::before { border-color: var(--pw-leaf); background: var(--pw-leaf); box-shadow: inset 0 0 0 2px #fff; }
+.pw-toggle input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+.pw-compose-hint { margin: 0; font-size: 0.8rem; color: var(--pw-soft); }
+
+/* tabs */
+.pw-tabs { display: flex; gap: 4px; padding: 4px; background: #EBF0E7; border-radius: 999px; overflow-x: auto; scrollbar-width: none; }
+.pw-tabs::-webkit-scrollbar { display: none; }
+.pw-tabs a { flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; border-radius: 999px; color: var(--pw-soft); text-decoration: none; font-weight: 700; font-size: 0.9rem; white-space: nowrap; }
+.pw-tabs a:hover { color: var(--pw-green); }
+.pw-tabs a[aria-current="page"] { background: #fff; color: var(--pw-green); box-shadow: 0 2px 8px -4px rgba(24, 33, 26, 0.45); }
+.pw-tab-n { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--pw-gold); color: #1A1400; font-size: 0.72rem; }
+
+/* cards */
+.pw-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.pw-card { position: relative; background: var(--pw-card); border: 1px solid var(--pw-line); border-radius: 20px; padding: 18px 20px 6px; box-shadow: 0 10px 30px -24px rgba(24, 33, 26, 0.55); scroll-margin-top: 80px; animation: pw-rise 0.35s ease both; }
+.pw-card.is-new { border-color: #E4D18A; box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.14), 0 10px 30px -24px rgba(24, 33, 26, 0.55); }
+.pw-card.is-team { background: linear-gradient(#FFFFFF, #FFFFFF) padding-box, linear-gradient(135deg, #D6E2CF, #E9EFE5) border-box; }
+.pw-card.is-answered { background: linear-gradient(180deg, #FFFCF2 0%, #FFFFFF 60%); border-color: #E8D9A0; }
+.pw-card:target { box-shadow: 0 0 0 3px rgba(140, 198, 63, 0.4); }
+.pw-ribbon { position: absolute; top: -11px; left: 20px; padding: 3px 12px; border-radius: 999px; background: linear-gradient(135deg, #E2C35A, #C9A227); color: #1A1400; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em; box-shadow: 0 4px 10px -4px rgba(154, 122, 18, 0.7); }
+.pw-card-head { display: flex; gap: 12px; align-items: center; }
+.pw-who { display: grid; min-width: 0; flex: 1; }
+.pw-who strong { font-size: 1rem; }
+.pw-real { font-weight: 400; color: var(--pw-soft); font-size: 0.85rem; }
+.pw-meta { font-size: 0.82rem; color: var(--pw-soft); display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pw-time { color: inherit; text-decoration: none; }
+.pw-time:hover { text-decoration: underline; }
+.pw-chip-lock { padding: 1px 8px; border-radius: 999px; background: #EEF3EA; color: var(--pw-green); font-size: 0.74rem; font-weight: 700; }
+.pw-new { padding: 3px 10px; border-radius: 999px; background: var(--pw-gold-wash); color: #8A6D0B; border: 1px solid #EBDDA6; font-size: 0.74rem; font-weight: 700; }
+.pw-body { margin: 14px 0 12px; font-family: var(--pw-serif); font-size: 1.14rem; line-height: 1.62; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pw-praise { margin: 0 0 12px; padding: 12px 14px; border-radius: 14px; background: var(--pw-gold-wash); border: 1px solid #EFE2B3; }
+.pw-praise-label { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #8A6D0B; }
+.pw-praise p { margin: 4px 0 0; font-size: 1rem; }
+
+/* card menu */
+.pw-menu { position: relative; }
+.pw-menu summary { list-style: none; cursor: pointer; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--pw-soft); font-size: 0.7rem; letter-spacing: 1px; }
+.pw-menu summary::-webkit-details-marker { display: none; }
+.pw-menu summary:hover, .pw-menu[open] summary { background: var(--pw-wash); color: var(--pw-ink); }
+.pw-menu-pop { position: absolute; right: 0; top: 38px; z-index: 10; min-width: 190px; padding: 6px; background: #fff; border: 1px solid var(--pw-line); border-radius: 14px; box-shadow: 0 16px 36px -16px rgba(24, 33, 26, 0.45); display: grid; }
+.pw-menu-pop a, .pw-menu-pop button { display: block; width: 100%; text-align: left; padding: 9px 12px; border-radius: 9px; border: 0; background: none; font: inherit; color: var(--pw-ink); text-decoration: none; cursor: pointer; }
+.pw-menu-pop a:hover, .pw-menu-pop button:hover { background: var(--pw-wash); }
+.pw-menu-pop form { margin: 0; }
+.pw-menu-pop button { color: var(--danger); }
+
+/* action bar */
+.pw-bar { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--pw-line); }
+.pw-pray-form { margin: 0; }
+.pw-pray { position: relative; display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 16px 0 12px; border-radius: 999px; border: 1.5px solid #CFE0C6; background: #F4F9F0; color: var(--pw-green); font: inherit; font-weight: 700; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease; }
+.pw-pray:hover { border-color: #9CC68A; background: #EAF4E3; }
+.pw-pray:active { transform: scale(0.95); }
+.pw-pray-icon { font-size: 1.15rem; line-height: 1; transition: transform 0.25s ease; }
+.pw-pray-n { font-variant-numeric: tabular-nums; min-width: 0; }
+.pw-pray-n:empty { display: none; }
+.pw-pray-n::before { content: '·'; margin-right: 6px; opacity: 0.6; }
+.pw-pray.is-on { background: linear-gradient(135deg, #3A8A3E, #1B5E20); border-color: #1B5E20; color: #fff; box-shadow: 0 6px 14px -8px rgba(27, 94, 32, 0.9); }
+.pw-pray.is-on .pw-pray-icon { transform: scale(1.12); }
+.pw-pray.pop .pw-pray-icon { animation: pw-pop 0.5s ease; }
+.pw-float { position: absolute; left: 14px; top: 2px; pointer-events: none; font-size: 1.1rem; animation: pw-float 0.9s ease-out forwards; }
+.pw-praying { display: inline-flex; align-items: center; gap: 8px; min-width: 0; flex: 1; font-size: 0.86rem; color: var(--pw-soft); }
+.pw-praying-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pw-faces { display: inline-flex; }
+.pw-faces:empty { display: none; }
+.pw-face { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; margin-left: -7px; color: #fff; font-size: 0.6rem; font-weight: 700; font-family: var(--serif); }
+.pw-face:first-child { margin-left: 0; }
+.pw-note { display: inline-flex; align-items: center; gap: 4px; height: 36px; padding: 0 12px; border-radius: 999px; color: var(--pw-green); text-decoration: none; font-weight: 700; font-size: 0.88rem; }
+.pw-note:hover { background: var(--pw-wash); }
+
+/* comments */
+.pw-comments { border-top: 1px solid var(--pw-line); }
+.pw-comments summary { list-style: none; cursor: pointer; padding: 10px 0; font-size: 0.88rem; font-weight: 700; color: var(--pw-soft); }
+.pw-comments summary::-webkit-details-marker { display: none; }
+.pw-comments summary:hover { color: var(--pw-green); }
+.pw-comments[open] summary { color: var(--pw-green); }
+.pw-thread { display: grid; gap: 10px; padding: 0 0 14px; }
+.pw-comment { display: flex; gap: 10px; align-items: flex-start; }
+.pw-comment-bubble { position: relative; flex: 1; min-width: 0; background: var(--pw-wash); border-radius: 4px 16px 16px 16px; padding: 9px 13px; }
+.pw-comment-bubble p { margin: 3px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pw-comment-del { position: absolute; top: 8px; right: 10px; margin: 0; opacity: 0; transition: opacity 0.15s; }
+.pw-comment-del .linklike { font-size: 0.78rem; color: var(--pw-soft); }
+.pw-comment:hover .pw-comment-del, .pw-comment-del:focus-within { opacity: 1; }
+.pw-reply { display: flex; gap: 10px; align-items: flex-end; margin: 2px 0 0; }
+.pw-reply textarea { flex: 1; min-height: 40px; max-height: 160px; resize: none; border: 1px solid var(--pw-line); border-radius: 20px; padding: 9px 14px; font: inherit; background: #fff; outline: none; }
+.pw-reply textarea:focus { border-color: #9CC68A; box-shadow: 0 0 0 3px rgba(140, 198, 63, 0.18); }
+.pw-send { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--pw-leaf); color: #fff; font-size: 0.95rem; cursor: pointer; }
+.pw-send:hover { background: var(--pw-green); }
+
+/* check-in */
+.pw-checkin { display: flex; gap: 14px; padding: 20px; border-radius: 20px; background: linear-gradient(135deg, #FFFBEC, #FFF6D8); border: 1px solid #EBDDA6; box-shadow: 0 10px 30px -24px rgba(154, 122, 18, 0.8); scroll-margin-top: 80px; }
+.pw-checkin-icon { flex: none; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: #fff; font-size: 1.5rem; box-shadow: 0 4px 12px -6px rgba(154, 122, 18, 0.6); }
+.pw-checkin-main { flex: 1; min-width: 0; display: grid; gap: 8px; }
+.pw-checkin h2 { margin: 0; font-family: var(--serif); font-size: 1.2rem; color: #4A3A05; }
+.pw-checkin-quote { margin: 0; font-family: var(--pw-serif); font-style: italic; color: #4D4532; overflow-wrap: anywhere; }
+.pw-checkin-answer { display: grid; gap: 6px; margin-top: 4px; }
+.pw-checkin-answer label { font-weight: 700; font-size: 0.9rem; }
+.pw-checkin-answer textarea { border: 1px solid #E5D59A; border-radius: 12px; padding: 9px 12px; font: inherit; background: #fff; resize: vertical; }
+.pw-checkin-answer .pw-btn { justify-self: start; }
+.pw-checkin-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.pw-checkin-actions form { margin: 0; }
+
+/* empty + single */
+.pw-empty { text-align: center; padding: 40px 20px; border: 1.5px dashed #D3DECD; border-radius: 20px; background: #FBFCFA; }
+.pw-empty-icon { font-size: 2.2rem; }
+.pw-empty h2 { margin: 8px 0 4px; font-family: var(--serif); font-size: 1.2rem; }
+.pw-empty p { margin: 0 auto; max-width: 30em; color: var(--pw-soft); }
+.pw-back { margin: 0; }
+.pw-back a { color: var(--pw-green); font-weight: 700; text-decoration: none; }
+
+@keyframes pw-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes pw-pop { 0% { transform: scale(1); } 35% { transform: scale(1.45) rotate(-8deg); } 70% { transform: scale(0.92); } 100% { transform: scale(1.12); } }
+@keyframes pw-float { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-38px) scale(1.4); } }
+@media (prefers-reduced-motion: reduce) { .pw-card, .pw-pray.pop .pw-pray-icon, .pw-float { animation: none; } }
+
+@media (max-width: 640px) {
+  .pw { gap: 14px; }
+  .pw-hero { border-radius: 18px; padding: 26px 18px 20px; }
+  .pw-verse p { font-size: 1rem; }
+  .pw-stats dd { font-size: 1.35rem; }
+  .pw-stats dt { font-size: 0.7rem; }
+  .pw-card { padding: 16px 16px 4px; border-radius: 18px; }
+  .pw-body { font-size: 1.06rem; }
+  .pw-compose-foot .pw-btn { width: 100%; margin-left: 0; }
+  .pw-note-word { display: none; }
+  .pw-bar { gap: 10px; }
+  .pw-faces { display: none; }
+  .pw-praying-text { white-space: normal; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .pw-pray { padding: 0 14px 0 11px; }
+  .pw-checkin { flex-direction: column; padding: 16px; }
+}

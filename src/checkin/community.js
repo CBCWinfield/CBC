@@ -1,5 +1,5 @@
 'use strict';
-// Group messages from admins (with "click to confirm" replies) and the Prayer Wall.
+// Group messages from admins (with "click to confirm" replies). The Prayer Wall lives in prayer.js.
 const db = require('../db');
 const security = require('../lib/security');
 const { HttpError } = require('../lib/http');
@@ -8,19 +8,10 @@ const t = require('../lib/time');
 const { pushTo } = require('../notify');
 const { intParam, clean } = require('../routes/guards');
 const D = require('./data');
-const P = require('./prefs');
 const social = require('./social');
 
 const csrfField = (csrf) => html`<input type="hidden" name="_csrf" value="${csrf}">`;
 const fullName = (u) => `${u.first_name} ${u.last_name}`.trim();
-const ago = (d) => {
-  const mins = Math.round((Date.now() - new Date(d).getTime()) / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins} min ago`;
-  if (mins < 60 * 24) return `${Math.round(mins / 60)} hr ago`;
-  if (mins < 60 * 24 * 7) return `${Math.round(mins / 1440)} day${Math.round(mins / 1440) === 1 ? '' : 's'} ago`;
-  return t.fmtDateYear(d);
-};
 
 // ---------------------------------------------------------------- group messages
 const BUILT_IN_TEMPLATES = [
@@ -114,58 +105,6 @@ function broadcastResults({ csrf, b, rows }) {
   </tbody></table></div>`;
 }
 
-// ---------------------------------------------------------------- prayer wall
-function prayerCard({ csrf, user, p, comments, open }) {
-  const mine = p.user_id === user.id;
-  const admin = D.can(user, 'coadmin');
-  const who = p.anonymous ? (admin || mine ? html`Anonymous <span class="small muted">(${p.author || 'unknown'})</span>` : 'Anonymous') : p.author || 'Someone';
-  return html`<li class="ci-card ci-prayer${p.status === 'answered' ? ' is-answered' : ''}" id="prayer-${p.id}">
-    <div class="ci-prayer-head"><span class="ci-avatar ci-avatar-adult" aria-hidden="true">${p.anonymous ? '🙏' : (p.author || '?').split(' ').map((w) => w[0]).slice(0, 2).join('')}</span>
-      <div><strong>${who}</strong><span class="small muted"> · ${ago(p.created_at)}${p.audience === 'team' ? ' · Shared with the church team only' : ''}</span></div>
-      ${p.status === 'answered' ? html`<span class="badge badge-ok">Answered prayer</span>` : ''}</div>
-    <p class="ci-prayer-body pre">${p.body}</p>
-    ${p.status === 'answered' && p.answered_note ? html`<p class="ci-prayer-praise"><strong>Praise report:</strong> ${p.answered_note}</p>` : ''}
-    <div class="ci-prayer-actions">
-      <form method="post" action="/checkin/prayer/${p.id}/pray" class="inline">${csrfField(csrf)}
-        <button class="ci-pray-btn${p.i_pray ? ' is-on' : ''}" type="submit" aria-pressed="${p.i_pray ? 'true' : 'false'}"><span aria-hidden="true">🙏</span> ${p.i_pray ? 'Praying' : 'I’m praying'}</button></form>
-      <span class="ci-pray-count">${p.praying ? `${p.praying} ${p.praying === 1 ? 'person is' : 'people are'} praying` : 'Be the first to pray'}</span>
-      <a class="ci-comment-link" href="/checkin/prayer?open=${p.id}#prayer-${p.id}">💬 ${p.comments ? `${p.comments} comment${p.comments === 1 ? '' : 's'}` : 'Comment'}</a>
-    </div>
-    ${open ? html`<div class="ci-comments">
-      ${comments.map((c) => html`<div class="ci-comment"><strong>${c.author || 'Someone'}</strong> <span class="small muted">${ago(c.created_at)}</span>
-        ${c.user_id === user.id || admin ? html`<form method="post" action="/checkin/prayer/comments/${c.id}/delete" class="inline">${csrfField(csrf)}<button class="linklike small" type="submit">Remove</button></form>` : ''}
-        <p class="pre">${c.body}</p></div>`)}
-      <form method="post" action="/checkin/prayer/${p.id}/comments" class="ci-compose ci-comment-form">${csrfField(csrf)}
-        <label for="cm-${p.id}" class="visually-hidden">Comment</label><textarea id="cm-${p.id}" name="body" rows="1" maxlength="1500" placeholder="Write an encouragement…" required></textarea><button class="btn btn-small" type="submit">Post</button></form>
-    </div>` : ''}
-    ${mine || admin ? html`<details class="ci-prayer-manage"><summary class="small">Manage</summary>
-      ${mine && p.status !== 'answered' ? html`<form method="post" action="/checkin/prayer/${p.id}/answered" class="stack">${csrfField(csrf)}<label for="an-${p.id}" class="small">God answered! Share a praise report (optional)</label><input id="an-${p.id}" name="note" maxlength="600"><button class="btn btn-small" type="submit">Mark as answered</button></form>` : ''}
-      <form method="post" action="/checkin/prayer/${p.id}/delete" class="inline" data-confirm="Remove this prayer request?">${csrfField(csrf)}<button class="btn btn-quiet btn-small" type="submit">${mine ? 'Delete' : 'Hide (admin)'}</button></form>
-    </details>` : ''}
-  </li>`;
-}
-
-function prayerPage({ csrf, user, prayers, commentsFor, openId, filter }) {
-  return html`
-  <div class="ci-narrow">
-    <h1>Prayer Wall</h1>
-    <p class="muted">“Bear one another’s burdens, and so fulfill the law of Christ.” (Galatians 6:2) Share a request, and let others know you’re praying.</p>
-    <form method="post" action="/checkin/prayer" class="ci-card stack ci-prayer-new">
-      ${csrfField(csrf)}
-      <label for="pr-body"><strong>Share a prayer request</strong></label>
-      <textarea id="pr-body" name="body" rows="3" maxlength="2000" required placeholder="How can we pray for you?"></textarea>
-      <div class="ci-prayer-opts">
-        <label class="check"><input type="checkbox" name="anonymous" value="1"> Post anonymously</label>
-        <label class="check"><input type="checkbox" name="team_only" value="1"> Share with the pastors and church team only</label>
-      </div>
-      <button class="btn" type="submit">Post request</button>
-      <p class="hint">Please don’t share other people’s private details without their permission.</p>
-    </form>
-    <p class="ci-chips">${[['', 'All requests'], ['mine', 'My requests'], ['answered', 'Answered prayers']].map(([k, l]) => html`<a class="ci-chip${filter === k ? ' is-on' : ''}" href="/checkin/prayer${k ? `?f=${k}` : ''}">${l}</a>`)}</p>
-    ${prayers.length ? html`<ul class="ci-prayers">${prayers.map((p) => prayerCard({ csrf, user, p, comments: commentsFor.get(p.id) || [], open: openId === p.id }))}</ul>` : html`<div class="empty"><p>No prayer requests here yet.</p></div>`}
-  </div>`;
-}
-
 // ---------------------------------------------------------------- routes
 function routes(app, { render, needLogin, needRole, currentEvent }) {
   const withEvent = async (req) => { if (D.can(req.user, 'volunteer')) req.ciEvent = await currentEvent(req); };
@@ -243,110 +182,6 @@ function routes(app, { render, needLogin, needRole, currentEvent }) {
     const conv = await social.directConversation(b.created_by, req.user.id);
     security.flash(req, 'ok', `Thanks! You answered “${response === 'yes' ? b.yes_label || 'Yes' : b.no_label || 'No'}”.`);
     res.redirect(`/checkin/inbox/${conv.id}`);
-  });
-
-  // ---- Prayer Wall (everyone with an account)
-  const canPost = (u) => u && !['denied', 'paused'].includes(u.status);
-
-  app.get('/checkin/prayer', async (req, res) => {
-    if (needLogin(req, res)) return;
-    await withEvent(req);
-    const filter = ['mine', 'answered'].includes(req.query.f) ? req.query.f : '';
-    const team = D.isTeam(req.user);
-    const where = [`p.status <> 'hidden'`];
-    const params = [req.user.id];
-    if (!team) where.push(`(p.audience = 'everyone' OR p.user_id = $1)`);
-    if (filter === 'mine') where.push('p.user_id = $1');
-    if (filter === 'answered') where.push(`p.status = 'answered'`);
-    const prayers = await db.many(`SELECT p.*, u.first_name || ' ' || u.last_name AS author,
-        (SELECT count(*)::int FROM prayer_praying x WHERE x.prayer_id = p.id) AS praying,
-        EXISTS (SELECT 1 FROM prayer_praying x WHERE x.prayer_id = p.id AND x.user_id = $1) AS i_pray,
-        (SELECT count(*)::int FROM prayer_comments c WHERE c.prayer_id = p.id AND c.deleted_at IS NULL) AS comments
-      FROM prayers p LEFT JOIN users u ON u.id = p.user_id WHERE ${where.join(' AND ')} ORDER BY p.created_at DESC LIMIT 100`, params);
-    const openId = Number(req.query.open) || 0;
-    const commentsFor = new Map();
-    if (openId) {
-      commentsFor.set(openId, await db.many(`SELECT c.*, u.first_name || ' ' || u.last_name AS author FROM prayer_comments c LEFT JOIN users u ON u.id = c.user_id
-        WHERE c.prayer_id = $1 AND c.deleted_at IS NULL ORDER BY c.created_at`, [openId]));
-    }
-    render(req, res, prayerPage({ csrf: res.locals.csrf, user: req.user, prayers, commentsFor, openId, filter }), { title: 'Prayer Wall', tab: 'prayer' });
-  });
-
-  app.post('/checkin/prayer', security.rateLimit('ci-prayer', { max: 20, windowMs: 3600000 }), async (req, res) => {
-    if (needLogin(req, res)) return;
-    if (!canPost(req.user)) throw new HttpError(403, 'Your account can’t post right now.');
-    const body = clean(req.body.body, 2000);
-    if (!body) { security.flash(req, 'error', 'Write your prayer request.'); return res.redirect('/checkin/prayer'); }
-    const p = await db.one(`INSERT INTO prayers (user_id, body, anonymous, audience) VALUES ($1, $2, $3, $4) RETURNING id`, [req.user.id, body, req.body.anonymous === '1', req.body.team_only === '1' ? 'team' : 'everyone']);
-    security.flash(req, 'ok', 'Your prayer request is posted. We’re praying with you.');
-    res.redirect(`/checkin/prayer#prayer-${p.id}`);
-  });
-
-  const visiblePrayer = async (req, id) => {
-    const p = await db.one(`SELECT * FROM prayers WHERE id = $1 AND status <> 'hidden'`, [id]);
-    if (!p || (p.audience === 'team' && !D.isTeam(req.user) && p.user_id !== req.user.id)) throw new HttpError(404, 'That prayer request was not found.');
-    return p;
-  };
-  const notifyOwner = async (p, actor, text) => {
-    if (!p.user_id || p.user_id === actor.id) return;
-    const owner = await db.one('SELECT id, prefs FROM users WHERE id = $1', [p.user_id]);
-    if (owner && P.of(owner).push_prayer !== false) pushTo([owner.id], { title: 'Prayer Wall', body: text, url: `/checkin/prayer?open=${p.id}#prayer-${p.id}` }).catch(() => {});
-  };
-
-  app.post('/checkin/prayer/:id/pray', async (req, res) => {
-    if (needLogin(req, res)) return;
-    const p = await visiblePrayer(req, intParam(req.params.id));
-    const removed = await db.one('DELETE FROM prayer_praying WHERE prayer_id = $1 AND user_id = $2 RETURNING prayer_id', [p.id, req.user.id]);
-    if (!removed) {
-      await db.query('INSERT INTO prayer_praying (prayer_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [p.id, req.user.id]);
-      notifyOwner(p, req.user, `${req.user.first_name} is praying for your request 🙏`);
-    }
-    if (/json/.test(req.headers.accept || '')) {
-      const n = (await db.one('SELECT count(*)::int AS n FROM prayer_praying WHERE prayer_id = $1', [p.id])).n;
-      return res.json({ praying: n, mine: !removed });
-    }
-    res.redirect(`/checkin/prayer#prayer-${p.id}`);
-  });
-
-  app.post('/checkin/prayer/:id/comments', security.rateLimit('ci-prayer-c', { max: 60, windowMs: 3600000 }), async (req, res) => {
-    if (needLogin(req, res)) return;
-    if (!canPost(req.user)) throw new HttpError(403, 'Your account can’t post right now.');
-    const p = await visiblePrayer(req, intParam(req.params.id));
-    const body = clean(req.body.body, 1500);
-    if (body) {
-      await db.query('INSERT INTO prayer_comments (prayer_id, user_id, body) VALUES ($1, $2, $3)', [p.id, req.user.id, body]);
-      notifyOwner(p, req.user, `${req.user.first_name} commented on your prayer request: “${body.slice(0, 80)}”`);
-    }
-    res.redirect(`/checkin/prayer?open=${p.id}#prayer-${p.id}`);
-  });
-
-  app.post('/checkin/prayer/comments/:id/delete', async (req, res) => {
-    if (needLogin(req, res)) return;
-    const c = await db.one('SELECT * FROM prayer_comments WHERE id = $1', [intParam(req.params.id)]);
-    if (!c || (c.user_id !== req.user.id && !D.can(req.user, 'coadmin'))) throw new HttpError(404, 'That comment was not found.');
-    await db.query('UPDATE prayer_comments SET deleted_at = now() WHERE id = $1', [c.id]);
-    res.redirect(`/checkin/prayer?open=${c.prayer_id}#prayer-${c.prayer_id}`);
-  });
-
-  app.post('/checkin/prayer/:id/answered', async (req, res) => {
-    if (needLogin(req, res)) return;
-    const p = await db.one('SELECT * FROM prayers WHERE id = $1 AND user_id = $2', [intParam(req.params.id), req.user.id]);
-    if (!p) throw new HttpError(404, 'That prayer request was not found.');
-    await db.query(`UPDATE prayers SET status = 'answered', answered_note = $2, updated_at = now() WHERE id = $1`, [p.id, clean(req.body.note, 600) || null]);
-    const prayers = await db.many('SELECT user_id FROM prayer_praying WHERE prayer_id = $1 AND user_id <> $2', [p.id, req.user.id]);
-    pushTo(prayers.map((x) => x.user_id), { title: 'Answered prayer! 🙌', body: 'A request you prayed for was answered. Praise God!', url: `/checkin/prayer#prayer-${p.id}` }).catch(() => {});
-    security.flash(req, 'ok', 'Praise God! Marked as answered.');
-    res.redirect(`/checkin/prayer#prayer-${p.id}`);
-  });
-
-  app.post('/checkin/prayer/:id/delete', async (req, res) => {
-    if (needLogin(req, res)) return;
-    const p = await db.one('SELECT * FROM prayers WHERE id = $1', [intParam(req.params.id)]);
-    if (!p || (p.user_id !== req.user.id && !D.can(req.user, 'coadmin'))) throw new HttpError(404, 'That prayer request was not found.');
-    if (p.user_id === req.user.id) await db.query('DELETE FROM prayers WHERE id = $1', [p.id]);
-    else { await db.query(`UPDATE prayers SET status = 'hidden', updated_at = now() WHERE id = $1`, [p.id]); D.audit(req.user, 'prayer_hidden', { detail: `prayer ${p.id}` }); }
-    security.flash(req, 'ok', 'Removed.');
-    res.redirect('/checkin/prayer');
   });
 }
 

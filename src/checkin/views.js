@@ -14,7 +14,7 @@ const fmtDateKey = (k) => t.fmtLong(t.zoned(...k.split('-').map(Number), 12));
 const dateKeyOf = (d) => (d instanceof Date ? t.dateKey(d) : String(d).slice(0, 10));
 
 // ---------------------------------------------------------------- layout
-function layout({ title, user, csrf, flash = [], body, tab, event, bare = false, unread = 0 }) {
+function layout({ title, user, csrf, flash = [], body, tab, event, bare = false, unread = 0, prayerNew = 0 }) {
   const staff = D.rank(user) > 0;
   const tabs = staff ? [
     ['/checkin', 'Check in', 'station', '✓'],
@@ -26,7 +26,6 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
   // Everything else lives in the "More" menu.
   const more = [];
   if (D.can(user, 'coadmin')) more.push(['/checkin/admin', 'Admin dashboard', 'admin']);
-  if (user) more.push(['/checkin/prayer', 'Prayer Wall', 'prayer']);
   if (staff) more.push(['/checkin/serve', 'Serving calendar', 'serve'], ['/checkin/incidents', 'Incident reports', 'incidents']);
   if (D.isTeam(user)) more.push(['/checkin/training', user.checkinLocked ? 'Training (to do)' : 'Training', 'training']);
   if (D.can(user, 'leader')) more.push(['/checkin/events', 'Events', 'events']);
@@ -49,11 +48,11 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
 <link rel="apple-touch-icon" href="/img/checkin-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=Montserrat:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="/css/style.css?v=7">
-<link rel="stylesheet" href="/css/checkin.css?v=7">
+<link rel="stylesheet" href="/css/checkin.css?v=8">
 <script src="/js/app.js?v=7" defer></script>
-<script src="/js/checkin.js?v=7" defer></script>
+<script src="/js/checkin.js?v=8" defer></script>
 </head>
 <body class="ci${bare ? ' ci-bare' : ''}">
 <a class="skip" href="#main">Skip to content</a>
@@ -67,6 +66,7 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
     </form>` : ''}
     <nav class="ci-actions" aria-label="Account">
       ${user ? html`<button type="button" class="ci-help-btn" id="ci-help-open" data-tour="help">HELP</button>
+      <a class="ci-inbox-link ci-prayer-link" href="/checkin/prayer"${tab === 'prayer' ? raw(' aria-current="page"') : ''} title="Prayer Wall"><span aria-hidden="true" class="ci-prayer-icon">🙏</span><span class="ci-inbox-word">Prayer</span>${prayerNew ? html`<span class="ci-unread ci-unread-prayer" aria-label="${prayerNew} new prayer requests">${prayerNew > 99 ? '99+' : prayerNew}</span>` : ''}</a>
       <a class="ci-inbox-link" href="/checkin/inbox"${tab === 'inbox' ? raw(' aria-current="page"') : ''} title="Inbox"><span aria-hidden="true">✉</span><span class="ci-inbox-word">Inbox</span>${unread ? html`<span class="ci-unread" aria-label="${unread} unread">${unread > 99 ? '99+' : unread}</span>` : ''}</a>
       <details class="ci-more">
         <summary class="${more.some(([, , key]) => key === tab) ? 'is-current' : ''}">More <span aria-hidden="true">▾</span></summary>

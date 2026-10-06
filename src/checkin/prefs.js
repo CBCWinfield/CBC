@@ -11,6 +11,10 @@ const NOTIFY = [
   { key: 'email_messages', label: 'Email me about new messages I haven’t read', group: 'Inbox', def: true },
   { key: 'push_messages', label: 'App notification for new messages', group: 'Inbox', def: true },
   { key: 'push_prayer', label: 'App notification when someone prays for or comments on my prayer request', group: 'Prayer wall', def: true },
+  { key: 'push_prayer_new', label: 'App notification when someone shares a new prayer request', group: 'Prayer wall', def: false },
+  { key: 'email_prayer_weekly', label: 'Monday email with the requests I’m praying for and new ones from the week', group: 'Prayer wall', def: true },
+  { key: 'push_prayer_weekly', label: 'Monday app reminder to keep praying', group: 'Prayer wall', def: true },
+  { key: 'email_prayer_checkin', label: 'Check in with me about my own requests (has God answered?)', group: 'Prayer wall', def: true },
   { key: 'email_greetings', label: 'Birthday, anniversary, Christmas and Easter greetings from the church', group: 'Church', def: true },
   { key: 'email_library', label: 'Library emails: pickup times, due dates and reminders', group: 'Church', def: true },
 ];
