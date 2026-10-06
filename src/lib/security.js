@@ -140,11 +140,15 @@ setInterval(() => {
 }, 600000).unref();
 
 // ---- Security headers ----
+// Sites allowed to show this app inside a pop-up/embed (e.g. the church's Wix site).
+// Override with FRAME_ANCESTORS="https://a.example https://b.example" in Render.
+const FRAME_ANCESTORS = (process.env.FRAME_ANCESTORS ||
+  'https://cbcwinfield.org https://www.cbcwinfield.org https://*.cbcwinfield.org https://*.wixsite.com https://editor.wix.com https://*.editorx.io').trim();
+
 function headers() {
   return async (req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()'); // camera: scanning pickup tags
     res.setHeader('Content-Security-Policy', [
       "default-src 'self'",
@@ -155,7 +159,7 @@ function headers() {
       "script-src 'self'",
       "connect-src 'self'",
       "frame-src 'self' https://player.vimeo.com https://www.youtube-nocookie.com https://www.youtube.com",
-      "frame-ancestors 'self'",
+      `frame-ancestors 'self' ${FRAME_ANCESTORS}`,
       "form-action 'self'",
       "base-uri 'self'",
     ].join('; '));

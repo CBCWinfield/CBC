@@ -53,7 +53,7 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
 <link rel="stylesheet" href="/css/style.css?v=7">
 <link rel="stylesheet" href="/css/checkin.css?v=7">
 <script src="/js/app.js?v=7" defer></script>
-<script src="/js/checkin.js?v=6" defer></script>
+<script src="/js/checkin.js?v=7" defer></script>
 </head>
 <body class="ci${bare ? ' ci-bare' : ''}">
 <a class="skip" href="#main">Skip to content</a>

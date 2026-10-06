@@ -293,6 +293,8 @@
   (function installPrompt() {
     var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
     if (standalone) return;
+    var framed = false; try { framed = window.self !== window.top; } catch (e) { framed = true; }
+    if (framed) return; // shown inside the church website's pop-up: no install banner
     var store = function (k, v) { try { if (v === undefined) return window.localStorage.getItem(k); window.localStorage.setItem(k, v); } catch (e) { return null; } return null; };
     var snoozed = Number(store('ciInstallSnooze') || 0);
     if (snoozed && Date.now() < snoozed) return;
