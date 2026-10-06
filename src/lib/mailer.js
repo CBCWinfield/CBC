@@ -4,8 +4,9 @@
 const { esc } = require('./html');
 
 const API_KEY = process.env.RESEND_API_KEY;
-const FROM = process.env.EMAIL_FROM || 'CBC Library <onboarding@resend.dev>';
-const REPLY_TO = process.env.EMAIL_REPLY_TO || undefined;
+const FROM = process.env.EMAIL_FROM || 'Central Baptist Church <onboarding@resend.dev>';
+// Replies go to the church office unless EMAIL_REPLY_TO says otherwise.
+const REPLY_TO = process.env.EMAIL_REPLY_TO || 'centralbaptistchurchcalendar@gmail.com';
 const BASE_URL = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
 
 function layout({ heading, paragraphs = [], button, footer, libraryName }) {

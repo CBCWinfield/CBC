@@ -560,6 +560,18 @@ const MIGRATIONS = [
       );
     `,
   },
+  {
+    // Church contact details: correct any blank or placeholder values saved in Library settings.
+    version: 7,
+    sql: `
+      UPDATE settings SET value = to_jsonb('904 Wheat Rd, Winfield, KS 67156'::text)
+        WHERE key = 'library_address' AND (value #>> '{}' = '' OR value #>> '{}' ILIKE '%church st%' OR value #>> '{}' NOT ILIKE '%winfield%');
+      UPDATE settings SET value = to_jsonb('(620) 221-2980'::text)
+        WHERE key = 'contact_phone' AND (value #>> '{}' = '' OR value #>> '{}' LIKE '%555-%');
+      UPDATE settings SET value = to_jsonb('centralbaptistchurchcalendar@gmail.com'::text)
+        WHERE key = 'contact_email' AND (value #>> '{}' = '' OR value #>> '{}' ILIKE '%example.com%');
+    `,
+  },
 ];
 
 async function migrate() {

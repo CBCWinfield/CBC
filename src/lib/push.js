@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 
 const PUBLIC = process.env.VAPID_PUBLIC_KEY || '';
 const PRIVATE = process.env.VAPID_PRIVATE_KEY || '';
-const SUBJECT = process.env.VAPID_SUBJECT || 'mailto:library@example.com';
+const SUBJECT = process.env.VAPID_SUBJECT || 'mailto:centralbaptistchurchcalendar@gmail.com';
 
 const b64u = (buf) => Buffer.from(buf).toString('base64url');
 const fromB64u = (s) => Buffer.from(s, 'base64url');
