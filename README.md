@@ -89,6 +89,32 @@ In the Wix editor, add a menu item or button called **Library** that links to th
 
 ---
 
+## Central Check-In (at /checkin)
+
+Check-in lives in the same Render service as the library, at `/checkin`, and installs on phones, tablets and laptops as its own app ("Central"). The logo menu at the top switches between Library and Check-In.
+
+**First login.** The primary admin (centralbaptistchurchcalendar@gmail.com, Anthony Ryker) is created on first start using `CHECKIN_ADMIN_PASSWORD`, or `ADMIN_PASSWORD` if that isn't set. If that email already has a library account, it simply gets admin rights.
+
+**Roles** (Check-In › Team):
+- **Volunteer:** check families in and out, print name tags, see allergy and medical notes.
+- **Ministry leader:** also add and edit families, see custody details and staff notes, send sign-up links, view reports.
+- **Co-admin:** also manage volunteers and leaders.
+- **Primary admin:** everything, including co-admins.
+
+**On Sunday or Wednesday** the event is picked automatically ("Sunday Service" / "Wednesday Service"). Other days, choose or type an event; new names are remembered.
+
+**Checking in:** search a family (name, a child's name or phone), untick anyone who isn't there, and press **Check in**. Name tags print for each child, plus one pickup tag for the parent with the same 4-letter code and barcode. Parents get an email (and an app notification if they turned them on).
+
+**Picking up:** on **Pick up**, scan the parent's tag (camera on Android/Chrome, or a handheld barcode scanner) or type the code. People marked "not allowed to pick up" show a red stop warning. **Checked in › Check out all kids** releases everyone at the end of a service.
+
+**Printer (Brother QL-810W):** load the 62mm continuous roll with auto-cut on. The first time you print, choose the Brother, paper **62mm × 100mm**, **landscape**, margins **none**; Chrome remembers it.
+
+**Families sign up from home:** Families › Email a sign-up link, or the box on any family page. The parent creates a login and walks through five steps: family, children, health & safety, emergency contacts & pickups, and permission forms (participation release, medical authorization, photo release, e-signature consent). Each signature is stored with the exact wording, date, time and signer. Have a Kansas attorney or the church's insurer review the wording in `src/checkin/agreements.js`. Parents can add a custody alert from home; only a leader can remove one.
+
+**Reports:** Check-In › Reports shows each service, monthly and yearly averages, unique people, first-time guests and kids by age group, with a spreadsheet download.
+
+---
+
 ## For developers
 - `src/server.js`: startup, middleware, first librarian account
 - `src/routes/`: public pages, patron account, librarian area
@@ -100,5 +126,8 @@ In the Wix editor, add a menu item or button called **Library** that links to th
 - `src/covers.js`: background cover finder (old site photos, then Open Library search; resized with `sharp` when installed)
 - `src/db.js`: schema migrations (add new ones to the end of `MIGRATIONS`)
 - Tests: `npm test` (unit). `test/e2e.js` walks through every flow against a running server.
+
+- `src/checkin/`: check-in (routes, screens, labels and Code 128 barcodes, agreements, notices)
+- Tests: `test/checkin-e2e.js` walks through check-in against a running server.
 
 Local run: `DATABASE_URL=postgresql://localhost/cbc ADMIN_EMAIL=… ADMIN_PASSWORD=… npm start`

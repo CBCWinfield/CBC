@@ -15,6 +15,21 @@ function nav(user, current) {
   return items;
 }
 
+// The menu under the logo that switches between the church's apps.
+function appSwitcher(user, current) {
+  const staff = user && user.checkin_role;
+  const items = [
+    ['/', 'Library', 'Borrow books, DVDs and more', 'library'],
+    ['/checkin', staff ? 'Check-In' : 'My Family', staff ? 'Check kids and families in and out' : 'Your family, kids and permission forms', 'checkin'],
+  ];
+  return html`<details class="app-switch">
+    <summary aria-label="Switch app"><img src="/img/logo-central-black.png" alt="Central Baptist Church" width="122" height="46"><span class="brand-label">${current === 'checkin' ? (staff ? 'Check-In' : 'My Family') : 'Library'}</span><span class="app-switch-caret" aria-hidden="true">▾</span></summary>
+    <div class="app-switch-menu">
+      ${items.map(([href, label, sub, key]) => html`<a href="${href}"${current === key ? raw(' aria-current="page"') : ''}><strong>${label}</strong><span>${sub}</span></a>`)}
+    </div>
+  </details>`;
+}
+
 function layout({ title, user, csrf, flash = [], body, current, settings, wide = false, description }) {
   const s = settings || {};
   return html`<!doctype html>
@@ -32,14 +47,14 @@ function layout({ title, user, csrf, flash = [], body, current, settings, wide =
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@500;600;700&display=swap">
-<link rel="stylesheet" href="/css/style.css?v=5">
-<script src="/js/app.js?v=6" defer></script>
+<link rel="stylesheet" href="/css/style.css?v=6">
+<script src="/js/app.js?v=7" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="masthead">
   <div class="masthead-inner">
-    <a class="brand" href="/"><img src="/img/logo-central-black.png" alt="Central Baptist Church" width="122" height="46"><span class="brand-label">Library</span></a>
+    ${appSwitcher(user, 'library')}
     <form class="ask suggest-wrap" id="ask-form" action="/catalog" method="get" role="search">
       <label class="visually-hidden" for="ask-input">Ask the library</label>
       <input id="ask-input" name="q" type="search" placeholder="Ask the library…" autocomplete="off" maxlength="300" data-suggest="public" data-suggest-ask>
@@ -78,4 +93,4 @@ ${body}
 </html>`;
 }
 
-module.exports = { layout };
+module.exports = { layout, appSwitcher };

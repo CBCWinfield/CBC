@@ -6,6 +6,7 @@ const { esc } = require('./html');
 const API_KEY = process.env.RESEND_API_KEY;
 const FROM = process.env.EMAIL_FROM || 'CBC Library <onboarding@resend.dev>';
 const REPLY_TO = process.env.EMAIL_REPLY_TO || undefined;
+const BASE_URL = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
 
 function layout({ heading, paragraphs = [], button, footer, libraryName }) {
   const p = paragraphs.filter(Boolean).map((t) => `<p style="margin:0 0 14px;font-size:16px;line-height:1.55;color:#1C2622">${t}</p>`).join('');
@@ -14,8 +15,9 @@ function layout({ heading, paragraphs = [], button, footer, libraryName }) {
     : '';
   return `<!doctype html><html><body style="margin:0;background:#F0F4EE;padding:24px 12px;font-family:Arial,Helvetica,sans-serif">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
-  <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:8px;border-top:6px solid #8CC63F">
-  <tr><td style="padding:28px 28px 8px">
+  <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border-radius:8px;overflow:hidden">
+  <tr><td style="background:#000000;padding:16px 28px;border-bottom:4px solid #8CC63F"><img src="${esc(BASE_URL)}/img/logo-central-black.png" alt="Central Baptist Church" width="150" height="56" style="display:block;border:0;height:56px;width:auto"></td></tr>
+  <tr><td style="padding:24px 28px 8px">
     <div style="font-size:14px;color:#55635C;margin-bottom:6px">${esc(libraryName)}</div>
     <h1 style="margin:0 0 18px;font-size:24px;line-height:1.25;color:#1B4D1F;font-weight:bold">${esc(heading)}</h1>
     ${p}${btn}

@@ -86,6 +86,20 @@ p { margin: 0 0 0.9em; }
 .linklike { background: none; border: 0; font: inherit; cursor: pointer; color: inherit; }
 form.inline { display: inline; margin: 0; }
 
+/* ---------- App switcher (menu under the logo) ---------- */
+.app-switch { position: relative; justify-self: start; }
+.app-switch summary { list-style: none; display: inline-flex; align-items: center; gap: 12px; cursor: pointer; color: #fff; padding: 4px 6px; margin-left: -6px; border-radius: 8px; }
+.app-switch summary::-webkit-details-marker { display: none; }
+.app-switch summary:hover { background: rgba(255, 255, 255, 0.08); }
+.app-switch summary img { height: 46px; width: auto; }
+.app-switch-caret { color: var(--gilt-light); font-size: 0.8rem; margin-left: -4px; }
+.app-switch-menu { position: absolute; left: 0; top: calc(100% + 8px); z-index: 50; width: 290px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.25); padding: 6px; }
+.app-switch-menu a { display: grid; gap: 2px; padding: 10px 12px; border-radius: 8px; text-decoration: none; color: var(--ink); }
+.app-switch-menu a:hover { background: var(--sage); color: var(--ink); }
+.app-switch-menu a[aria-current="page"] { box-shadow: inset 3px 0 0 var(--gilt); }
+.app-switch-menu strong { font-family: var(--serif); color: var(--green-deep); }
+.app-switch-menu span { font-size: 0.88rem; color: var(--ink-soft); }
+
 /* ---------- Ask panel ---------- */
 .ask-panel { background: var(--surface); color: var(--ink); border-bottom: 1px solid var(--line); box-shadow: 0 10px 30px rgba(20, 50, 31, 0.18); }
 .ask-panel-inner { max-width: 760px; margin: 0 auto; padding: 14px 20px 18px; max-height: min(70vh, 640px); overflow-y: auto; }
@@ -453,7 +467,7 @@ fieldset.card legend + * { clear: both; }
   .ask { grid-column: 1 / -1; grid-row: 2; }
   .main-nav a, .main-nav .linklike { padding: 6px 8px; }
   .steps, .visit, .ministry-cards { grid-template-columns: minmax(0, 1fr); }
-  .brand img { height: 38px; }
+  .brand img, .app-switch summary img { height: 38px; }
   .audience-banner img { width: 160px; }
   .book-detail { grid-template-columns: 1fr; gap: 20px; }
   .book-detail-cover .cover { max-width: 200px; }

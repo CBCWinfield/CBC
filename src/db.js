@@ -1,7 +1,10 @@
 'use strict';
 // Database access (PostgreSQL, e.g. Neon) plus schema migrations.
 
-const { Pool } = process.env.PG_SHIM ? require('../scripts/pg-shim') : require('pg');
+const pgLib = process.env.PG_SHIM ? require('../scripts/pg-shim') : require('pg');
+const { Pool } = pgLib;
+// Keep calendar dates (birthdays, event dates) as plain "YYYY-MM-DD" text so time zones can't shift them.
+if (pgLib.types) pgLib.types.setTypeParser(1082, (v) => v);
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -166,6 +169,133 @@ const MIGRATIONS = [
     // The old system's separate "Short description".
     version: 3,
     sql: `ALTER TABLE books ADD COLUMN IF NOT EXISTS short_description text;`,
+  },
+  {
+    // Church check-in: families, people, safety info, waivers, events and attendance.
+    version: 4,
+    sql: `
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS checkin_role text CHECK (checkin_role IN ('admin','coadmin','leader','volunteer'));
+
+      CREATE TABLE IF NOT EXISTS families (
+        id serial PRIMARY KEY,
+        name text NOT NULL,
+        address text, city text, state text, zip text,
+        home_phone text,
+        staff_notes text,
+        status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','new','archived')),
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        created_by int REFERENCES users(id) ON DELETE SET NULL
+      );
+      CREATE INDEX IF NOT EXISTS families_name ON families (lower(name));
+
+      CREATE TABLE IF NOT EXISTS people (
+        id serial PRIMARY KEY,
+        family_id int NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+        kind text NOT NULL CHECK (kind IN ('adult','child')),
+        first_name text NOT NULL,
+        last_name text NOT NULL,
+        preferred_name text,
+        birthdate date,
+        gender text,
+        grade text,
+        relationship text,
+        is_primary boolean NOT NULL DEFAULT false,
+        email text,
+        phone text,
+        contact_method text,
+        user_id int REFERENCES users(id) ON DELETE SET NULL,
+        allergies text,
+        medical_notes text,
+        medications text,
+        special_needs text,
+        custody_alert boolean NOT NULL DEFAULT false,
+        custody_notes text,
+        photo_consent boolean,
+        active boolean NOT NULL DEFAULT true,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS people_family ON people (family_id);
+      CREATE INDEX IF NOT EXISTS people_user ON people (user_id);
+      CREATE INDEX IF NOT EXISTS people_names ON people (lower(first_name), lower(last_name));
+
+      CREATE TABLE IF NOT EXISTS emergency_contacts (
+        id serial PRIMARY KEY,
+        family_id int NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+        name text NOT NULL, relationship text, phone text NOT NULL, email text
+      );
+
+      CREATE TABLE IF NOT EXISTS authorized_pickups (
+        id serial PRIMARY KEY,
+        family_id int NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+        name text NOT NULL, relationship text, phone text,
+        not_allowed boolean NOT NULL DEFAULT false,
+        notes text
+      );
+
+      CREATE TABLE IF NOT EXISTS waivers (
+        id serial PRIMARY KEY,
+        family_id int NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+        kind text NOT NULL,
+        version text NOT NULL,
+        children text,
+        signer_name text NOT NULL,
+        signer_relationship text,
+        signer_user_id int REFERENCES users(id) ON DELETE SET NULL,
+        signed_at timestamptz NOT NULL DEFAULT now(),
+        ip text, user_agent text,
+        text_snapshot text NOT NULL,
+        text_hash text NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS waivers_family ON waivers (family_id);
+
+      CREATE TABLE IF NOT EXISTS family_invites (
+        id serial PRIMARY KEY,
+        family_id int REFERENCES families(id) ON DELETE CASCADE,
+        email text NOT NULL,
+        token_hash text NOT NULL UNIQUE,
+        expires_at timestamptz NOT NULL,
+        used_at timestamptz,
+        created_by int REFERENCES users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS events (
+        id serial PRIMARY KEY,
+        name text NOT NULL,
+        event_date date NOT NULL,
+        created_by int REFERENCES users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (name, event_date)
+      );
+
+      CREATE TABLE IF NOT EXISTS attendance (
+        id serial PRIMARY KEY,
+        event_id int NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+        person_id int NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+        family_id int NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+        security_code text NOT NULL,
+        checked_in_at timestamptz NOT NULL DEFAULT now(),
+        checked_in_by int REFERENCES users(id) ON DELETE SET NULL,
+        checked_out_at timestamptz,
+        checked_out_by int REFERENCES users(id) ON DELETE SET NULL,
+        checked_out_to text,
+        UNIQUE (event_id, person_id)
+      );
+      CREATE INDEX IF NOT EXISTS attendance_event ON attendance (event_id);
+      CREATE INDEX IF NOT EXISTS attendance_code ON attendance (event_id, security_code);
+
+      CREATE TABLE IF NOT EXISTS checkin_audit (
+        id serial PRIMARY KEY,
+        user_id int REFERENCES users(id) ON DELETE SET NULL,
+        action text NOT NULL,
+        family_id int,
+        person_id int,
+        detail text,
+        at timestamptz NOT NULL DEFAULT now()
+      );
+    `,
   },
 ];
 

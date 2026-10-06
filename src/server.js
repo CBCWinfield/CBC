@@ -58,6 +58,7 @@ app.use(async (req, res, next) => {
 require('./routes/public')(app);
 require('./routes/account')(app);
 require('./routes/admin')(app);
+require('./checkin/routes')(app);
 
 app.notFound = async (req, res) => {
   res.status(404);
@@ -102,6 +103,27 @@ async function bootstrap() {
       console.log(`Librarian account ready: ${email}`);
     } else {
       console.warn('No librarian account yet. Set ADMIN_EMAIL and ADMIN_PASSWORD, then restart.');
+    }
+  }
+
+  // Primary check-in admin (Anthony Ryker by default).
+  const ciAdmins = await db.one("SELECT count(*)::int AS n FROM users WHERE checkin_role = 'admin'");
+  if (!ciAdmins.n) {
+    const email = (process.env.CHECKIN_ADMIN_EMAIL || 'centralbaptistchurchcalendar@gmail.com').trim();
+    const existing = await users.byEmail(email);
+    if (existing) {
+      await db.query("UPDATE users SET checkin_role = 'admin', status = 'approved' WHERE id = $1", [existing.id]);
+      console.log(`Check-in primary admin: ${email}`);
+    } else {
+      const password = process.env.CHECKIN_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
+      if (password) {
+        await db.query(`INSERT INTO users (email, password_hash, first_name, last_name, role, status, library_code, approved_at, checkin_role)
+          VALUES ($1, $2, $3, $4, 'patron', 'approved', $5, now(), 'admin')`,
+        [email, await security.hashPassword(password), process.env.CHECKIN_ADMIN_FIRST_NAME || 'Anthony', process.env.CHECKIN_ADMIN_LAST_NAME || 'Ryker', await users.nextCode()]);
+        console.log(`Check-in primary admin created: ${email}`);
+      } else {
+        console.warn('No check-in admin yet. Set CHECKIN_ADMIN_PASSWORD (or ADMIN_PASSWORD), then restart.');
+      }
     }
   }
 }
