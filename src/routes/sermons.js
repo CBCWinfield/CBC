@@ -37,7 +37,7 @@ function page({ videos, theme, layout, channelUrl, tint = true }) {
 <title>Sermons | Central Baptist Church</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Montserrat:wght@600;700&display=swap">
-<link rel="stylesheet" href="/css/sermons.css?v=2">
+<link rel="stylesheet" href="/css/sermons.css?v=3">
 <script src="/js/sermons.js?v=2" defer></script>
 </head>
 <body class="sx sx-${theme} sx-${layout}${tint ? ' sx-tint' : ''}">

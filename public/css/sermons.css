@@ -51,13 +51,12 @@ html, body { overflow-x: hidden; }
   .sx-more a { display: inline-block; padding: 10px 14px; }
 }
 
-/* Brand tint: a soft Central-green wash over the YouTube pictures that lifts on hover */
+/* Brand look: the Central-green panel, with the YouTube picture showing through at about 10% */
 .sx-tint .sx-thumb::after { content: ''; position: absolute; inset: 0; pointer-events: none; transition: opacity 0.3s ease;
-  background: linear-gradient(180deg, rgba(27, 77, 31, 0.25) 0%, rgba(27, 77, 31, 0.55) 60%, rgba(14, 42, 17, 0.85) 100%); mix-blend-mode: multiply; }
-.sx-tint .sx-thumb::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: rgba(46, 125, 50, 0.18); }
-.sx-tint .sx-thumb:hover::after, .sx-tint .sx-thumb:focus-visible::after { opacity: 0.55; }
-.sx-thumb .sx-play { z-index: 1; }
-.sx-frame { border: 2px solid rgba(140, 198, 63, 0.75); }
+  background: linear-gradient(180deg, #1E3C28 0%, #2D5536 50%, #4B784C 100%); opacity: 0.9; }
+.sx-tint .sx-thumb:hover::after, .sx-tint .sx-thumb:focus-visible::after { opacity: 0.82; }
+.sx-thumb .sx-play, .sx-thumb .sx-badge { z-index: 1; }
+.sx-frame { border: 2px solid #8CC63F; }
 
 /* Latest sermon (featured) */
 .sx-featured body, body.sx-featured { padding: 4px; }
