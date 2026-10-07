@@ -98,7 +98,7 @@ function layout({ title, desc, page, body, base = '', head }) {
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=21">
+<link rel="stylesheet" href="/css/site.css?v=22">
 <script src="/js/site.js?v=6" defer></script>
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
@@ -156,7 +156,7 @@ ${body}
     </div>
     <div>
       <h2>Gather</h2>
-      <span>Sun 9:30 · Sunday School</span><span>Sun 10:45 · Worship</span><span>Mon 1:00 · Adult Bible Study</span><span>Wed 6:00 · Meal &amp; Bible Study</span>
+      <span>Sun 9:30 · Sunday School</span><span>Sun 10:45 · Worship</span><span>Mon 1:00 · Adult Bible Study</span><span>Wed 6:00 · Meal &amp; Bible Study</span><span>Nursery &amp; childcare provided</span>
     </div>
     <div>
       <h2>Explore</h2>
@@ -190,6 +190,7 @@ function timesBand() {
     <div class="time"><span class="time-day">Sunday</span><span class="time-at">10:45 AM</span><span class="time-what">Worship · Children’s Church</span></div>
     <div class="time"><span class="time-day">Wednesday</span><span class="time-at">6:00 PM</span><span class="time-what">Meal, Fellowship &amp; Bible Study · Teens &amp; Kids</span></div>
     <a class="where" href="${CHURCH.maps}" target="_blank" rel="noopener"><span class="where-pin">${PIN}</span><span class="where-text"><strong>904 Wheat Rd.</strong><span>Winfield, KS 67156 · Directions</span></span></a>
+    <p class="times-note">${NURSERY_ICON} Nursery and childcare provided</p>
   </div></section>`;
 }
 
@@ -302,8 +303,10 @@ function home({ latest, base }) {
 }
 
 // ---------------------------------------------------------------- inner pages
+const NURSERY_ICON = raw('<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M10.5 8h.01M13.5 8h.01M10.8 9.8c.7.5 1.7.5 2.4 0M6 21c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>');
 function schedule() {
-  return html`<ul class="sched">${C.TIMES.map((x) => html`<li><div><span class="sched-day">${x.day}</span><span class="sched-at">${x.time}</span></div><div><strong>${x.what}</strong><p>${x.note}</p></div></li>`)}</ul>`;
+  return html`<ul class="sched">${C.TIMES.map((x) => html`<li><div><span class="sched-day">${x.day}</span><span class="sched-at">${x.time}</span></div><div><strong>${x.what}</strong><p>${x.note}</p></div></li>`)}</ul>
+  <p class="nursery-note">${NURSERY_ICON} Nursery and childcare provided.</p>`;
 }
 
 function contactForm({ csrf, base, topic = '', button = 'Send message', compact = false, values = {}, error }) {

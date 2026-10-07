@@ -469,3 +469,7 @@ body.menu-open { overflow: hidden; }
 .btn-ghost-dark { color: var(--deep); border: 1.5px solid rgba(16, 38, 26, .25); background: transparent; }
 .btn-ghost-dark:hover { border-color: var(--deep); }
 @media (max-width: 760px) { .bus-band { grid-template-columns: 1fr; } .bus-band img { min-height: 0; aspect-ratio: 4 / 3; } }
+/* "Nursery and childcare provided" */
+.nursery-note, .times-note { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.nursery-note { margin-top: 18px; color: var(--green); }
+.times-note { grid-column: 1 / -1; margin: -6px 0 0; color: var(--gold); font-size: 15px; letter-spacing: .02em; }
