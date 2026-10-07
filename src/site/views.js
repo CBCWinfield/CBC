@@ -70,7 +70,6 @@ const MENU = [
     ] },
   ] },
   { label: 'Staff', href: '/staff' },
-  { label: 'Shop', href: 'shop', ext: true },
   { label: 'Connect', href: '/connect', groups: [
     { title: 'Connect', links: [['/connect', 'Contact us'], ['/visit', 'Plan a visit'], ['app:/checkin/prayer', 'Prayer Wall'], ['/serve', 'Serve'], ['/ride', 'Request a bus ride']] },
   ] },
