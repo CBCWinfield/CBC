@@ -399,3 +399,21 @@ body.menu-open { overflow: hidden; }
 .menu-sub a { color: var(--sand); text-decoration: none; font-weight: 500; font-size: 17px; padding: 7px 0; }
 .menu-sub a:hover { color: var(--gold); }
 .menu-sub-title { margin-top: 10px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; color: var(--gold); }
+
+/* Homepage: the cross ("The Cross is Central") in the open space beside the headline */
+.hero-cross { position: absolute; z-index: -1; right: var(--pad); top: clamp(40px, 6vw, 90px); width: clamp(260px, 30vw, 420px); margin: 0; text-align: center; pointer-events: none; }
+.hc-art { display: block; width: 100%; height: auto; overflow: visible; }
+.hc-cross { filter: drop-shadow(0 0 18px rgba(246, 222, 156, .45)) drop-shadow(0 18px 40px rgba(0, 0, 0, .35)); }
+.hc-glow { transform-origin: 200px 190px; animation: hcPulse 7s ease-in-out infinite; }
+.hc-rays { opacity: .8; }
+.hc-rays rect { transform-box: view-box; }
+.hero-cross figcaption { margin-top: -6px; font-family: var(--disp); font-weight: 700; font-size: clamp(20px, 1.9vw, 28px); letter-spacing: -0.01em; color: var(--cream); }
+.hero-cross figcaption .serif { color: var(--gold); font-size: 1.12em; font-weight: 400; }
+@keyframes hcPulse { 0%, 100% { opacity: .85; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .hc-glow { animation: none; } }
+@media (max-width: 1100px) { .hero-cross { width: clamp(220px, 26vw, 300px); opacity: .9; } }
+@media (max-width: 900px) {
+  .hero-cross { position: relative; right: auto; top: auto; z-index: 0; width: 100%; max-width: 360px; margin: 44px auto 0; display: flex; align-items: center; gap: 18px; text-align: left; }
+  .hc-art { width: 64px; flex: none; }
+  .hero-cross figcaption { margin: 0; font-size: 24px; }
+}

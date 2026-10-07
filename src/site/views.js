@@ -19,6 +19,25 @@ const OUT = raw('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" str
 const PLAY = raw('<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>');
 const PIN = raw('<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E2BE66" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>');
 
+// Homepage hero: the cross with light behind it, and the church's slogan.
+const CROSS = raw(`<figure class="hero-cross">
+  <svg class="hc-art" viewBox="0 0 400 560" aria-hidden="true">
+    <defs>
+      <radialGradient id="hcGlow" cx="200" cy="190" r="200" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#F6DE9C" stop-opacity=".55"/><stop offset=".35" stop-color="#E2BE66" stop-opacity=".22"/><stop offset="1" stop-color="#E2BE66" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="hcBeam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF6DA"/><stop offset=".55" stop-color="#EBCB7C"/><stop offset="1" stop-color="#B98F3A"/></linearGradient>
+      <linearGradient id="hcRay" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F6DE9C" stop-opacity=".5"/><stop offset="1" stop-color="#F6DE9C" stop-opacity="0"/></linearGradient>
+    </defs>
+    <circle class="hc-glow" cx="200" cy="190" r="200" fill="url(#hcGlow)"/>
+    <g class="hc-rays" transform="translate(200 190)">${Array.from({ length: 16 }, (_, i) => `<rect x="30" y="-1" width="${i % 2 ? 150 : 210}" height="2" rx="1" fill="url(#hcRay)" transform="rotate(${i * 22.5})"/>`).join('')}</g>
+    <g class="hc-cross">
+      <path d="M182 34h36v122h90v36h-90v342h-36V192H92v-36h90z" fill="url(#hcBeam)" stroke="#FFF6DA" stroke-opacity=".55" stroke-linejoin="round"/>
+    </g>
+  </svg>
+  <figcaption>The Cross is <span class="serif">Central.</span></figcaption>
+</figure>`);
+
 // Staff photo on disk? Returns a cache-busting stamp or 0. Photos go in public/img/staff/<key>.jpg.
 function staffPhoto(key) {
   try { return Math.floor(fs.statSync(path.join(__dirname, '..', '..', 'public', 'img', 'staff', `${key}.jpg`)).mtimeMs / 1000); } catch { return 0; }
@@ -79,7 +98,7 @@ function layout({ title, desc, page, body, base = '', head }) {
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=16">
+<link rel="stylesheet" href="/css/site.css?v=17">
 <script src="/js/site.js?v=5" defer></script>
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
@@ -105,6 +124,7 @@ function layout({ title, desc, page, body, base = '', head }) {
     <h1>${head.title}</h1>
     ${head.lead ? html`<p class="hero-lead">${head.lead}</p>` : ''}
     ${head.actions ? html`<div class="hero-actions">${head.actions}</div>` : ''}
+    ${isHome ? CROSS : ''}
   </div>
   <div class="field" aria-hidden="true"><div class="field-inner">${wheat()}</div></div>
 </header>
