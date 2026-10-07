@@ -424,3 +424,16 @@ body.menu-open { overflow: hidden; }
 @media (max-width: 900px) { .page-home .hero .field { margin-top: -20px; } }
 .page-home .hero-actions .btn-ghost { background: rgba(12, 33, 21, .72); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .page-home .hero-cross figcaption { text-shadow: 0 2px 14px rgba(8, 24, 14, .9), 0 0 4px rgba(8, 24, 14, .8); }
+
+/* About: our Baptist family + what we believe */
+.assoc { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-top: 34px; }
+.assoc-card { padding: 30px; display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: var(--ink); transition: transform .2s ease, box-shadow .2s ease; }
+.assoc-card:hover { transform: translateY(-3px); }
+.assoc-card h3 { font-family: var(--disp); font-weight: 800; letter-spacing: -0.015em; font-size: 22px; line-height: 1.15; }
+.assoc-card p:not(.tag) { color: var(--muted); line-height: 1.7; flex: 1; }
+.assoc-card .u { font-weight: 600; color: var(--green); display: inline-flex; gap: 6px; align-items: center; }
+.beliefs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-top: 34px; }
+.belief { padding: 26px 28px; border-top: 3px solid var(--gold); }
+.belief h3 { font-family: var(--disp); font-weight: 800; letter-spacing: -0.012em; font-size: 20px; }
+.belief p { margin-top: 8px; color: var(--muted); line-height: 1.7; }
+.beliefs-note { margin-top: 26px; max-width: 760px; line-height: 1.7; }

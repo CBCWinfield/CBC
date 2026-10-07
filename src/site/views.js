@@ -98,7 +98,7 @@ function layout({ title, desc, page, body, base = '', head }) {
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=18">
+<link rel="stylesheet" href="/css/site.css?v=19">
 <script src="/js/site.js?v=5" defer></script>
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
@@ -338,10 +338,31 @@ function visit({ csrf, base, sent }) {
   };
 }
 
+// About page: how we're connected, and a plain-language summary of The Baptist Faith and Message 2000.
+const ASSOC = [
+  ['Locally', 'South Central Association of Southern Baptists', 'Churches in our corner of Kansas who pray together, share resources, and serve our area side by side.', 'https://scasbks.com/'],
+  ['Regionally', 'Church Forward', 'The Kansas-Nebraska Convention of Southern Baptists, helping churches across both states start, grow, and reach their communities.', 'https://www.kncsb.org/'],
+  ['Nationally', 'Southern Baptist Convention', 'A fellowship of tens of thousands of churches whose giving supports missionaries across North America and around the world.', 'https://www.sbc.net/'],
+];
+const BELIEFS = [
+  ['The Bible', 'The Bible was written by people inspired by God. It is true and trustworthy, without any mixture of error, and it is our final authority for faith and life.'],
+  ['God', 'There is one true God, eternally existing as Father, Son, and Holy Spirit: three persons, one God.'],
+  ['Jesus Christ', 'Jesus is the eternal Son of God, born of the virgin Mary. He lived a sinless life, died on the cross for our sins, rose bodily from the grave, and will return in glory.'],
+  ['The Holy Spirit', 'The Spirit draws people to Christ, gives new life, lives in every believer, and gives gifts so we can serve the church.'],
+  ['People', 'Every person is created in God’s image and has dignity and worth. All of us have sinned and are separated from God, and we cannot save ourselves.'],
+  ['Salvation', 'Salvation is a free gift of God’s grace, received by repentance and faith in Jesus Christ alone. Everyone who is truly born again is kept secure by God forever.'],
+  ['The Church', 'A local church is a self-governing congregation of baptized believers who worship together, follow Christ’s teaching, and take the gospel to the world. Scripture limits the office of pastor to qualified men, and men and women alike are gifted to serve.'],
+  ['Baptism & the Lord’s Supper', 'Baptism is the immersion of a believer in water, a picture of new life in Christ. The Lord’s Supper is a meal of remembrance of His death until He comes.'],
+  ['The Last Things', 'Jesus will return personally and visibly. The dead will be raised, God will judge the world in righteousness, and those who belong to Christ will live with Him forever.'],
+  ['Mission', 'Every follower of Jesus and every church is called to make disciples of all nations, sharing the good news by word and by a Christ-like life.'],
+  ['Family & life', 'God designed marriage as the union of one man and one woman for a lifetime. Children are a blessing from the Lord, and every human life is sacred from conception to natural death.'],
+  ['Religious liberty', 'God alone is Lord of the conscience. Church and state should be separate, and every person should be free to worship according to conscience.'],
+];
+
 function about({ base }) {
   return {
     head: { kicker: 'About Central', title: html`Rooted in faith, hope, and <span class="serif">love.</span>`, lead: `For ${years()} years, Central Baptist Church has been a cornerstone of the Winfield community, sharing the message of Christ’s love through worship, fellowship, and service.` },
-    body: html`<section class="wrap sec sec-last"><div class="two">
+    body: html`<section class="wrap sec"><div class="two">
       <div class="prose">
         <p class="eyebrow">Who we are</p>
         <h2 style="margin-top:14px">A Southern Baptist church family in Winfield, Kansas.</h2>
@@ -355,7 +376,29 @@ function about({ base }) {
         </div>
       </div>
       <aside class="aside-gold"><p class="eyebrow" style="color:#10261A">1951 — ${new Date().getFullYear()}</p><p class="big">${years()}</p><p>years of God’s faithfulness on Wheat Road.</p><a class="btn btn-dark" href="${base}/visit">Come see for yourself</a></aside>
-    </div></section>`,
+    </div></section>
+    <section class="wrap sec-tight" id="family">
+      <div class="prose" style="max-width:760px">
+        <p class="eyebrow">Our Baptist family</p>
+        <h2 style="margin-top:14px">An independent church that <span class="serif">cooperates.</span></h2>
+        <p>Like every Southern Baptist church, Central is self-governing. Our members, under the lordship of Christ, call our pastor, set our budget, and make our own decisions. No denomination owns our building or directs our church.</p>
+        <p>We also believe churches can do more together than apart. So we gladly cooperate with other Southern Baptist churches, close to home and around the world, to train leaders, plant churches, help in disasters, and send missionaries.</p>
+      </div>
+      <div class="assoc">
+        ${ASSOC.map(([level, name, body, url]) => html`<a class="card assoc-card" href="${url}" target="_blank" rel="noopener"><p class="tag">${level}</p><h3>${name}</h3><p>${body}</p><span class="u">Visit their site ${OUT}</span></a>`)}
+      </div>
+    </section>
+    <section class="wrap sec sec-last" id="beliefs">
+      <div class="prose" style="max-width:760px">
+        <p class="eyebrow">What we believe</p>
+        <h2 style="margin-top:14px">The Cross is <span class="serif">Central.</span></h2>
+        <p>We believe in Jesus Christ, the eternal Son of God, who died on the cross of Calvary for our sins and rose again. Our church affirms <a href="https://bfm.sbc.net/bfm2000/" target="_blank" rel="noopener">The Baptist Faith and Message 2000</a>, the statement of faith shared by Southern Baptist churches. Here it is in brief.</p>
+      </div>
+      <div class="beliefs">
+        ${BELIEFS.map(([title, body]) => html`<div class="card belief"><h3>${title}</h3><p>${body}</p></div>`)}
+      </div>
+      <p class="small muted beliefs-note">These are short summaries. The full Baptist Faith and Message, with Scripture references for every article, is at <a href="https://bfm.sbc.net/bfm2000/" target="_blank" rel="noopener">bfm.sbc.net</a>. Have a question about what we believe? <a href="${base}/connect?topic=${encodeURIComponent('A question about faith')}">Ask us</a>; we’d love to talk.</p>
+    </section>`,
   };
 }
 
