@@ -417,3 +417,10 @@ body.menu-open { overflow: hidden; }
   .hc-art { width: 64px; flex: none; }
   .hero-cross figcaption { margin: 0; font-size: 24px; }
 }
+
+/* Homepage: lift the wheat so it waves on the first screen, rising around the foot of the cross */
+.page-home .hero-in { padding-top: clamp(48px, min(9vw, 9vh), 120px); }
+.page-home .hero .field { margin-top: clamp(-110px, -7vw, -30px); }
+@media (max-width: 900px) { .page-home .hero .field { margin-top: -20px; } }
+.page-home .hero-actions .btn-ghost { background: rgba(12, 33, 21, .72); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.page-home .hero-cross figcaption { text-shadow: 0 2px 14px rgba(8, 24, 14, .9), 0 0 4px rgba(8, 24, 14, .8); }

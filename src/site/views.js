@@ -98,7 +98,7 @@ function layout({ title, desc, page, body, base = '', head }) {
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=17">
+<link rel="stylesheet" href="/css/site.css?v=18">
 <script src="/js/site.js?v=5" defer></script>
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
