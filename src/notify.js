@@ -204,14 +204,39 @@ module.exports = {
       button: { label: 'View My Library', url: url('/my') },
       attachments: [calendarFile(items.map((c) => ({ ...c, user_id: user.id, library_code: user.library_code })), s)],
     });
+    const due = t.endOfLocalDay(new Date(items[0].pickup_at), Number(s.checkout_days));
     await staffAlert({
       roles: ['librarian', 'assistant'],
-      subject: `New pickup: ${fullName(user)}, ${t.fmtDateTime(items[0].pickup_at)}`,
-      heading: 'New book reservation',
-      paragraphs: [`<strong>${esc(fullName(user))}</strong> reserved ${list} for pickup ${esc(when)}.`],
-      button: { label: 'See pickups', url: url('/admin/checkouts') },
-      push: { title: 'New pickup scheduled', body: `${fullName(user)} · ${t.fmtDateTime(items[0].pickup_at)}`, url: '/admin/checkouts' },
+      subject: `Confirm pickup: ${fullName(user)}, ${t.fmtDateTime(items[0].pickup_at)}`,
+      heading: 'New book reservation to confirm',
+      paragraphs: [
+        `<strong>${esc(fullName(user))}</strong> reserved ${list}.`,
+        `<strong>Pickup they chose:</strong> ${esc(when)}<br><strong>Due back:</strong> ${esc(t.fmtLong(due))}`,
+        `${user.phone ? `<strong>Phone:</strong> <a href="tel:${esc(user.phone)}">${esc(user.phone)}</a><br>` : ''}<strong>Email:</strong> <a href="mailto:${esc(user.email)}">${esc(user.email)}</a>`,
+        'If that time doesn’t work, give them a call and set a new time from the Today page. They’ll get an email with the change.',
+      ],
+      button: { label: 'Confirm or change the time', url: url('/admin#confirm') },
+      push: { title: '📚 New pickup to confirm', body: `${fullName(user)}: ${items.map((c) => c.title).join(', ').slice(0, 80)} · ${t.fmtDateTime(items[0].pickup_at)}`, url: '/admin#confirm' },
     });
+  }),
+
+  // The librarian moved the pickup time (after calling the patron).
+  rescheduled: safe(async (user, items) => {
+    const s = await settingsStore.get();
+    const list = items.map((c) => `“${esc(c.title)}”`).join(', ');
+    const when = `${t.fmtLong(items[0].pickup_at)} at ${t.fmtTime(items[0].pickup_at)}`;
+    await email(user, {
+      subject: `New pickup time: ${t.fmtDate(items[0].pickup_at)} at ${t.fmtTime(items[0].pickup_at)}`,
+      heading: 'Your pickup time changed',
+      paragraphs: [
+        `The librarian moved your pickup for ${list}.`,
+        `<strong>New pickup:</strong> ${esc(when)}${s.library_address ? `<br><strong>Where:</strong> ${esc(s.library_address)}` : ''}`,
+        'If this time doesn’t work for you, just reply to this email or call the church office.',
+      ],
+      button: { label: 'View My Library', url: url('/my') },
+      attachments: [calendarFile(items.map((c) => ({ ...c, user_id: user.id, library_code: user.library_code })), s)],
+    });
+    await pushTo([user.id], { title: 'New pickup time', body: `${items[0].title}${items.length > 1 ? ` + ${items.length - 1} more` : ''} · ${t.fmtDateTime(items[0].pickup_at)}`, url: '/my' });
   }),
 
   pickupReminder: safe(async (user, items) => {

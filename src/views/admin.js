@@ -7,7 +7,7 @@ const { DAY_NAMES } = require('../settings');
 
 const isLib = (u) => u.role === 'librarian';
 
-function shell({ user, current, pending = 0, body, title }) {
+function shell({ user, current, pending = 0, toConfirm = 0, body, title }) {
   const items = [
     ['/admin', 'Today', 'home'],
     ['/admin/checkouts', 'Pickups & checkouts', 'checkouts'],
@@ -22,7 +22,7 @@ function shell({ user, current, pending = 0, body, title }) {
   return html`<div class="admin">
     <nav class="admin-nav" aria-label="Librarian">
       <p class="admin-role">${user.role === 'librarian' ? 'Librarian' : 'Assistant'}</p>
-      ${items.map(([href, label, key]) => html`<a href="${href}"${current === key ? raw(' aria-current="page"') : ''}>${label}${key === 'applications' && pending ? html` <span class="count">${pending}</span>` : ''}</a>`)}
+      ${items.map(([href, label, key]) => html`<a href="${href}"${current === key ? raw(' aria-current="page"') : ''}>${label}${key === 'applications' && pending ? html` <span class="count">${pending}</span>` : ''}${key === 'home' && toConfirm ? html` <span class="count" title="Pickups to confirm">${toConfirm}</span>` : ''}</a>`)}
     </nav>
     <div class="admin-main">${title ? html`<h1>${title}</h1>` : ''}${body}</div>
   </div>`;
@@ -50,9 +50,39 @@ const coTable = (rows, csrf, opts = {}) => html`<div class="table-wrap"><table c
   <thead><tr><th>Book</th><th>Patron</th><th>${opts.showPickup ? 'Time' : opts.history ? 'Date' : 'Picked up'}</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
   <tbody>${rows.map((c) => coRow(c, csrf, opts))}</tbody></table></div>`;
 
-function home({ user, csrf, todays, overdue, pending, counts, s, now }) {
+// New online holds to confirm: one card per patron per pickup time.
+function confirmTasks(rows, csrf, s) {
+  const groups = new Map();
+  for (const c of rows) {
+    const k = `${c.user_id}|${new Date(c.pickup_at).getTime()}`;
+    (groups.get(k) || groups.set(k, []).get(k)).push(c);
+  }
+  const localInput = (d) => { const p = t.parts(new Date(d)); const z = (n) => String(n).padStart(2, '0'); return `${p.year}-${z(p.month)}-${z(p.day)}T${z(p.hour)}:${z(p.minute)}`; };
+  return html`<section class="admin-section confirm-tasks" id="confirm">
+    <h2>New pickups to confirm <span class="count-badge">${groups.size}</span></h2>
+    <p class="muted small">Check that each time works. If it doesn’t, call them and set a new time (they’ll get an email).</p>
+    <div class="task-list">${[...groups.values()].map((list) => { const c = list[0]; const due = t.endOfLocalDay(new Date(c.pickup_at), Number(s.checkout_days)); return html`<article class="task-card">
+      <div class="task-main">
+        <p class="task-who"><strong>${c.first_name} ${c.last_name}</strong> <span class="muted small">${c.library_code || ''} · reserved ${t.fmtDateTime(c.reserved_at)}</span></p>
+        <p class="task-books">${list.map((x, i) => html`${i ? ', ' : ''}<a href="/admin/books/${x.book_id}/edit">“${x.title}”</a>`)}</p>
+        <dl class="task-facts"><div><dt>Pickup they chose</dt><dd>${t.fmtLong(c.pickup_at)} at ${t.fmtTime(c.pickup_at)}</dd></div><div><dt>Due back</dt><dd>${t.fmtLong(due)}</dd></div></dl>
+        <p class="task-contact">${c.phone ? html`<a class="btn btn-quiet btn-small" href="tel:${c.phone}">📞 Call ${c.phone}</a>` : html`<span class="muted small">No phone on file</span>`} ${c.email ? html`<a class="btn btn-quiet btn-small" href="mailto:${c.email}">✉ Email</a>` : ''}</p>
+      </div>
+      <div class="task-actions">
+        <form method="post" action="/admin/checkouts/${c.id}/confirm">${P.csrfField(csrf)}<button class="btn" type="submit">✓ Time works</button></form>
+        <details class="task-move"><summary>Change pickup time</summary>
+          <form method="post" action="/admin/checkouts/${c.id}/reschedule" class="stack">${P.csrfField(csrf)}
+            <label class="small" for="rs-${c.id}">New pickup</label><input id="rs-${c.id}" type="datetime-local" name="pickup_at" required value="${localInput(c.pickup_at)}">
+            <button class="btn btn-quiet btn-small" type="submit">Save and email them</button></form></details>
+      </div>
+    </article>`; })}</div>
+  </section>`;
+}
+
+function home({ user, csrf, todays, overdue, pending, counts, s, now, confirm = [] }) {
   return html`
   <p class="muted">${t.fmtLong(now)}</p>
+  ${confirm.length ? confirmTasks(confirm, csrf, s) : ''}
   <div class="quick">
     <a class="btn" href="/admin/books/new">Add a book</a>
     <a class="btn btn-quiet" href="/admin/checkouts/new">Check out at the desk</a>

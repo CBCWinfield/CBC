@@ -117,6 +117,9 @@ const checkouts = {
   forUser: (userId) => db.many(`SELECT ${CO_COLS} FROM ${CO_FROM} WHERE c.user_id = $1 ORDER BY
     CASE c.status WHEN 'reserved' THEN 0 WHEN 'checked_out' THEN 1 ELSE 2 END, COALESCE(c.returned_at, c.cancelled_at, c.due_at, c.pickup_at) DESC LIMIT 200`, [userId]),
   reserved: () => db.many(`SELECT ${CO_COLS} FROM ${CO_FROM} WHERE c.status = 'reserved' ORDER BY c.pickup_at, u.last_name`),
+  // New online holds the librarian hasn't confirmed yet (one task per patron per pickup time).
+  toConfirm: () => db.many(`SELECT ${CO_COLS} FROM ${CO_FROM} WHERE c.status = 'reserved' AND c.confirmed_at IS NULL ORDER BY c.reserved_at, c.id`),
+  toConfirmCount: async () => (await db.one(`SELECT count(DISTINCT (user_id, pickup_at))::int AS n FROM checkouts WHERE status = 'reserved' AND confirmed_at IS NULL`)).n,
   out: () => db.many(`SELECT ${CO_COLS} FROM ${CO_FROM} WHERE c.status = 'checked_out' ORDER BY c.due_at`),
   history: (limit = 150) => db.many(`SELECT ${CO_COLS} FROM ${CO_FROM} WHERE c.status IN ('returned','cancelled')
     ORDER BY COALESCE(c.returned_at, c.cancelled_at) DESC LIMIT ${Number(limit)}`),

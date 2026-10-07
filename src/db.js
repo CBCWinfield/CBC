@@ -697,6 +697,15 @@ const MIGRATIONS = [
     version: 15,
     sql: 'CREATE TABLE IF NOT EXISTS notable_seed_applied (legacy_id text PRIMARY KEY, kind text, applied_at timestamptz NOT NULL DEFAULT now());',
   },
+  {
+    // "Confirm this pickup" task for the librarian: new online reservations start unconfirmed.
+    version: 16,
+    sql: `
+      ALTER TABLE checkouts ADD COLUMN IF NOT EXISTS confirmed_at timestamptz;
+      ALTER TABLE checkouts ADD COLUMN IF NOT EXISTS confirmed_by int REFERENCES users(id) ON DELETE SET NULL;
+      UPDATE checkouts SET confirmed_at = COALESCE(reserved_at, now()) WHERE confirmed_at IS NULL;
+    `,
+  },
 ];
 
 async function migrate() {

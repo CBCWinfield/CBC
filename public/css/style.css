@@ -573,3 +573,18 @@ fieldset.card legend + * { clear: both; }
 .quick-topics a:hover { border-color: var(--green-deep); }
 .quick-topics a[aria-current="page"] { background: var(--green-deep); border-color: var(--green-deep); color: #fff; }
 @media (max-width: 640px) { .quick-topics { flex-wrap: nowrap; overflow-x: auto; margin-left: -16px; margin-right: -16px; padding: 0 16px 4px; scrollbar-width: none; } .quick-topics a { flex: none; } .free-note { padding: 16px; } }
+
+/* Librarian: new pickups to confirm */
+.confirm-tasks { background: #FFF8E1; border: 1px solid #F0D58C; border-radius: 14px; padding: 18px 20px; }
+.confirm-tasks h2 { display: flex; align-items: center; gap: 10px; }
+.count-badge { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 8px; border-radius: 13px; background: #B8892A; color: #fff; font-size: .85rem; }
+.task-list { display: grid; gap: 12px; margin-top: 12px; }
+.task-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: start; background: #fff; border: 1px solid #EADFC2; border-radius: 12px; padding: 14px 16px; }
+.task-card p { margin: 0 0 6px; }
+.task-facts { display: flex; flex-wrap: wrap; gap: 6px 24px; margin: 6px 0 10px; }
+.task-facts dt { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.task-facts dd { margin: 0; font-weight: 700; color: var(--green-deep); }
+.task-actions { display: grid; gap: 8px; justify-items: end; }
+.task-move summary { cursor: pointer; font-size: .9rem; font-weight: 600; color: var(--green-deep); }
+.task-move form { margin-top: 8px; }
+@media (max-width: 640px) { .task-card { grid-template-columns: 1fr; } .task-actions { justify-items: start; } }

@@ -30,7 +30,8 @@ async function pendingCount() {
 // Render a page inside the librarian shell.
 async function page(req, res, current, title, body) {
   const pending = req.user.role === 'librarian' ? await pendingCount() : 0;
-  res.render(A.shell({ user: req.user, current, pending, body, title }), { title, current: 'admin', wide: true });
+  const toConfirm = await checkouts.toConfirmCount();
+  res.render(A.shell({ user: req.user, current, pending, toConfirm, body, title }), { title, current: 'admin', wide: true });
 }
 
 const int = (v, { min = 0, max = 1e6, fallback = null } = {}) => {
@@ -123,7 +124,8 @@ module.exports = (app) => {
         (SELECT count(*) FROM users WHERE status = 'approved')::int AS patrons`),
     ]);
     const pending = req.user.role === 'librarian' ? await pendingCount() : 0;
-    await page(req, res, 'home', 'Today', A.home({ user: req.user, csrf: res.locals.csrf, todays, overdue, pending, counts, s: req.settings, now }));
+    const confirm = await checkouts.toConfirm();
+    await page(req, res, 'home', 'Today', A.home({ user: req.user, csrf: res.locals.csrf, todays, overdue, pending, counts, s: req.settings, now, confirm }));
   });
 
   // ---------- Pickups & checkouts ----------
@@ -142,9 +144,35 @@ module.exports = (app) => {
     return fallback;
   };
 
+  // ---- "Confirm this pickup" tasks: the patron's chosen time works, or the librarian sets a new one.
+  const sameVisit = async (id) => {
+    const c = await db.one("SELECT user_id, pickup_at FROM checkouts WHERE id = $1 AND status = 'reserved'", [id]);
+    return c ? db.many("SELECT id FROM checkouts WHERE user_id = $1 AND pickup_at = $2 AND status = 'reserved'", [c.user_id, c.pickup_at]) : [];
+  };
+  app.post('/admin/checkouts/:id/confirm', requireStaff, async (req, res) => {
+    const ids = (await sameVisit(intParam(req.params.id))).map((r) => r.id);
+    if (ids.length) await db.query('UPDATE checkouts SET confirmed_at = now(), confirmed_by = $2 WHERE id = ANY($1::int[])', [ids, req.user.id]);
+    security.flash(req, 'ok', ids.length ? 'Pickup confirmed.' : 'That hold was already handled.');
+    res.redirect(back(req, '/admin'));
+  });
+  app.post('/admin/checkouts/:id/reschedule', requireStaff, async (req, res) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(req.body.pickup_at || ''));
+    if (!m) { security.flash(req, 'error', 'Choose a new pickup date and time.'); return res.redirect(back(req, '/admin')); }
+    const when = t.zoned(Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5]));
+    if (when < new Date()) { security.flash(req, 'error', 'The new pickup time is in the past.'); return res.redirect(back(req, '/admin')); }
+    const ids = (await sameVisit(intParam(req.params.id))).map((r) => r.id);
+    if (!ids.length) { security.flash(req, 'error', 'That hold was already handled.'); return res.redirect(back(req, '/admin')); }
+    await db.query('UPDATE checkouts SET pickup_at = $2, confirmed_at = now(), confirmed_by = $3, pickup_reminder_sent = false WHERE id = ANY($1::int[])', [ids, when, req.user.id]);
+    const items = await db.many('SELECT c.*, b.title FROM checkouts c JOIN books b ON b.id = c.book_id WHERE c.id = ANY($1::int[]) ORDER BY c.id', [ids]);
+    const patron = await users.get(items[0].user_id);
+    notify.rescheduled(patron, items);
+    security.flash(req, 'ok', `Pickup moved to ${t.fmtDateTime(when)}. We emailed ${patron.first_name} the new time.`);
+    res.redirect(back(req, '/admin'));
+  });
+
   app.post('/admin/checkouts/:id/pickup', requireStaff, async (req, res) => {
     const due = t.endOfLocalDay(new Date(), Number(req.settings.checkout_days));
-    const c = await db.one(`UPDATE checkouts SET status = 'checked_out', picked_up_at = now(), due_at = $2
+    const c = await db.one(`UPDATE checkouts SET status = 'checked_out', picked_up_at = now(), due_at = $2, confirmed_at = COALESCE(confirmed_at, now())
       WHERE id = $1 AND status = 'reserved' RETURNING *`, [intParam(req.params.id), due]);
     if (c) {
       const full = await checkouts.get(c.id);
