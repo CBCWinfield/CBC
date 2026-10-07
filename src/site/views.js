@@ -272,21 +272,6 @@ function home({ latest, base }) {
     </div>
   </div></section>
 
-  <section id="shop" class="wrap sec">
-    <div class="sec-head">
-      <div><p class="eyebrow">Central Gear</p><h2 class="h-sec" style="max-width:16ch">Wear the family name <span class="serif" style="color:#B08A2E;font-size:1.06em">proudly.</span></h2>
-        <p class="lead">Tees, hoodies, mugs and more for Central Kids, Central Teens, and the whole church family. Printed to order and shipped to your door.</p></div>
-      <a class="btn btn-dark" href="${CHURCH.shop}" target="_blank" rel="noopener">Shop all gear ${OUT}</a>
-    </div>
-    <div class="shopgrid">
-      ${C.SHOP.map((p) => html`<a class="card shop-card${p.feature ? ' shop-feature' : ''}${p.back ? ' hatcard' : ''}" href="${CHURCH.shop}/products/${p.slug}" target="_blank" rel="noopener">
-        <div class="shop-img"><img src="/img/shop/${p.img}" alt="${p.name}, ${p.sub}" loading="lazy" class="${p.mult ? 'mult' : ''}${p.back ? ' hat-front' : ''}" width="820" height="900">${p.back ? html`<img src="/img/shop/${p.back}" alt="" aria-hidden="true" loading="lazy" class="hat-back" width="820" height="900">` : ''}</div>
-        <div class="shop-meta"><span>${p.name}<small>${p.sub}</small></span><span class="shop-price">${p.price}</span></div>
-      </a>`)}
-      <a class="shop-all" href="${CHURCH.shop}" target="_blank" rel="noopener"><span class="eyebrow eyebrow-gold">34 items · Printed to order</span><strong>Jackets, hats, mugs, bottles, journals &amp; more.</strong><span class="go">Browse the full shop ${OUT}</span></a>
-    </div>
-  </section>
-
   <section id="give" class="wrap sec sec-last grid2">
     <div class="card pad-card"><p class="eyebrow">Give</p><h2>Generosity that reaches Winfield and the world.</h2><p class="body">Give once or set up recurring giving through Vanco, our secure online giving partner. You can also give during worship or by mail.</p><a class="btn btn-dark" href="${base}/give">Give online</a></div>
     <div id="connect" class="card pad-card"><p class="eyebrow">Prayer</p><h2>How can we pray for you?</h2><p class="body">Share a request on our prayer wall, or call the church office. Someone here will pray for you this week, by name.</p><a class="btn btn-line" href="${appUrl('/checkin/prayer')}">Share a prayer request</a></div>
