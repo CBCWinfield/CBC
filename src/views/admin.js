@@ -13,6 +13,7 @@ function shell({ user, current, pending = 0, body, title }) {
     ['/admin/checkouts', 'Pickups & checkouts', 'checkouts'],
     ['/admin/books', 'Books', 'books'],
     ['/admin/patrons', 'Patrons', 'patrons'],
+    ['/checkin/announcements', 'Announcements', 'announce'],
   ];
   if (isLib(user)) {
     items.splice(3, 0, ['/admin/applications', 'Applications', 'applications']);

@@ -52,7 +52,7 @@ module.exports = (app) => {
   page('/about', 'about', (req) => V.about({ base: baseFor(req) }), { title: 'About', desc: 'Central Baptist Church is a Southern Baptist congregation in Winfield, Kansas, celebrating 75 years of God’s faithfulness.' });
   page('/ministries', 'ministries', (req) => V.ministries({ base: baseFor(req) }), { title: 'Ministries', desc: 'Central Kids, Central Teens, adult Bible studies, and missions at Central Baptist Church in Winfield, Kansas.' });
   page('/sermons', 'sermons', async () => V.sermons({ videos: await yt.recent() }), { title: 'Sermons', desc: 'Watch the latest sermons from Central Baptist Church in Winfield, Kansas.' });
-  page('/events', 'events', (req) => V.events({ base: baseFor(req) }), { title: 'Events' });
+  page('/events', 'events', async (req) => { const A = require('../announce'); const [reel, slides] = await Promise.all([A.latestReel(), A.list()]); return V.events({ base: baseFor(req), reel, slides, longDate: A.longDate, keyOf: A.keyOf }); }, { title: 'Events & announcements', desc: 'This week’s announcements and upcoming events at Central Baptist Church in Winfield, Kansas.' });
   page('/staff', 'staff', () => V.staff(), { title: 'Staff & leaders' });
   page('/give', 'give', (req) => V.give({ base: baseFor(req) }), { title: 'Give', desc: 'Give online to Central Baptist Church in Winfield, Kansas, through our secure giving partner Vanco.' });
   page('/connect', 'connect', (req, res) => V.connect({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1', topic: clean(req.query.topic, 120) }), { title: 'Connect' });

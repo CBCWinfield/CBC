@@ -51,6 +51,36 @@ function notableBadge(book, size = 'sm') {
     : html`<p class="notable-pill">${TROPHY} ${k.long}${book.notable_note ? html`<span class="notable-why">${book.notable_note}</span>` : ''}</p>`;
 }
 
+// "Free to borrow" welcome, on the library home page and the catalog.
+function freeNote(user, { compact = false } = {}) {
+  return html`<aside class="free-note${compact ? ' free-note-compact' : ''}" aria-label="Borrowing is free">
+    <span class="free-badge">Free</span>
+    <div><p class="free-title">Borrowing is free, and you don’t need to be a member of our church.</p>
+    ${compact ? '' : html`<p>Homeschool families, private and Christian schools, and Christian readers all around Winfield and Cowley County are welcome. Just sign up for a free library account and start reserving books.</p>`}
+    ${user ? '' : html`<p class="free-cta"><a href="/apply">Get your free library card</a>${compact ? html` · Homeschoolers, schools and all local readers welcome.` : ''}</p>`}</div>
+  </aside>`;
+}
+
+// One-tap topics above the catalog.
+const QUICK = [
+  ['🏆 Bestsellers & award winners', { notable: '1' }],
+  ['Prophecy & end times', { q: 'prophecy' }],
+  ['Bible study', { q: 'bible study' }],
+  ['Devotionals', { q: 'devotional' }],
+  ['Marriage & family', { q: 'marriage' }],
+  ['Biographies', { q: 'biography' }],
+  ['Christian fiction', { q: 'fiction' }],
+  ['For kids', { audience: 'Children' }],
+  ['For teens', { audience: 'Youth' }],
+  ['DVDs', { q: 'DVD' }],
+];
+function quickTopics(cur = {}) {
+  return html`<nav class="quick-topics" aria-label="Popular topics">${QUICK.map(([label, params]) => {
+    const on = Object.entries(params).every(([k, v]) => String(cur[k] || '').toLowerCase() === v.toLowerCase()) && Object.keys(cur).filter((k) => cur[k]).length === Object.keys(params).length;
+    return html`<a href="${on ? '/catalog' : `/catalog?${new URLSearchParams(params)}`}"${on ? raw(' aria-current="page"') : ''}>${label}</a>`;
+  })}</nav>`;
+}
+
 function bookCard(book) {
   return html`<li class="book-card">
     <a href="/books/${book.id}" class="book-card-link">
@@ -112,4 +142,4 @@ function pager({ page, pages, base }) {
 
 const csrfField = (csrf) => html`<input type="hidden" name="_csrf" value="${csrf}">`;
 
-module.exports = { cover, availability, bookCard, notableBadge, TROPHY, NOTABLE_KINDS, shelf, statusBadge, roleLabel, checkoutState, pager, csrfField, hashColor };
+module.exports = { cover, availability, bookCard, freeNote, quickTopics, notableBadge, TROPHY, NOTABLE_KINDS, shelf, statusBadge, roleLabel, checkoutState, pager, csrfField, hashColor };

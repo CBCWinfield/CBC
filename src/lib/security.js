@@ -158,6 +158,7 @@ function headers() {
       "font-src 'self' https://fonts.gstatic.com",
       "script-src 'self'",
       "connect-src 'self'",
+      "media-src 'self' blob:",
       "frame-src 'self' https://player.vimeo.com https://www.youtube-nocookie.com https://www.youtube.com",
       `frame-ancestors 'self' ${FRAME_ANCESTORS}`,
       "form-action 'self'",

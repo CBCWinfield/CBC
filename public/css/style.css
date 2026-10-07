@@ -556,3 +556,20 @@ fieldset.card legend + * { clear: both; }
   color: #4A3204; background: linear-gradient(180deg, #FFE9A6, #E9BE55); box-shadow: 0 2px 6px rgba(0, 0, 0, .3), inset 0 0 0 1px rgba(255, 255, 255, .45); }
 .book-detail-cover .notable-ribbon { font-size: .8rem; bottom: 16px; padding: 6px 14px; }
 .notable-toggle select { padding: 6px 10px; border-radius: 6px; border: 1px solid #c9d2c7; font: inherit; font-size: .9rem; }
+
+/* Free-to-borrow welcome + quick topics */
+.free-note { display: flex; gap: 16px; align-items: flex-start; margin: 24px 0; padding: 20px 22px; border-radius: 14px; background: linear-gradient(135deg, #F1F8E8, #E3F1D2); border: 1px solid #C9E2AE; }
+.free-note p { margin: 0; line-height: 1.55; }
+.free-note p + p { margin-top: 6px; }
+.free-title { font-weight: 700; color: var(--green-deep); font-size: 1.05rem; }
+.free-badge { flex: none; display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: var(--green-deep, #1B4D1F); color: #fff; font-weight: 800; font-size: .95rem; letter-spacing: .04em; text-transform: uppercase; transform: rotate(-8deg); box-shadow: 0 4px 10px rgba(27, 77, 31, .25); }
+.free-cta a { font-weight: 700; }
+.free-note-compact { margin: 6px 0 18px; padding: 14px 18px; align-items: center; }
+.free-note-compact .free-badge { width: 46px; height: 46px; font-size: .8rem; }
+.quick-wrap { margin: 8px 0 34px; }
+.quick-wrap h2 { margin-bottom: 12px; }
+.quick-topics { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.quick-topics a { display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 999px; background: #fff; border: 1px solid #CFDCC9; color: var(--green-deep); font-weight: 600; font-size: .92rem; text-decoration: none; transition: background .15s, border-color .15s; }
+.quick-topics a:hover { border-color: var(--green-deep); }
+.quick-topics a[aria-current="page"] { background: var(--green-deep); border-color: var(--green-deep); color: #fff; }
+@media (max-width: 640px) { .quick-topics { flex-wrap: nowrap; overflow-x: auto; margin-left: -16px; margin-right: -16px; padding: 0 16px 4px; scrollbar-width: none; } .quick-topics a { flex: none; } .free-note { padding: 16px; } }

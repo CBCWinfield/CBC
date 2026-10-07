@@ -31,7 +31,7 @@ app.use(async (req, res, next) => {
 
 app.use(serveStatic(path.join(__dirname, '..', 'public'), { maxAge: 86400 }));
 // The catalog import accepts a large spreadsheet; everything else stays small.
-app.use(bodyParser({ limit: (req) => (['/admin/books/import', '/checkin/policies', '/checkin/serve/import'].includes(req.path) ? 30 : 6) * 1024 * 1024 }));
+app.use(bodyParser({ limit: (req) => (/^\/checkin\/announcements\/reels\/\d+\/video$/.test(req.path) ? 80 : ['/admin/books/import', '/checkin/policies', '/checkin/serve/import'].includes(req.path) ? 30 : 6) * 1024 * 1024 }));
 app.use(security.sessions());
 app.use(security.csrf());
 
@@ -58,7 +58,7 @@ app.use(async (req, res, next) => {
 // The church website (cbcwinfield.org) is served from /site; on the church's own domain
 // its pages answer at the root, e.g. cbcwinfield.org/about -> /site/about.
 const SITE_HOSTS = (process.env.SITE_HOSTS || 'cbcwinfield.org,www.cbcwinfield.org').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
-const SHARED = /^\/(css\/|js\/|img\/|fonts\/|sermons\/(embed|latest)|sermons\.json|site(\/|$)|privacy$|terms$|healthz$|sw\.js$|manifest|favicon|robots\.txt$)/;
+const SHARED = /^\/(css\/|js\/|img\/|fonts\/|sermons\/(embed|latest)|sermons\.json|announcements\/|site(\/|$)|privacy$|terms$|healthz$|sw\.js$|manifest|favicon|robots\.txt$)/;
 app.beforeMatch = (req) => {
   const host = String(req.headers.host || '').split(':')[0].toLowerCase();
   if (SITE_HOSTS.includes(host) && !SHARED.test(req.path)) req.path = `/site${req.path === '/' ? '' : req.path}`;

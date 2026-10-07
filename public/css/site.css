@@ -437,3 +437,21 @@ body.menu-open { overflow: hidden; }
 .belief h3 { font-family: var(--disp); font-weight: 800; letter-spacing: -0.012em; font-size: 20px; }
 .belief p { margin-top: 8px; color: var(--muted); line-height: 1.7; }
 .beliefs-note { margin-top: 26px; max-width: 760px; line-height: 1.7; }
+
+/* Events & announcements: weekly video + slide carousel */
+.ann-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.ann-date { font-weight: 600; color: var(--green); font-size: 18px; }
+.ann-video { overflow: hidden; padding: 0; border-radius: 24px; background: #0C2115; margin-bottom: 28px; }
+.ann-video video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+.ann-carousel { position: relative; }
+.ann-track { display: grid; grid-auto-flow: column; grid-auto-columns: min(100%, 860px); gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; padding-bottom: 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.ann-track::-webkit-scrollbar { display: none; }
+.ann-track:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; border-radius: 22px; }
+.ann-slide { margin: 0; scroll-snap-align: start; display: grid; gap: 12px; }
+.ann-slide img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 20px; box-shadow: 0 18px 40px rgba(16, 38, 26, .18); background: #10261A; }
+.ann-slide figcaption { color: var(--muted); line-height: 1.6; font-size: 16px; padding: 0 4px; }
+.ann-ctrl { display: flex; align-items: center; gap: 14px; margin-top: 16px; }
+.ann-btn { width: 46px; height: 46px; border-radius: 50%; border: 1.5px solid rgba(16, 38, 26, .2); background: var(--paper); color: var(--deep); font-size: 26px; line-height: 1; cursor: pointer; }
+.ann-btn:hover { background: var(--deep); color: var(--cream); }
+.ann-count { font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 700px) { .ann-track { grid-auto-columns: 88%; gap: 12px; } .ann-video { border-radius: 16px; } .ann-slide img { border-radius: 14px; } }

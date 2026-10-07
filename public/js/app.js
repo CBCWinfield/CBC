@@ -99,7 +99,12 @@
   /* ---------- Confirm before destructive actions ---------- */
   document.addEventListener('submit', function (e) {
     var f = e.target;
-    if (f.dataset && f.dataset.confirm && !window.confirm(f.dataset.confirm)) e.preventDefault();
+    if (f.dataset && f.dataset.confirm && !window.confirm(f.dataset.confirm)) { e.preventDefault(); return; }
+    // Slow forms (AI writing a slide): show what's happening and stop double submits.
+    if (f.dataset && f.dataset.busy && !e.defaultPrevented) {
+      var btn = f.querySelector('button[type=submit]');
+      if (btn) { setTimeout(function () { btn.disabled = true; btn.textContent = f.dataset.busy; }, 0); }
+    }
   }, true);
 
   /* ---------- Phone / browser notifications ---------- */

@@ -55,7 +55,7 @@ module.exports = (app) => {
     const { rows, total } = await books.list(filters, { limit: PAGE, offset: (page - 1) * PAGE, sort });
     const params = new URLSearchParams(Object.entries({ ...filters, available: filters.available ? '1' : '', notable: filters.notable ? '1' : '', sort: sort === 'title' ? '' : sort }).filter(([, v]) => v));
     res.render(V.catalog({
-      ...filters, rows, total, page, pages: Math.ceil(total / PAGE),
+      user: req.user, ...filters, rows, total, page, pages: Math.ceil(total / PAGE),
       categories: await books.categories(), base: `/catalog?${params}`, formats: await books.formats(),
       subcategories: filters.category ? await books.subcategories(filters.category) : [],
       sort, sorts: CATALOG_SORTS.map((k) => [k, SORTS[k].label]),

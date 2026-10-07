@@ -21,6 +21,8 @@ function landing({ s, recent, counts, categories, user }) {
     </div>
     <div class="hero-shelf">${P.shelf(recent)}</div>
   </section>
+  ${P.freeNote(user)}
+  <section class="quick-wrap"><h2>Find something good to read</h2>${P.quickTopics()}</section>
 
   <section class="how">
     <h2>How borrowing works</h2>
@@ -59,7 +61,7 @@ function landing({ s, recent, counts, categories, user }) {
   </section>`;
 }
 
-function catalog({ q, category, subcategory, audience, format, available, notable, rows, total, page, pages, categories, subcategories = [], formats = [], base, sort = 'title', sorts = [] }) {
+function catalog({ user, q, category, subcategory, audience, format, available, notable, rows, total, page, pages, categories, subcategories = [], formats = [], base, sort = 'title', sorts = [] }) {
   const chipBase = (sub) => `/catalog?${new URLSearchParams(Object.entries({ q, category, subcategory: sub, audience, format, available: available ? '1' : '', notable: notable ? '1' : '' }).filter(([, v]) => v))}`;
   return html`
   <div class="page-head">
@@ -68,6 +70,8 @@ function catalog({ q, category, subcategory, audience, format, available, notabl
     <h1>${notable ? html`<span class="notable-h">${P.TROPHY}</span> Bestsellers &amp; award winners` : audience === 'Children' ? 'Books for children' : audience === 'Youth' ? 'Books for teens' : 'Catalog'}</h1>
     <p class="muted">${total.toLocaleString()} ${total === 1 ? 'title' : 'titles'}${q ? html` matching “${q}”` : ''}${category ? html` in ${category}${subcategory ? ` › ${subcategory}` : ''}` : ''}</p>
   </div>
+  ${P.freeNote(user, { compact: true })}
+  ${P.quickTopics({ q, category, audience, format, notable: notable ? '1' : '', available: available ? '1' : '' })}
   <form class="filters" method="get" action="/catalog">
     <div class="field grow suggest-wrap"><label for="f-q">Title, author or subject</label><input id="f-q" type="search" name="q" value="${q || ''}" autocomplete="off" data-suggest="public" placeholder="Start typing a title, writer or library no."></div>
     <div class="field"><label for="f-cat">Subject</label>

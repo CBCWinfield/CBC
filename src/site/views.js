@@ -98,8 +98,8 @@ function layout({ title, desc, page, body, base = '', head }) {
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=19">
-<script src="/js/site.js?v=5" defer></script>
+<link rel="stylesheet" href="/css/site.css?v=20">
+<script src="/js/site.js?v=6" defer></script>
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
 <body class="page-${page}">
@@ -442,11 +442,23 @@ function sermons({ videos }) {
   };
 }
 
-function events({ base }) {
+function events({ base, reel, slides = [], longDate, keyOf }) {
   const ev = upcoming();
+  const stamp = (a) => new Date(a.updated_at).getTime();
   return {
-    head: { kicker: 'Events', title: html`What’s happening at <span class="serif">Central.</span>`, lead: 'Special days coming up, and the rhythm of every week.' },
-    body: html`${ev.length ? html`<section class="wrap sec-tight">${eventCard(ev[0], base, { detail: true })}</section>` : ''}
+    head: { kicker: 'Events & announcements', title: html`What’s happening at <span class="serif">Central.</span>`, lead: 'This week’s announcements, special days coming up, and the rhythm of every week.' },
+    body: html`${reel || slides.length ? html`<section class="wrap sec-tight" id="announcements">
+      <div class="ann-head"><div><p class="eyebrow">Announcements</p><h2 class="h-sec">${reel ? html`This week at <span class="serif">Central.</span>` : html`Don’t miss <span class="serif">this.</span>`}</h2></div>
+        ${reel ? html`<p class="ann-date">${longDate(keyOf(reel.service_date))}</p>` : ''}</div>
+      ${reel ? html`<div class="ann-video card"><video controls playsinline preload="metadata" src="/announcements/reels/${reel.id}/video" poster="/announcements/title.svg?date=${keyOf(reel.service_date)}"></video></div>` : ''}
+      ${slides.length ? html`<div class="ann-carousel" data-carousel>
+        <div class="ann-track" tabindex="0" aria-label="Announcement slides">${slides.map((a, i) => html`<figure class="ann-slide" aria-label="${i + 1} of ${slides.length}">
+          <img src="/announcements/${a.id}/slide.svg?v=${stamp(a)}" alt="${[a.headline || a.title, a.blurb].filter(Boolean).join('. ')}" width="1920" height="1080" loading="${i < 2 ? 'eager' : 'lazy'}">
+        </figure>`)}</div>
+        ${slides.length > 1 ? html`<div class="ann-ctrl"><button type="button" class="ann-btn" data-prev aria-label="Previous announcement">‹</button><span class="ann-count" aria-live="polite">1 / ${slides.length}</span><button type="button" class="ann-btn" data-next aria-label="Next announcement">›</button></div>` : ''}
+      </div>` : ''}
+    </section>` : ''}
+    ${ev.length ? html`<section class="wrap sec-tight">${eventCard(ev[0], base, { detail: true })}</section>` : ''}
     ${ev.length > 1 ? html`<section class="wrap sec-tight event-list">${ev.slice(1).map((e) => eventCard(e, base, { detail: true }))}</section>` : ''}
     <section class="wrap sec sec-last"><div class="two">
       <div><p class="eyebrow">Every week</p><h2 class="h-sec" style="margin-bottom:24px">Join us any week.</h2>${schedule()}</div>

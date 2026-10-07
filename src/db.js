@@ -646,6 +646,51 @@ const MIGRATIONS = [
     version: 13,
     sql: 'ALTER TABLE books ADD COLUMN IF NOT EXISTS notable_kind text;',
   },
+  {
+    // Announcements (slides) and the weekly announcement reel (narrated video).
+    version: 14,
+    sql: `
+      CREATE TABLE IF NOT EXISTS announcements (
+        id serial PRIMARY KEY,
+        title text NOT NULL,
+        description text,
+        event_date date,
+        event_time text,
+        when_note text,
+        details text,
+        headline text,
+        blurb text,
+        narration text,
+        theme text,
+        ai boolean NOT NULL DEFAULT false,
+        created_by int REFERENCES users(id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS announcement_reels (
+        id serial PRIMARY KEY,
+        service_date date NOT NULL,
+        status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','ready','approved','archived')),
+        items jsonb NOT NULL DEFAULT '[]',
+        voice boolean NOT NULL DEFAULT false,
+        video bytea,
+        video_type text,
+        video_size int,
+        duration real,
+        created_by int REFERENCES users(id) ON DELETE SET NULL,
+        approved_by int REFERENCES users(id) ON DELETE SET NULL,
+        approved_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS announcement_reel_audio (
+        reel_id int NOT NULL REFERENCES announcement_reels(id) ON DELETE CASCADE,
+        idx int NOT NULL,
+        audio bytea NOT NULL,
+        type text NOT NULL,
+        PRIMARY KEY (reel_id, idx)
+      );
+    `,
+  },
 ];
 
 async function migrate() {

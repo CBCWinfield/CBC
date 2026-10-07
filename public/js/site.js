@@ -51,3 +51,24 @@
     playing = { fig: fig, btn: b };
   });
 })();
+
+/* Announcement carousel: prev/next buttons, counter, swipe (native scroll-snap). */
+(function () {
+  document.querySelectorAll('[data-carousel]').forEach(function (c) {
+    var track = c.querySelector('.ann-track');
+    var slides = track.children;
+    var count = c.querySelector('.ann-count');
+    function index() {
+      var x = track.scrollLeft, best = 0, d = Infinity;
+      for (var i = 0; i < slides.length; i++) { var dd = Math.abs(slides[i].offsetLeft - track.offsetLeft - x); if (dd < d) { d = dd; best = i; } }
+      return best;
+    }
+    function go(i) { i = (i + slides.length) % slides.length; track.scrollTo({ left: slides[i].offsetLeft - track.offsetLeft, behavior: 'smooth' }); }
+    var prev = c.querySelector('[data-prev]'), next = c.querySelector('[data-next]');
+    if (prev) prev.addEventListener('click', function () { go(index() - 1); });
+    if (next) next.addEventListener('click', function () { go(index() + 1); });
+    track.addEventListener('keydown', function (e) { if (e.key === 'ArrowRight') { e.preventDefault(); go(index() + 1); } if (e.key === 'ArrowLeft') { e.preventDefault(); go(index() - 1); } });
+    var raf;
+    track.addEventListener('scroll', function () { cancelAnimationFrame(raf); raf = requestAnimationFrame(function () { if (count) count.textContent = (index() + 1) + ' / ' + slides.length; }); }, { passive: true });
+  });
+})();

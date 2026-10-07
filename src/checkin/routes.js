@@ -1323,4 +1323,6 @@ module.exports = (app) => {
   workflows.routes(app, { render, needRole, currentEvent });
   // Membership requests (check-in admins can approve, like the librarian).
   members.routes(app, { render, needRole, currentEvent });
+  // Announcements and the weekly announcement video.
+  require('../announce').routes(app, { render });
 };
