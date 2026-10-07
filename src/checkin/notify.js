@@ -76,6 +76,24 @@ module.exports = {
     });
   }),
 
+  // Sent automatically when parents ask for a bus ride or plan a visit with kids: the family / permission form.
+  kidsForm: safe(async ({ email, name, link }) => {
+    await mailer.send({
+      to: email,
+      libraryName: CHURCH,
+      footer: FOOTER,
+      subject: 'A few details so we can care for your kids at Central',
+      heading: name ? `Hi ${esc(String(name).split(/\s|&/)[0])}!` : 'Hi there!',
+      paragraphs: [
+        'If you want your kids to attend our services, no problem. We love to have them!',
+        'Please fill out a few details so we know how best to care for your kids: their names and ages, any allergies or medical needs, emergency contacts and who may pick them up, and our short permission and release forms.',
+        'It takes about five minutes, and it makes Sunday and Wednesday check-in quick and safe.',
+        '— Central Baptist Church Staff',
+      ],
+      button: { label: 'Fill out the kids’ form', url: link },
+    });
+  }),
+
   // New or existing person added to the check-in team. `link` sets their password (new accounts).
   staffWelcome: safe(async ({ email, firstName, role, link, invitedBy, isNew }) => {
     await mailer.send({

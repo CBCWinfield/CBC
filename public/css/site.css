@@ -473,3 +473,4 @@ body.menu-open { overflow: hidden; }
 .nursery-note, .times-note { display: flex; align-items: center; gap: 10px; font-weight: 600; }
 .nursery-note { margin-top: 18px; color: var(--green); }
 .times-note { grid-column: 1 / -1; margin: -6px 0 0; color: var(--gold); font-size: 15px; letter-spacing: .02em; }
+.check-row { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; } .check-row input { width: auto; margin-top: 4px; }

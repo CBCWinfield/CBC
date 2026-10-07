@@ -723,13 +723,18 @@ module.exports = (app) => {
       const first = nameCase(req.body.first_name);
       const last = nameCase(req.body.last_name);
       const pw = String(req.body.password || '');
-      const error = !first || !last ? 'Enter your first and last name.' : !EMAIL_RE.test(email) ? 'Enter a valid email address.' : pw.length < 8 ? 'Use at least 8 characters for your password.'
-        : await users.byEmail(email) ? 'That email already has an account. Log in first, then open this link again.'
-        : req.body.privacy !== '1' ? 'Please agree to the Terms of Service and Privacy Policy.' : null;
-      if (error) return render(req, res, V.joinPage({ csrf: res.locals.csrf, invite: req.params.token, email, error }), { title: 'Join', bare: true });
+      const CC = require('../lib/contact-check');
+      const phone = CC.cleanPhone(req.body.phone);
+      const error = !first || !last ? 'Enter your first and last name.'
+        : await CC.emailProblem(email) || CC.phoneProblem(req.body.phone)
+        || (pw.length < 8 ? 'Use at least 8 characters for your password.'
+          : await users.byEmail(email) ? 'That email already has an account. Log in first, then open this link again.'
+            : req.body.privacy !== '1' ? 'Please agree to the Terms of Service and Privacy Policy.' : null);
+      if (error) return render(req, res, V.joinPage({ csrf: res.locals.csrf, invite: req.params.token, email, phone: req.body.phone, error }), { title: 'Join', bare: true });
       const code = await users.nextCode();
-      const row = await db.one(`INSERT INTO users (email, password_hash, first_name, last_name, status, library_code, approved_at, privacy_accepted_at, signup_source) VALUES ($1, $2, $3, $4, 'approved', $5, now(), now(), 'family') RETURNING id`,
-        [email, await security.hashPassword(pw), first, last, code]);
+      const row = await db.one(`INSERT INTO users (email, password_hash, first_name, last_name, phone, status, library_code, approved_at, privacy_accepted_at, signup_source, email_verified_at)
+        VALUES ($1, $2, $3, $4, $5, 'approved', $6, now(), now(), 'family', CASE WHEN $7 THEN now() END) RETURNING id`,
+        [email, await security.hashPassword(pw), first, last, phone, code, email === String(inv.email || '').toLowerCase()]);
       user = await users.get(row.id);
       await req.regenerateSession();
       req.session.userId = user.id;

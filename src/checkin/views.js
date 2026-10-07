@@ -874,7 +874,7 @@ function servingImport({ csrf, result }) {
 }
 
 // ---------------------------------------------------------------- parents
-function joinPage({ csrf, invite, email, error, loggedIn }) {
+function joinPage({ csrf, invite, email, phone, error, loggedIn }) {
   return html`<section class="ci-card ci-narrow">
     <h1>Welcome to Central</h1>
     <p>Set up your family for check-in at Central Baptist Church. It takes about five minutes.</p>
@@ -883,6 +883,7 @@ function joinPage({ csrf, invite, email, error, loggedIn }) {
     : html`<form method="post" action="/checkin/join/${invite}" class="stack">${csrfField(csrf)}
       <div class="row"><div class="field"><label for="j-first">Your first name</label><input id="j-first" name="first_name" required autocomplete="given-name"></div><div class="field"><label for="j-last">Last name</label><input id="j-last" name="last_name" required autocomplete="family-name"></div></div>
       <div class="field"><label for="j-email">Email</label><input id="j-email" name="email" type="email" value="${email || ''}" required autocomplete="email"></div>
+      <div class="field"><label for="j-phone">Cell phone</label><input id="j-phone" name="phone" type="tel" value="${phone || ''}" required autocomplete="tel" placeholder="(620) 555-1234"><p class="hint">So we can reach you while your kids are with us.</p></div>
       <div class="field"><label for="j-pw">Create a password</label><input id="j-pw" name="password" type="password" minlength="8" required autocomplete="new-password"><p class="hint">At least 8 characters.</p></div>
       ${require('../lib/privacy').notice()}
       <label class="check consent"><input type="checkbox" name="privacy" value="1" required> <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>, and I’m 18 or older.</span></label>

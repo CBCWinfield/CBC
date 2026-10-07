@@ -97,7 +97,7 @@ function layout({ title, desc, page, body, base = '', head }) {
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=22">
+<link rel="stylesheet" href="/css/site.css?v=23">
 <script src="/js/site.js?v=6" defer></script>
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
@@ -300,6 +300,7 @@ function contactForm({ csrf, base, topic = '', button = 'Send message', compact 
     <div class="row2"><label>Name<input name="name" required autocomplete="name" value="${values.name || ''}"></label>
     <label>Phone <span class="opt">(optional)</span><input name="phone" type="tel" autocomplete="tel" value="${values.phone || ''}"></label></div>
     <label>Email<input name="email" type="email" required autocomplete="email" value="${values.email || ''}"></label>
+    ${(values.topic || topic) === 'Planning a visit' ? html`<label class="check-row"><input type="checkbox" name="kids" value="1"> I’m bringing kids <span class="opt">(we’ll email a quick form so we can care for them well)</span></label>` : ''}
     <label>${compact ? html`Anything we should know? <span class="opt">(optional)</span>` : 'How can we help?'}<textarea name="message" rows="${compact ? 3 : 5}" ${compact ? '' : raw('required')}>${values.message || ''}</textarea></label>
     <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
     <button class="btn btn-dark btn-block" type="submit">${button}</button>
@@ -553,7 +554,8 @@ function ride({ csrf, base, sent, values = {}, error }) {
           ${error ? html`<p class="err" role="alert">${error}</p>` : ''}
           <label>Parent or guardian name<input name="name" required autocomplete="name" value="${values.name || ''}"></label>
           <div class="row2"><label>Phone<input name="phone" type="tel" required autocomplete="tel" value="${values.phone || ''}"></label>
-          <label>Email <span class="opt">(optional)</span><input name="email" type="email" autocomplete="email" value="${values.email || ''}"></label></div>
+          <label>Email<input name="email" type="email" required autocomplete="email" value="${values.email || ''}"></label></div>
+          <p class="small muted" style="margin:-4px 0 4px">We’ll also email you a short form about your kids (allergies, emergency contacts and permission) so we can care for them well.</p>
           <label>Pickup address<input name="address" required autocomplete="street-address" value="${values.address || ''}" placeholder="Street address"></label>
           <label>Town<input name="town" autocomplete="address-level2" value="${values.town || 'Winfield'}"></label>
           <label>Who needs a ride? <span class="opt">(names and ages)</span><textarea name="riders" rows="3" required placeholder="Emma, 9&#10;Noah, 13">${values.riders || ''}</textarea></label>

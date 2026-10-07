@@ -80,7 +80,8 @@ module.exports = (app) => {
     const visiting = v.topic === 'Planning a visit';
     const error = !v.name ? 'Please tell us your name.' : !EMAIL_RE.test(v.email) ? 'Please enter a valid email address so we can reply.' : !visiting && !v.message ? 'Please write a message.' : null;
     if (error) return show(req, res, visiting ? 'visit' : 'connect', visiting ? V.visit({ csrf: res.locals.csrf, base }) : V.connect({ csrf: res.locals.csrf, base, values: v, error }), { title: 'Connect', status: 422 });
-    await saveInquiry(visiting ? 'visit' : 'connect', v);
+    await saveInquiry(visiting ? 'visit' : 'connect', { ...v, message: [v.message, visiting && req.body.kids === '1' ? 'Bringing kids.' : ''].filter(Boolean).join('\n') });
+    if (visiting && req.body.kids === '1') require('../checkin/kidsform').sendKidsForm({ email: v.email, name: v.name }).catch((e) => console.error('Kids form email failed:', e.message));
     res.redirect(`${base}${visiting ? '/visit' : '/connect'}?sent=1`);
   });
 
@@ -101,13 +102,16 @@ module.exports = (app) => {
     const base = baseFor(req);
     if (req.body.website) return res.redirect(`${base}/ride?sent=1`);
     const v = { ...readForm(req.body), address: clean(req.body.address, 200), town: clean(req.body.town, 80), riders: clean(req.body.riders, 600) };
-    const error = !v.name ? 'Please tell us your name.' : !v.phone ? 'Please give us a phone number so the bus team can call you.' : !v.address ? 'Please tell us where to pick you up.'
-      : !v.riders ? 'Please tell us who needs a ride.' : v.email && !EMAIL_RE.test(v.email) ? 'That email address doesn’t look right.' : null;
+    const CC = require('../lib/contact-check');
+    const error = !v.name ? 'Please tell us your name.' : CC.phoneProblem(v.phone) || await CC.emailProblem(v.email) || (!v.address ? 'Please tell us where to pick you up.'
+      : !v.riders ? 'Please tell us who needs a ride.' : null);
+    if (!error) v.phone = CC.cleanPhone(v.phone);
     if (error) return show(req, res, 'ministries', V.ride({ csrf: res.locals.csrf, base, values: v, error }), { title: 'Request a ride', status: 422 });
     await saveInquiry('ride', {
       name: v.name, email: v.email, phone: v.phone, topic: 'Bus ride request',
       message: `Pickup address: ${v.address}${v.town ? `, ${v.town}` : ''}\nRiders: ${v.riders}${v.message ? `\n\nNotes: ${v.message}` : ''}`,
     }, { to: C.CHURCH.rideEmail });
+    require('../checkin/kidsform').sendKidsForm({ email: v.email, name: v.name }).catch((e) => console.error('Kids form email failed:', e.message));
     res.redirect(`${base}/ride?sent=1`);
   });
 

@@ -26,7 +26,7 @@ function page({ csrf, pending, recent }) {
       ${SOURCE[u.signup_source] ? html`<span class="badge badge-info">${SOURCE[u.signup_source][0]} ${SOURCE[u.signup_source][1]}</span>` : ''}
     </div>
     <dl class="mr-facts">
-      <div><dt>Email</dt><dd><a href="mailto:${u.email}">${u.email}</a></dd></div>
+      <div><dt>Email</dt><dd><a href="mailto:${u.email}">${u.email}</a> ${u.email_verified_at ? html`<span class="badge badge-ok">✓ confirmed</span>` : html`<span class="badge badge-warn">not confirmed yet</span>`}</dd></div>
       ${u.phone ? html`<div><dt>Phone</dt><dd><a href="tel:${u.phone}">${u.phone}</a></dd></div>` : ''}
       ${u.address ? html`<div><dt>Address</dt><dd>${[u.address, u.city, [u.state, u.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')}</dd></div>` : ''}
       <div><dt>Privacy notice</dt><dd>${u.privacy_accepted_at ? `Agreed ${t.fmtDate(u.privacy_accepted_at)}` : '—'}</dd></div>

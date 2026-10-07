@@ -143,6 +143,14 @@ module.exports = (app) => {
     res.redirect('/my');
   });
 
+  // ---- Confirm email (link from the sign-up email) ----
+  app.get('/verify-email/:token', async (req, res) => {
+    const u = await db.one(`UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()), email_verify_hash = NULL
+      WHERE email_verify_hash = $1 RETURNING id, first_name`, [security.sha256(String(req.params.token))]);
+    security.flash(req, u ? 'ok' : 'error', u ? `Thanks, ${u.first_name}! Your email is confirmed.` : 'That confirmation link was already used or has expired.');
+    res.redirect(req.user ? '/my' : '/login');
+  });
+
   // ---- Apply / register ----
   app.get('/apply', async (req, res) => {
     const next = safeNext(req.query.next) || '';
@@ -166,7 +174,9 @@ module.exports = (app) => {
     const source = V.signupContext(next).key;
     const errors = {};
     for (const f of fields) if (!v[f]) errors[f] = 'Please fill this in.';
-    if (v.email && !EMAIL_RE.test(v.email)) errors.email = 'Enter a valid email address, like name@example.com.';
+    const CC = require('../lib/contact-check');
+    if (v.email) { const bad = await CC.emailProblem(v.email); if (bad) errors.email = bad; }
+    if (v.phone) { if (CC.phoneProblem(v.phone)) errors.phone = CC.phoneProblem(v.phone); else v.phone = CC.cleanPhone(v.phone); }
     const pw = String(req.body.password || '');
     if (pw.length < 8) errors.password = 'Use at least 8 characters.';
     else if (pw !== req.body.password2) errors.password2 = 'The two passwords don’t match.';
@@ -176,11 +186,13 @@ module.exports = (app) => {
     if (Object.keys(errors).length) {
       return res.status(422).render(V.applyPage({ csrf: res.locals.csrf, values: v, errors, s: req.settings, next }), { title: 'Apply for a membership account', current: 'apply' });
     }
+    const verifyToken = security.token(24);
     let user = await db.one(
-      `INSERT INTO users (email, password_hash, first_name, last_name, phone, address, city, state, zip, about, privacy_accepted_at, signup_source)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11) RETURNING id`,
-      [v.email, await security.hashPassword(pw), v.first_name, v.last_name, v.phone, v.address, v.city, v.state, v.zip, v.about || null, source],
+      `INSERT INTO users (email, password_hash, first_name, last_name, phone, address, city, state, zip, about, privacy_accepted_at, signup_source, email_verify_hash)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now(), $11, $12) RETURNING id`,
+      [v.email, await security.hashPassword(pw), v.first_name, v.last_name, v.phone, v.address, v.city, v.state, v.zip, v.about || null, source, security.sha256(verifyToken)],
     );
+    notify.verifyEmail(await users.get(user.id), verifyToken);
     user = await users.get(user.id);
     if (req.settings.auto_approve) {
       user = await approve(user);

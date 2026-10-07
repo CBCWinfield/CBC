@@ -125,7 +125,7 @@ class Browser {
   const parent = new Browser();
   r = await parent.go(`/checkin/join/${tok}`);
   assert.match(r.body, /Welcome to Central/);
-  r = await parent.post(`/checkin/join/${tok}`, { first_name: 'Dana', last_name: 'Miller', email: 'dana@example.com', password: 'danapass1', privacy: '1' });
+  r = await parent.post(`/checkin/join/${tok}`, { first_name: 'Dana', last_name: 'Miller', email: 'dana@example.com', password: 'danapass1', phone: '620-555-0144', privacy: '1' });
   assert.strictEqual(r.location, '/checkin/welcome/family');
   r = await parent.go('/checkin/welcome/family');
   assert.match(r.body, /The Miller Family/);

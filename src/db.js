@@ -706,6 +706,15 @@ const MIGRATIONS = [
       UPDATE checkouts SET confirmed_at = COALESCE(reserved_at, now()) WHERE confirmed_at IS NULL;
     `,
   },
+  {
+    // New sign-ups confirm their email by clicking a link. Existing accounts count as confirmed.
+    version: 17,
+    sql: `
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at timestamptz;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_hash text;
+      UPDATE users SET email_verified_at = COALESCE(approved_at, created_at, now()) WHERE email_verified_at IS NULL;
+    `,
+  },
 ];
 
 async function migrate() {

@@ -337,6 +337,7 @@ function routes(app, { render, needLogin, currentEvent }) {
     if (!canPost(req.user)) throw new HttpError(403, 'Your account can’t post right now.');
     const body = clean(req.body.body, 2000);
     if (!body) { security.flash(req, 'error', 'Write your prayer request.'); return res.redirect('/checkin/prayer'); }
+    if (!require('../lib/profanity').isClean(body)) { security.flash(req, 'error', 'Please keep the Prayer Wall free of foul language. Reword your request and post it again.'); return res.redirect('/checkin/prayer'); }
     const audience = req.body.team_only === '1' ? 'team' : 'everyone';
     const anonymous = req.body.anonymous === '1';
     const p = await db.one(`INSERT INTO prayers (user_id, body, anonymous, audience, checkin_at) VALUES ($1, $2, $3, $4, now()) RETURNING id`, [req.user.id, body, anonymous, audience]);
@@ -380,6 +381,10 @@ function routes(app, { render, needLogin, currentEvent }) {
     if (!canPost(req.user)) throw new HttpError(403, 'Your account can’t post right now.');
     const p = await visible(req, intParam(req.params.id));
     const body = clean(req.body.body, 1500);
+    if (body && !require('../lib/profanity').isClean(body)) {
+      security.flash(req, 'error', 'Please keep the Prayer Wall free of foul language. Reword your note and send it again.');
+      return res.redirect(req.body.back === 'single' ? `/checkin/prayer/${p.id}` : `/checkin/prayer?open=${p.id}#prayer-${p.id}`);
+    }
     if (body) {
       await db.query('INSERT INTO prayer_comments (prayer_id, user_id, body) VALUES ($1, $2, $3)', [p.id, req.user.id, body]);
       notifyOwner(p, req.user, `${req.user.first_name} sent you encouragement: “${body.slice(0, 80)}”`);

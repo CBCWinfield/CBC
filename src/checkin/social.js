@@ -362,7 +362,7 @@ function routes(app, { render, needLogin, needRole, currentEvent }) {
     const ids = [...new Set([].concat(req.body.to || []).map(Number).filter(Boolean))].slice(0, 50);
     const body = clean(req.body.body, 4000);
     const reachable = (await directory(req.user, '', 1000)).filter((u) => ids.includes(u.id));
-    const error = !reachable.length ? 'Choose who to send it to.' : !body ? 'Write a message.' : null;
+    const error = !reachable.length ? 'Choose who to send it to.' : !body ? 'Write a message.' : !require('../lib/profanity').isClean(body) ? 'Please keep messages free of foul language. Reword it and send again.' : null;
     if (error) {
       await withEvent(req);
       return render(req, res, newMessagePage({ csrf: res.locals.csrf, people: await directory(req.user, ''), to: ids, error, body }), { title: 'New message', tab: 'inbox' });
@@ -439,6 +439,12 @@ function routes(app, { render, needLogin, needRole, currentEvent }) {
       return res.redirect(`/checkin/inbox/${ctx.c.id}`);
     }
     if (!body) return res.redirect(`/checkin/inbox/${ctx.c.id}`);
+    if (!require('../lib/profanity').isClean(body)) {
+      const msg = 'Please keep messages free of foul language. Reword it and send again.';
+      if (/json/.test(req.headers.accept || '')) return res.status(422).json({ error: msg });
+      security.flash(req, 'error', msg);
+      return res.redirect(`/checkin/inbox/${ctx.c.id}`);
+    }
     const m = await sendMessage(ctx.c, req.user, body);
     if (/json/.test(req.headers.accept || '')) {
       const row = await db.one(`${messagesSQL} WHERE m.id = $1`, [m.id]);

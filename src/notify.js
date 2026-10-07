@@ -71,6 +71,16 @@ module.exports = {
   calendarFile,
   pushTo,
 
+  // "Confirm your email" link for new sign-ups.
+  verifyEmail: safe(async (user, token) => {
+    await email(user, {
+      subject: 'Please confirm your email address',
+      heading: `Confirm your email, ${user.first_name}`,
+      paragraphs: ['Tap the button below so we know this email address is yours and working. It helps us keep our church family’s information safe.'],
+      button: { label: 'Confirm my email', url: url(`/verify-email/${token}`) },
+    });
+  }),
+
   applicationReceived: safe(async (user) => {
     await email(user, {
       subject: 'We received your membership application',

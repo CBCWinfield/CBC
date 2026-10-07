@@ -37,7 +37,7 @@ function landing({ s, recent, counts, categories, user }) {
     <h2>For kids and teens</h2>
     <div class="ministry-cards">
       <a class="ministry-card" href="/catalog?audience=Children"><img src="/img/central-kids.webp" alt="Central Kids" width="640" height="312" loading="lazy"><span>Books for children</span></a>
-      <a class="ministry-card" href="/catalog?audience=Youth"><img src="/img/central-teens.webp" alt="Central Teens" width="640" height="305" loading="lazy"><span>Books for teens</span></a>
+      <a class="ministry-card" href="/catalog?audience=Youth"><img src="/img/central-teens-clear.webp" alt="Central Teens" width="640" height="305" loading="lazy"><span>Books for teens</span></a>
     </div>
   </section>
 
@@ -66,7 +66,7 @@ function catalog({ user, q, category, subcategory, audience, format, available, 
   return html`
   <div class="page-head">
     ${audience === 'Children' ? html`<div class="audience-banner"><img src="/img/central-kids.webp" alt="Central Kids" width="640" height="312"></div>` : ''}
-    ${audience === 'Youth' ? html`<div class="audience-banner"><img src="/img/central-teens.webp" alt="Central Teens" width="640" height="305"></div>` : ''}
+    ${audience === 'Youth' ? html`<div class="audience-banner"><img src="/img/central-teens-clear.webp" alt="Central Teens" width="640" height="305"></div>` : ''}
     <h1>${notable ? html`<span class="notable-h">${P.TROPHY}</span> Bestsellers &amp; award winners` : audience === 'Children' ? 'Books for children' : audience === 'Youth' ? 'Books for teens' : 'Catalog'}</h1>
     <p class="muted">${total.toLocaleString()} ${total === 1 ? 'title' : 'titles'}${q ? html` matching “${q}”` : ''}${category ? html` in ${category}${subcategory ? ` › ${subcategory}` : ''}` : ''}</p>
   </div>
