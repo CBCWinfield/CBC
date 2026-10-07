@@ -27,11 +27,28 @@ function availability(book) {
 
 // Gold trophy for notable books.
 const TROPHY = raw('<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6 3h12v2h3v3a5 5 0 0 1-4.1 4.92A6 6 0 0 1 13 16.9V19h3v2H8v-2h3v-2.1a6 6 0 0 1-3.9-3.98A5 5 0 0 1 3 8V5h3V3zm0 4H5v1a3 3 0 0 0 1.4 2.54A6 6 0 0 1 6 9V7zm12 0v2c0 .53-.07 1.04-.2 1.54A3 3 0 0 0 19 8V7h-1z"/></svg>');
+// The honors a book can carry. [key, badge label on the cover, full label on the book page]
+const NOTABLE_KINDS = [
+  ['nyt', 'NYT Bestseller', 'New York Times Bestseller'],
+  ['ecpa', 'Christian Bestseller', 'ECPA Christian Bestseller'],
+  ['cba_award', 'Award Winner', 'Christian Book Award Winner (ECPA)'],
+  ['gold_medallion', 'Gold Medallion', 'Gold Medallion Book Award Winner'],
+  ['ct_award', 'CT Book Award', 'Christianity Today Book Award'],
+  ['newbery', 'Newbery Medal', 'Newbery Medal or Honor Book'],
+  ['caldecott', 'Caldecott Medal', 'Caldecott Medal or Honor Book'],
+  ['classic', 'Christian Classic', 'A Christian Classic'],
+  ['pick', 'Librarian’s Pick', 'Librarian’s Pick'],
+  ['other', 'Notable', 'Notable book'],
+];
+const KIND = Object.fromEntries(NOTABLE_KINDS.map(([k, s, l]) => [k, { short: s, long: l }]));
+const kindOf = (book) => KIND[book.notable_kind] || KIND.other;
+
 function notableBadge(book, size = 'sm') {
   if (!book.notable) return '';
+  const k = kindOf(book);
   return size === 'sm'
-    ? html`<span class="notable-mark" title="Notable book">${TROPHY}<span class="visually-hidden">Notable book</span></span>`
-    : html`<p class="notable-pill">${TROPHY} Notable book${book.notable_note ? html`<span class="notable-why">${book.notable_note}</span>` : ''}</p>`;
+    ? html`<span class="notable-mark" title="${k.long}">${TROPHY}</span><span class="notable-ribbon">${k.short}</span>`
+    : html`<p class="notable-pill">${TROPHY} ${k.long}${book.notable_note ? html`<span class="notable-why">${book.notable_note}</span>` : ''}</p>`;
 }
 
 function bookCard(book) {
@@ -95,4 +112,4 @@ function pager({ page, pages, base }) {
 
 const csrfField = (csrf) => html`<input type="hidden" name="_csrf" value="${csrf}">`;
 
-module.exports = { cover, availability, bookCard, notableBadge, TROPHY, shelf, statusBadge, roleLabel, checkoutState, pager, csrfField, hashColor };
+module.exports = { cover, availability, bookCard, notableBadge, TROPHY, NOTABLE_KINDS, shelf, statusBadge, roleLabel, checkoutState, pager, csrfField, hashColor };

@@ -3,7 +3,7 @@
 const db = require('./db');
 
 const BOOK_COLS = `b.id, b.title, b.subtitle, b.author, b.isbn, b.category, b.audience, b.format, b.description,
-  b.tags, b.publisher, b.published_year, b.pages, b.copies_total, b.shelf_location, b.active, b.notable, b.notable_note,
+  b.tags, b.publisher, b.published_year, b.pages, b.copies_total, b.shelf_location, b.active, b.notable, b.notable_note, b.notable_kind,
   b.short_description, b.legacy_id, b.call_number, b.series, b.subcategory, b.details, b.cover_status, b.cover_note, b.cover_source_url,
   b.created_at, b.updated_at, (b.cover_image IS NOT NULL) AS has_cover,
   GREATEST(b.copies_total - COALESCE(a.n, 0), 0)::int AS available, COALESCE(a.n, 0)::int AS out_count`;

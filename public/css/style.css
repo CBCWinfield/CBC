@@ -550,3 +550,9 @@ fieldset.card legend + * { clear: both; }
 .notable-toggle { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 18px 0; }
 .notable-toggle .btn svg { color: #B8892A; vertical-align: -3px; }
 .cat-notable { font-weight: 700; } .cat-notable .notable-ico { color: #B8892A; display: inline-flex; vertical-align: -3px; }
+/* Honor ribbon across the bottom of the cover: "NYT Bestseller", "Award Winner"... */
+.notable-ribbon { position: absolute; left: 0; right: 0; bottom: 10px; margin: 0 auto; width: max-content; max-width: calc(100% - 12px);
+  padding: 4px 10px; border-radius: 3px; font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; text-align: center; line-height: 1.2;
+  color: #4A3204; background: linear-gradient(180deg, #FFE9A6, #E9BE55); box-shadow: 0 2px 6px rgba(0, 0, 0, .3), inset 0 0 0 1px rgba(255, 255, 255, .45); }
+.book-detail-cover .notable-ribbon { font-size: .8rem; bottom: 16px; padding: 6px 14px; }
+.notable-toggle select { padding: 6px 10px; border-radius: 6px; border: 1px solid #c9d2c7; font: inherit; font-size: .9rem; }

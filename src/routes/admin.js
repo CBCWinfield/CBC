@@ -5,6 +5,7 @@ const settingsStore = require('../settings');
 const { HttpError } = require('../lib/http');
 const { books, users, checkouts, fullName, SORTS } = require('../models');
 const A = require('../views/admin');
+const P = require('../views/parts');
 const notify = require('../notify');
 const mailer = require('../lib/mailer');
 const push = require('../lib/push');
@@ -278,14 +279,16 @@ module.exports = (app) => {
     await page(req, res, 'books', 'Edit book', A.bookForm({ csrf: res.locals.csrf, book, categoryPaths: await books.categoryPaths(), history: await checkouts.forBook(book.id) }));
   });
 
-  // Quick toggle from the book page: mark or unmark a notable book (gold trophy).
+  // From the book page: set or clear the book's badge (bestseller, award, classic...).
   app.post('/admin/books/:id/notable', requireStaff, async (req, res) => {
     const id = intParam(req.params.id);
-    const on = req.body.notable === '1';
-    const row = await db.one('UPDATE books SET notable = $2, notable_note = CASE WHEN $2 THEN notable_note ELSE NULL END WHERE id = $1 RETURNING title', [id, on]);
+    const kind = P.NOTABLE_KINDS.some(([k]) => k === req.body.kind) ? req.body.kind : null;
+    const row = await db.one(`UPDATE books SET notable = $2, notable_kind = $3, notable_note = CASE WHEN $2 THEN notable_note ELSE NULL END
+      WHERE id = $1 RETURNING title`, [id, !!kind, kind]);
     if (!row) throw new HttpError(404, 'That book wasn’t found.');
     refreshSearch();
-    security.flash(req, 'ok', on ? `“${row.title}” is marked as a notable book. Add a short reason on its edit page if you like.` : `Removed the notable mark from “${row.title}”.`);
+    const label = kind && P.NOTABLE_KINDS.find(([k]) => k === kind)[2];
+    security.flash(req, 'ok', kind ? `“${row.title}” now shows the “${label}” badge. You can add a short line about it on the edit page.` : `Removed the badge from “${row.title}”.`);
     res.redirect(`/books/${id}`);
   });
 
@@ -306,7 +309,8 @@ module.exports = (app) => {
       v.published_year, v.pages, v.copies_total, v.shelf_location, req.body.active === '1', v.call_number, v.series, v.subcategory,
       v.short_description, details ? JSON.stringify(details) : null]);
     if (req.body.notable_form === '1') {
-      await db.query('UPDATE books SET notable = $2, notable_note = $3 WHERE id = $1', [id, req.body.notable === '1', req.body.notable === '1' ? clean(req.body.notable_note, 200) || null : null]);
+      const kind = P.NOTABLE_KINDS.some(([k]) => k === req.body.notable_kind) ? req.body.notable_kind : null;
+      await db.query('UPDATE books SET notable = $2, notable_kind = $3, notable_note = $4 WHERE id = $1', [id, !!kind, kind, kind ? clean(req.body.notable_note, 200) || null : null]);
     }
     const cover = await coverFrom(req.body);
     if (cover) await db.query("UPDATE books SET cover_image = $2, cover_type = $3, cover_status = 'done', cover_note = 'added by staff' WHERE id = $1", [id, cover.data, cover.type]);

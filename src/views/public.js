@@ -41,7 +41,7 @@ function landing({ s, recent, counts, categories, user }) {
 
   ${categories.length ? html`<section class="cats">
     <h2>Browse by subject</h2>
-    <ul class="cat-list"><li><a href="/catalog?notable=1" class="cat-notable"><span class="notable-ico">${P.TROPHY}</span> Notable books</a></li>${categories.map((c) => html`<li><a href="/catalog?category=${encodeURIComponent(c.category)}">${c.category} <span class="muted">${c.n}</span></a></li>`)}</ul>
+    <ul class="cat-list"><li><a href="/catalog?notable=1" class="cat-notable"><span class="notable-ico">${P.TROPHY}</span> Bestsellers &amp; award winners</a></li>${categories.map((c) => html`<li><a href="/catalog?category=${encodeURIComponent(c.category)}">${c.category} <span class="muted">${c.n}</span></a></li>`)}</ul>
   </section>` : ''}
 
   <section class="visit">
@@ -65,7 +65,7 @@ function catalog({ q, category, subcategory, audience, format, available, notabl
   <div class="page-head">
     ${audience === 'Children' ? html`<div class="audience-banner"><img src="/img/central-kids.webp" alt="Central Kids" width="640" height="312"></div>` : ''}
     ${audience === 'Youth' ? html`<div class="audience-banner"><img src="/img/central-teens.webp" alt="Central Teens" width="640" height="305"></div>` : ''}
-    <h1>${notable ? html`<span class="notable-h">${P.TROPHY}</span> Notable books` : audience === 'Children' ? 'Books for children' : audience === 'Youth' ? 'Books for teens' : 'Catalog'}</h1>
+    <h1>${notable ? html`<span class="notable-h">${P.TROPHY}</span> Bestsellers &amp; award winners` : audience === 'Children' ? 'Books for children' : audience === 'Youth' ? 'Books for teens' : 'Catalog'}</h1>
     <p class="muted">${total.toLocaleString()} ${total === 1 ? 'title' : 'titles'}${q ? html` matching “${q}”` : ''}${category ? html` in ${category}${subcategory ? ` › ${subcategory}` : ''}` : ''}</p>
   </div>
   <form class="filters" method="get" action="/catalog">
@@ -79,7 +79,7 @@ function catalog({ q, category, subcategory, audience, format, available, notabl
     <div class="field"><label for="f-sort">Sort by</label>
       <select id="f-sort" name="sort" data-autosubmit>${sorts.map(([k, label]) => html`<option value="${k}"${selected(k, sort)}>${label}</option>`)}</select></div>
     <label class="check"><input type="checkbox" name="available" value="1"${checked(available)}> Available now</label>
-    <label class="check check-notable"><input type="checkbox" name="notable" value="1"${checked(notable)}> <span class="notable-ico">${P.TROPHY}</span> Notable only</label>
+    <label class="check check-notable"><input type="checkbox" name="notable" value="1"${checked(notable)}> <span class="notable-ico">${P.TROPHY}</span> Bestsellers &amp; award winners</label>
     <button class="btn" type="submit">Search</button>
     ${q || category || audience || format || available || notable ? html`<a class="btn btn-quiet" href="/catalog">Clear</a>` : ''}
   </form>
@@ -119,9 +119,9 @@ function bookPage({ book, user, s, myActive, canCheckout, reason, csrf }) {
       ${book.description ? html`<div class="description">${book.description.split(/\n{2,}/).map((p) => html`<p>${p}</p>`)}</div>` : ''}
       <dl class="facts">${details.map(([k, v]) => html`<dt>${k}</dt><dd>${v}</dd>`)}</dl>
       ${user && user.role !== 'patron' && user.status === 'approved' ? html`<form method="post" action="/admin/books/${book.id}/notable" class="notable-toggle">${P.csrfField(csrf)}
-        <input type="hidden" name="notable" value="${book.notable ? '0' : '1'}">
-        <button class="btn btn-quiet btn-small" type="submit">${P.TROPHY} ${book.notable ? 'Remove notable mark' : 'Mark as a notable book'}</button>
-        ${book.notable ? '' : html`<span class="small muted">Staff only. Adds a gold trophy so readers can spot especially good or important books.</span>`}</form>` : ''}
+        <label for="nk-${book.id}" class="small"><strong>${P.TROPHY} Badge</strong> <span class="muted">(staff only)</span></label>
+        <select id="nk-${book.id}" name="kind"><option value="">No badge</option>${P.NOTABLE_KINDS.map(([k, , long]) => html`<option value="${k}"${book.notable && (book.notable_kind || 'other') === k ? raw(' selected') : ''}>${long}</option>`)}</select>
+        <button class="btn btn-quiet btn-small" type="submit">Save badge</button></form>` : ''}
       ${book.tags ? html`<p class="tags">${book.tags.split(',').map((x) => x.trim()).filter(Boolean).map((tag) => html`<a href="/catalog?q=${encodeURIComponent(tag)}">${tag}</a>`)}</p>` : ''}
     </div>
   </article>`;

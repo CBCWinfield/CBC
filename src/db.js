@@ -641,6 +641,11 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS books_notable ON books (id) WHERE notable;
     `,
   },
+  {
+    // Which honor a notable book has (bestseller list, award, classic...), shown on its badge.
+    version: 13,
+    sql: 'ALTER TABLE books ADD COLUMN IF NOT EXISTS notable_kind text;',
+  },
 ];
 
 async function migrate() {

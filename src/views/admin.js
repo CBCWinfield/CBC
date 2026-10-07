@@ -240,10 +240,14 @@ function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = 
       <section class="box">
         <h2 class="box-head">Book data</h2>
         <div class="box-body">
-          <h3 class="box-sub">Notable book</h3>
+          <h3 class="box-sub">Badge</h3>
           <input type="hidden" name="notable_form" value="1">
-          <label class="check"><input type="checkbox" name="notable" value="1"${checked(!!book.notable)}> Mark as a notable book (gold trophy in the catalog)</label>
-          ${f('notable_note', 'Why it’s notable', { hint: 'Optional, one line readers see, e.g. “A classic biography of a modern martyr.”' })}
+          <div class="row">
+            <div class="field"><label for="b-notable_kind">Bestseller or award badge</label>
+              <select id="b-notable_kind" name="notable_kind"><option value="">No badge</option>${P.NOTABLE_KINDS.map(([k, , long]) => html`<option value="${k}"${book.notable && (book.notable_kind || 'other') === k ? raw(' selected') : ''}>${long}</option>`)}</select>
+              <p class="hint">Shows a gold trophy and this label on the cover. Check the book’s cover or publisher before choosing a bestseller or award.</p></div>
+            ${f('notable_note', 'One line for readers', { hint: 'Optional, e.g. “Over 5 million copies sold” or “2019 Christian Book of the Year.”' })}
+          </div>
 
           <h3 class="box-sub">Inventory</h3>
           <div class="row">
