@@ -79,7 +79,7 @@ function layout({ title, desc, page, body, base = '', head }) {
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=15">
+<link rel="stylesheet" href="/css/site.css?v=16">
 <script src="/js/site.js?v=5" defer></script>
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
@@ -238,7 +238,7 @@ function home({ latest, base }) {
   </section>
 
   <section id="about" class="wrap sec"><div class="pastor">
-    <div class="pastor-photo">${orr ? html`<img src="/img/staff/orr.jpg?v=${orr}" alt="Pastor Blake and Ruth Orr" width="800" height="800" loading="lazy">` : html`<span class="pastor-mono" aria-hidden="true">B &amp; R</span>`}</div>
+    <div class="pastor-photo">${orr ? html`<img src="/img/staff/orr.jpg?v=${orr}" alt="Pastor Blake and Ruth Orr" width="1000" height="750" loading="lazy">` : html`<span class="pastor-mono" aria-hidden="true">B &amp; R</span>`}</div>
     <div class="pastor-text">
       <p class="eyebrow eyebrow-gold">A word from our pastor</p>
       <p class="pastor-quote">“For seventy-five years, this church has been a place where people are known by name. We’d love for you to be one of them.”</p>
@@ -397,11 +397,16 @@ function staff() {
   return {
     head: { kicker: 'Staff & leaders', title: html`The people who <span class="serif">serve.</span>`, lead: 'Our pastors, staff, and deacons, serving our church family week in and week out.' },
     body: html`<section class="wrap sec-tight sec-last">
-      <div class="staff-grid">${C.STAFF.map((s, i) => { const ph = staffPhoto(s.key); return html`<article class="card staff-card${i === 0 ? ' staff-lead' : ''}">
-        <span class="staff-av">${ph ? html`<img src="/img/staff/${s.key}.jpg?v=${ph}" alt="${s.names}" width="400" height="400" loading="lazy">` : html`<span aria-hidden="true">${initial(s.names)}</span>`}</span>
-        <div><h2>${s.names}</h2><p class="tag staff-role">${s.role}</p><p class="body">${s.body}</p></div>
+      <div class="staff-grid">${C.STAFF.map((s, i) => { const ph = staffPhoto(s.key); return html`<article class="card staff-card${i === 0 ? ' staff-lead' : ''}${ph ? ' has-photo' : ''}">
+        ${ph ? html`<div class="staff-photo"><img src="/img/staff/${s.key}.jpg?v=${ph}" alt="${s.names}" width="1000" height="750" ${i === 0 ? '' : raw('loading="lazy"')}></div>`
+    : html`<span class="staff-av"><span aria-hidden="true">${initial(s.names)}</span></span>`}
+        <div class="staff-text"><h2>${s.names}</h2><p class="tag staff-role">${s.role}</p><p class="body">${s.body}</p></div>
       </article>`; })}</div>
-      <div class="card pad-card" style="margin-top:20px"><p class="eyebrow">Deacons</p><h2 style="font-size:clamp(26px,2.6vw,34px)">${C.DEACONS.join(', ')}</h2></div>
+      ${(() => { const ph = staffPhoto('deacons'); return html`<article class="card staff-card staff-deacons${ph ? ' has-photo' : ''}">
+        ${ph ? html`<div class="staff-photo"><img src="/img/staff/deacons.jpg?v=${ph}" alt="" width="1000" height="750" loading="lazy"></div>` : ''}
+        <div class="staff-text"><p class="eyebrow">Deacons</p><h2>${C.DEACONS.join(', ')}</h2>
+          <p class="body">Our deacons serve our church family by caring for members in need, supporting our pastor, and helping the church carry out its ministry.</p></div>
+      </article>`; })()}
     </section>`,
   };
 }
