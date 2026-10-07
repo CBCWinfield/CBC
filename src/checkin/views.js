@@ -52,7 +52,7 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=Montserrat:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="/css/style.css?v=9">
-<link rel="stylesheet" href="/css/checkin.css?v=14">
+<link rel="stylesheet" href="/css/checkin.css?v=16">
 <script src="/js/app.js?v=9" defer></script>
 <script src="/js/checkin.js?v=8" defer></script>
 </head>
@@ -369,7 +369,39 @@ function eventsPage({ csrf, user, names, recent, builtIn, current }) {
 }
 
 // ---------------------------------------------------------------- add a family at the desk
-function newFamilyFlow({ csrf, name = '', error, v = {} }) {
+// Before adding a family: families already on file that may be the same one.
+function familyMatches({ csrf, matches, v }) {
+  const keep = ['first_name', 'last_name', 'phone', 'email', 'relationship', 'family_name', 'ec_name', 'ec_relationship', 'ec_phone', 'send_invite'];
+  return html`<section class="ci-card match-card" role="alert">
+    <h2>Is this family already on file?</h2>
+    <p class="muted">We found ${matches.length === 1 ? 'a family' : 'families'} with the same last name, phone or email. Open the right one to review it, or add a new family if none of these are them.</p>
+    <ul class="match-list">${matches.map((m) => html`<li><div><strong>${m.name}</strong>${m.city ? html` <span class="muted small">· ${m.city}</span>` : ''}<br><span class="small">${m.members}</span>
+      ${m.phone_match ? html` <span class="badge badge-ok">same phone</span>` : ''}${m.email_match ? html` <span class="badge badge-ok">same email</span>` : ''}</div>
+      <a class="btn btn-small" href="/checkin/families/${m.id}">Open this family</a></li>`)}</ul>
+    <form method="post" action="/checkin/new">${csrfField(csrf)}<input type="hidden" name="confirm_new" value="1">
+      ${keep.map((k) => (v[k] ? html`<input type="hidden" name="${k}" value="${v[k]}">` : ''))}
+      <button class="btn btn-quiet" type="submit">None of these. Add a new family</button></form>
+  </section>`;
+}
+
+function familyMatchPage({ csrf, matches = [], requested }) {
+  if (requested) {
+    return html`<section class="ci-card ci-narrow"><h1>Thanks! We’ll connect you.</h1>
+      <p>We let the church office know you belong to <strong>${requested.name}</strong>. To keep every family’s information private, they’ll confirm it and email you a link that connects your account, usually within a day.</p>
+      <p><a class="btn" href="/checkin/family">OK</a></p></section>`;
+  }
+  return html`<section class="ci-card ci-narrow">
+    <h1>Is this your family?</h1>
+    <p>We may already have your family on file. Choose yours to review and update it, or start fresh.</p>
+    <form method="post" action="/checkin/welcome-match" class="stack">${csrfField(csrf)}
+      <ul class="match-list">${matches.map((m) => html`<li><label class="match-pick"><input type="radio" name="choice" value="${m.id}" required> <span><strong>${m.name}</strong>${m.city ? html` · ${m.city}` : ''}<br><span class="small muted">${m.members}</span></span></label></li>`)}</ul>
+      <button class="btn" type="submit">Yes, that’s my family</button>
+    </form>
+    <form method="post" action="/checkin/welcome-match" style="margin-top:10px">${csrfField(csrf)}<input type="hidden" name="choice" value="new"><button class="btn btn-quiet" type="submit">None of these. Start a new family</button></form>
+  </section>`;
+}
+
+function newFamilyFlow({ csrf, name = '', error, v = {}, matches = [] }) {
   const last = String(name || '').replace(/^the\s+/i, '').replace(/\s+family$/i, '').trim();
   const f = (n, label, opts = {}) => html`<div class="field${opts.cls ? ' ' + opts.cls : ''}"><label for="nf-${n}">${label}</label><input id="nf-${n}" name="${n}" type="${opts.type || 'text'}" value="${v[n] ?? opts.value ?? ''}"${opts.req ? raw(' required') : ''}${opts.ac ? raw(` autocomplete="${opts.ac}"`) : ''}${opts.ph ? html` placeholder="${opts.ph}"` : ''}>${opts.hint ? html`<p class="hint">${opts.hint}</p>` : ''}</div>`;
   return html`<div class="ci-narrow">
@@ -377,7 +409,8 @@ function newFamilyFlow({ csrf, name = '', error, v = {} }) {
     <h1>Add a new family</h1>
     <ol class="ci-steps"><li class="current"><a>Family & emergency contact</a></li><li><a>Kids</a></li><li><a>Check in</a></li></ol>
     ${error ? html`<p class="flash flash-error" role="alert">${error}</p>` : ''}
-    <form method="post" action="/checkin/new" class="stack ci-form" data-tour="new-family">
+    ${matches.length ? familyMatches({ csrf, matches, v }) : ''}
+    <form method="post" action="/checkin/new" class="stack ci-form" data-tour="new-family"${matches.length ? raw(' hidden') : ''}>
       ${csrfField(csrf)}
       <section class="box"><h2 class="box-head">Parent or guardian</h2><div class="box-body stack">
         <div class="row">${f('first_name', 'First name', { req: true, ac: 'given-name' })}${f('last_name', 'Last name', { req: true, value: last ? last.replace(/\b\w/g, (c) => c.toUpperCase()) : '', ac: 'family-name' })}</div>
@@ -1044,7 +1077,7 @@ function installPage() {
   </div>`;
 }
 
-module.exports = {
+module.exports = { familyMatchPage,
   pendingPage,
   layout, eventPicker, station, familyCheckin, labelsPage, printQueue, eventsPage, newFamilyFlow, newKidsFlow, guestPage, roster, scanPage, familiesPage, familyAdmin, personPage, newFamilyPage,
   invitePage, staffPage, reportsPage, policiesPage, servingMonth, servingDay, servingImport, AREAS, joinPage, wizard, familyHome, installPage, familyRow, STEPS,

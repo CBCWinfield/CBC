@@ -812,3 +812,9 @@ a.ci-name-link:hover { text-decoration: underline; }
 .imp-cols .req { color: var(--danger, #A3311F); font-size: .8rem; }
 .an-new-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 @media (max-width: 640px) { .imp-cols { columns: 1; } }
+.match-card { border: 2px solid #F0D58C; background: #FFFBEB; margin-bottom: 18px; }
+.match-list { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 10px; }
+.match-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
+.match-pick { display: flex; gap: 12px; align-items: flex-start; width: 100%; cursor: pointer; }
+.match-pick input { margin-top: 4px; }
+form[hidden], .ci-form[hidden] { display: none !important; }

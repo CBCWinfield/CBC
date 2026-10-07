@@ -7,7 +7,7 @@ const { HttpError } = require('../lib/http');
 const t = require('../lib/time');
 const { users } = require('../models');
 const push = require('../lib/push');
-const { url } = require('../notify');
+const { url, pushTo } = require('../notify');
 const D = require('./data');
 const V = require('./views');
 const N = require('./notify');
@@ -125,6 +125,21 @@ async function linkUserToFamily(user, familyId) {
     await db.query(`INSERT INTO people (family_id, kind, first_name, last_name, email, phone, user_id, is_primary, relationship, contact_method)
       VALUES ($1, 'adult', $2, $3, $4, $5, $6, $7, 'Parent', 'app')`, [familyId, user.first_name, user.last_name, user.email, user.phone || null, user.id, !hasPrimary]);
   }
+}
+
+// Families already on file that may be the same family: same last name, phone or email.
+async function possibleFamilies({ lastName, phone, email }) {
+  const digits = String(phone || '').replace(/\D/g, '').slice(-10);
+  return db.many(`SELECT f.id, f.name, f.city,
+      string_agg(DISTINCT p.first_name || ' ' || left(p.last_name, 1) || '.', ', ') AS members,
+      bool_or(lower(p.email) = lower($3) AND $3 <> '') AS email_match,
+      bool_or(length($2) = 10 AND right(regexp_replace(COALESCE(p.phone, ''), '\\D', '', 'g'), 10) = $2) AS phone_match
+    FROM families f JOIN people p ON p.family_id = f.id
+    WHERE f.status <> 'archived' AND (
+      lower(p.last_name) = lower($1) OR lower(f.name) = lower('The ' || $1 || ' Family')
+      OR (length($2) = 10 AND right(regexp_replace(COALESCE(p.phone, ''), '\\D', '', 'g'), 10) = $2)
+      OR ($3 <> '' AND lower(p.email) = lower($3)))
+    GROUP BY f.id ORDER BY bool_or(lower(p.email) = lower($3) AND $3 <> '') DESC, f.name LIMIT 6`, [String(lastName || ''), digits, String(email || '')]);
 }
 
 async function newFamilyFor(user) {
@@ -263,6 +278,10 @@ module.exports = (app) => {
     const error = !v.first_name || !v.last_name ? 'Enter the parent’s first and last name.' : !v.phone ? 'Enter a phone number so we can reach the parent.'
       : v.email && !EMAIL_RE.test(v.email) ? 'That email doesn’t look right.' : null;
     if (error) return render(req, res, V.newFamilyFlow({ csrf: res.locals.csrf, error, v: { ...b } }), { title: 'New family', tab: 'station' });
+    if (b.confirm_new !== '1') {
+      const matches = await possibleFamilies({ lastName: v.last_name, phone: v.phone, email: v.email });
+      if (matches.length) return render(req, res, V.newFamilyFlow({ csrf: res.locals.csrf, v: { ...b }, matches }), { title: 'New family', tab: 'station' });
+    }
     const fam = await db.one(`INSERT INTO families (name, status, created_by) VALUES ($1, 'new', $2) RETURNING id`, [clean(b.family_name, 120) || `The ${v.last_name} Family`, req.user.id]);
     await savePerson(fam.id, 'adult', { ...v, email: v.email || null, contact_method: 'app', is_primary: true });
     if (clean(b.ec_name, 120) && clean(b.ec_phone, 40)) {
@@ -754,9 +773,44 @@ module.exports = (app) => {
   async function parentFamily(req, res) {
     if (needLogin(req, res)) return null;
     let fam = await myFamily(req);
+    if (!fam && !req.session.familyMatchDone) {
+      const matches = await possibleFamilies({ lastName: req.user.last_name, phone: req.user.phone, email: req.user.email });
+      if (matches.length) { res.redirect('/checkin/welcome-match'); return null; }
+    }
     if (!fam) fam = await newFamilyFor(req.user);
     return D.familyFull(fam.id);
   }
+
+  // "Is this your family?" for parents setting up for the first time.
+  app.get('/checkin/welcome-match', async (req, res) => {
+    if (needLogin(req, res)) return;
+    if (await myFamily(req)) return res.redirect('/checkin/welcome/family');
+    const matches = await possibleFamilies({ lastName: req.user.last_name, phone: req.user.phone, email: req.user.email });
+    if (!matches.length) return res.redirect('/checkin/welcome/family');
+    render(req, res, V.familyMatchPage({ csrf: res.locals.csrf, matches }), { title: 'Is this your family?', bare: true });
+  });
+  app.post('/checkin/welcome-match', async (req, res) => {
+    if (needLogin(req, res)) return;
+    if (req.body.choice === 'new') { req.session.familyMatchDone = true; return res.redirect('/checkin/welcome/family'); }
+    const matches = await possibleFamilies({ lastName: req.user.last_name, phone: req.user.phone, email: req.user.email });
+    const m = matches.find((x) => x.id === Number(req.body.choice));
+    if (!m) return res.redirect('/checkin/welcome-match');
+    if (m.email_match && req.user.email_verified_at) {
+      // Their confirmed email is already on that family's record: connect them right away.
+      await linkUserToFamily(req.user, m.id);
+      D.audit(req.user, 'family_self_link', { familyId: m.id });
+      security.flash(req, 'ok', `You’re connected to ${m.name}. Review the details below and update anything that changed.`);
+      return res.redirect('/checkin/welcome/family');
+    }
+    // Otherwise the office confirms it (privacy): they send a link that connects this account to that family.
+    await db.query(`INSERT INTO site_inquiries (kind, name, email, phone, topic, message) VALUES ('lead', $1, $2, $3, $4, $5)`,
+      [`${req.user.first_name} ${req.user.last_name}`, req.user.email, req.user.phone || null, 'Connect me to my family',
+        `Says they belong to ${m.name} (family #${m.id}). Open the family and use “Email a sign-up link” to ${req.user.email} to connect them.\n${url(`/checkin/families/${m.id}`)}`]);
+    const admins = await db.many("SELECT id FROM users WHERE checkin_role IN ('admin','coadmin') AND status = 'approved'");
+    pushTo(admins.map((a) => a.id), { title: 'Family connection request', body: `${req.user.first_name} ${req.user.last_name} says they belong to ${m.name}`, url: '/checkin/inquiries' }).catch(() => {});
+    req.session.familyMatchDone = true;
+    render(req, res, V.familyMatchPage({ csrf: res.locals.csrf, requested: m }), { title: 'Thanks!', bare: true });
+  });
 
   app.get('/checkin/welcome/:step', async (req, res) => {
     const step = req.params.step;
