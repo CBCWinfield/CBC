@@ -92,6 +92,8 @@ app.errorHandler = async (err, req, res) => {
 async function bootstrap() {
   await db.migrate();
   await settings.load();
+  // Researched bestseller/award badges (runs in the background; only touches badge fields).
+  require('./notable-seed').applyNotableSeed().catch((e) => console.error('Badge seeding failed:', e.message));
 
   // First librarian account, from ADMIN_EMAIL / ADMIN_PASSWORD.
   const librarians = await db.one("SELECT count(*)::int AS n FROM users WHERE role = 'librarian'");

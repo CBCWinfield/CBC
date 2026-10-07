@@ -691,6 +691,12 @@ const MIGRATIONS = [
       );
     `,
   },
+  {
+    // Remembers which researched bestseller/award badges were already applied, so a badge the
+    // librarian removes or changes is never put back.
+    version: 15,
+    sql: 'CREATE TABLE IF NOT EXISTS notable_seed_applied (legacy_id text PRIMARY KEY, kind text, applied_at timestamptz NOT NULL DEFAULT now());',
+  },
 ];
 
 async function migrate() {
