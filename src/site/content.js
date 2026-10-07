@@ -17,7 +17,12 @@ const CHURCH = {
   shop: 'https://cbc-shop.fourthwall.com/en-usd',
   app: process.env.APP_URL || 'https://admin.cbcwinfield.org',
   founded: 1951,
+  // Bus ride requests go here (override with RIDE_EMAIL in Render).
+  rideEmail: process.env.RIDE_EMAIL || 'info@cbcwinfield.com',
 };
+
+// Bus ministry pickup window (Wednesday nights).
+const BUS = { day: 'Wednesday nights', pickup: 'around 5:30 PM', dropoff: 'around 7:45 PM' };
 
 const TIMES = [
   { day: 'Sunday', time: '9:30 AM', what: 'Sunday School & Adult Study', note: 'Classes for every age, from nursery to adults.' },
@@ -45,7 +50,7 @@ const MINISTRIES = [
   },
   {
     key: 'bus', name: 'Bus Ministry', ages: 'Bringing kids & students to church',
-    times: ['Need a ride to church for your child? Call the church office at (620) 221-2980.', 'Want to drive or ride along? We’d love your help.'],
+    times: ['Wednesday nights: pickup around 5:30 PM, drop-off around 7:45 PM (times depend on how far away you live)', 'Live in Cowley County? Let us know and we’ll see about a ride.', 'Want to drive or ride along? We’d love your help.'],
     body: 'For decades, our bus and van ministry has brought children and students to the Lord Jesus, literally and figuratively. Week after week, faithful drivers and helpers give their time so kids can ride to church, hear the gospel, worship, and learn God’s Word. God bless our bus ministry and everyone who serves in it.',
   },
 ];
@@ -99,4 +104,4 @@ const SHOP = [
 
 const SERVE_AREAS = ['Nursery & Kids', 'Central Teens', 'Bus ministry (driving or riding along)', 'Worship & music', 'Sound, video & livestream', 'Greeting & hospitality', 'Building & grounds', 'Church library', 'Missions & outreach', 'Wherever I’m needed'];
 
-module.exports = { CHURCH, TIMES, MINISTRIES, OUTREACH, STAFF, DEACONS, EVENTS, PARTNERS, SHOP, SERVE_AREAS };
+module.exports = { BUS, CHURCH, TIMES, MINISTRIES, OUTREACH, STAFF, DEACONS, EVENTS, PARTNERS, SHOP, SERVE_AREAS };

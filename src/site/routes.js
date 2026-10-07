@@ -21,14 +21,14 @@ function show(req, res, page, view, { title, desc, status = 200 } = {}) {
   res.send(V.layout({ title, desc, page, body: view.body, head: view.head, base: baseFor(req) }).toString());
 }
 
-async function saveInquiry(kind, v) {
+async function saveInquiry(kind, v, { to } = {}) {
   const row = await db.one(`INSERT INTO site_inquiries (kind, name, email, phone, topic, message) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`, [kind, v.name, v.email, v.phone || null, v.topic || null, v.message || null]);
-  const label = kind === 'serve' ? `Volunteer: ${v.topic || 'anywhere'}` : v.topic || 'Website message';
+  const label = kind === 'serve' ? `Volunteer: ${v.topic || 'anywhere'}` : kind === 'ride' ? 'Bus ride request' : v.topic || 'Website message';
   try {
     await mailer.send({
-      to: C.CHURCH.email, libraryName: 'Central Baptist Church website', subject: `${label} from ${v.name}`, heading: label,
+      to: to || C.CHURCH.email, libraryName: 'Central Baptist Church website', subject: `${label} from ${v.name}`, heading: label,
       paragraphs: [
-        `<strong>${esc(v.name)}</strong><br><a href="mailto:${esc(v.email)}">${esc(v.email)}</a>${v.phone ? `<br>${esc(v.phone)}` : ''}`,
+        `<strong>${esc(v.name)}</strong>${v.email ? `<br><a href="mailto:${esc(v.email)}">${esc(v.email)}</a>` : ''}${v.phone ? `<br>${esc(v.phone)}` : ''}`,
         v.message ? esc(v.message).replace(/\n/g, '<br>') : '',
         'Reply to this email to answer them directly.',
       ],
@@ -93,6 +93,22 @@ module.exports = (app) => {
     if (error) return show(req, res, 'serve', V.serve({ csrf: res.locals.csrf, base, values: v, error }), { title: 'Serve', status: 422 });
     await saveInquiry('serve', v);
     res.redirect(`${base}/serve?sent=1`);
+  });
+
+  // Bus ministry ride requests (emailed to the bus ministry address).
+  page('/ride', 'ministries', (req, res) => V.ride({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1' }), { title: 'Request a ride', desc: 'Ride the Central Baptist Church bus on Wednesday nights. Request a pickup anywhere in Cowley County, Kansas.' });
+  app.post('/site/ride', security.rateLimit('site-ride', { max: 10, windowMs: 3600000 }), async (req, res) => {
+    const base = baseFor(req);
+    if (req.body.website) return res.redirect(`${base}/ride?sent=1`);
+    const v = { ...readForm(req.body), address: clean(req.body.address, 200), town: clean(req.body.town, 80), riders: clean(req.body.riders, 600) };
+    const error = !v.name ? 'Please tell us your name.' : !v.phone ? 'Please give us a phone number so the bus team can call you.' : !v.address ? 'Please tell us where to pick you up.'
+      : !v.riders ? 'Please tell us who needs a ride.' : v.email && !EMAIL_RE.test(v.email) ? 'That email address doesn’t look right.' : null;
+    if (error) return show(req, res, 'ministries', V.ride({ csrf: res.locals.csrf, base, values: v, error }), { title: 'Request a ride', status: 422 });
+    await saveInquiry('ride', {
+      name: v.name, email: v.email, phone: v.phone, topic: 'Bus ride request',
+      message: `Pickup address: ${v.address}${v.town ? `, ${v.town}` : ''}\nRiders: ${v.riders}${v.message ? `\n\nNotes: ${v.message}` : ''}`,
+    }, { to: C.CHURCH.rideEmail });
+    res.redirect(`${base}/ride?sent=1`);
   });
 
   // Anything else on the church domain: a friendly not-found page.

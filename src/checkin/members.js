@@ -77,7 +77,7 @@ function routes(app, { render, needRole, currentEvent }) {
 }
 
 // ---------------------------------------------------------------- website messages
-const KIND = { connect: ['✉', 'Message'], visit: ['👋', 'Planning a visit'], serve: ['🙋', 'Wants to serve'] };
+const KIND = { connect: ['✉', 'Message'], visit: ['👋', 'Planning a visit'], serve: ['🙋', 'Wants to serve'], ride: ['🚌', 'Bus ride request'] };
 function inquiriesPage({ csrf, rows, showAll }) {
   return html`
   <div class="ci-section-head"><div><h1>Website messages</h1>
@@ -87,9 +87,9 @@ function inquiriesPage({ csrf, rows, showAll }) {
     <div class="mr-top"><span class="ci-avatar ci-avatar-adult" aria-hidden="true">${(KIND[q.kind] || ['✉'])[0]}</span>
       <div class="mr-who"><strong>${q.name}</strong><span class="small muted">${(KIND[q.kind] || [, 'Message'])[1]}${q.topic && q.kind !== 'visit' ? `: ${q.topic}` : ''} · ${t.fmtDateTime(q.created_at)}</span></div>
       ${q.handled_at ? html`<span class="badge badge-ok">Answered</span>` : html`<span class="badge badge-warn">New</span>`}</div>
-    <dl class="mr-facts"><div><dt>Email</dt><dd><a href="mailto:${q.email}">${q.email}</a></dd></div>${q.phone ? html`<div><dt>Phone</dt><dd><a href="tel:${q.phone}">${q.phone}</a></dd></div>` : ''}</dl>
+    <dl class="mr-facts">${q.email ? html`<div><dt>Email</dt><dd><a href="mailto:${q.email}">${q.email}</a></dd></div>` : ''}${q.phone ? html`<div><dt>Phone</dt><dd><a href="tel:${q.phone}">${q.phone}</a></dd></div>` : ''}</dl>
     ${q.message ? html`<p class="mr-about pre">${q.message}</p>` : ''}
-    ${q.handled_at ? '' : html`<div class="mr-actions"><a class="btn" href="mailto:${q.email}?subject=${encodeURIComponent('Central Baptist Church')}">Reply by email</a>
+    ${q.handled_at ? '' : html`<div class="mr-actions">${q.email ? html`<a class="btn" href="mailto:${q.email}?subject=${encodeURIComponent('Central Baptist Church')}">Reply by email</a>` : q.phone ? html`<a class="btn" href="tel:${q.phone}">Call ${q.phone}</a>` : ''}
       <form method="post" action="/checkin/inquiries/${q.id}/handled" class="inline">${csrfField(csrf)}<button class="btn btn-quiet" type="submit">Mark answered</button></form></div>`}
   </article>`)}</div>` : html`<div class="empty ci-card"><p><strong>No new messages.</strong></p><p>When someone uses the contact, plan-a-visit or serve forms on the website, it shows up here.</p></div>`}`;
 }

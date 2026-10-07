@@ -72,7 +72,7 @@ const MENU = [
   { label: 'Staff', href: '/staff' },
   { label: 'Shop', href: 'shop', ext: true },
   { label: 'Connect', href: '/connect', groups: [
-    { title: 'Connect', links: [['/connect', 'Contact us'], ['/visit', 'Plan a visit'], ['app:/checkin/prayer', 'Prayer Wall'], ['/serve', 'Serve']] },
+    { title: 'Connect', links: [['/connect', 'Contact us'], ['/visit', 'Plan a visit'], ['app:/checkin/prayer', 'Prayer Wall'], ['/serve', 'Serve'], ['/ride', 'Request a bus ride']] },
   ] },
 ];
 
@@ -255,9 +255,9 @@ function home({ latest, base }) {
       <a class="card min-card" href="${base}/ministries#students"><div class="min-art min-teens"><span>Teens</span></div><div class="min-body"><p class="tag">Middle &amp; high school</p><p>Central Teens meets Wednesdays at 6:00 to dig into Scripture and build real friendships.</p></div></a>
       <a class="card min-card" href="${base}/ministries#adults"><div class="min-art min-adults"><span>Adults</span></div><div class="min-body"><p class="tag">Study &amp; fellowship</p><p>Sunday School at 9:30, Monday Bible Study at 1:00, and a Wednesday meal and Bible study at 6:00.</p></div></a>
     </div>
-    <a class="card bus-band" href="${base}/ministries#bus">
+    <a class="card bus-band" href="${base}/ride">
       <img src="/img/bus.webp" alt="The Central Baptist Church bus" width="1200" height="900" loading="lazy">
-      <div class="bus-text"><p class="tag">Bus ministry</p><h3>Need a ride to church? Just ask.</h3><p>For decades our bus and van ministry has brought kids and students to church, and to Jesus. Call <span class="nowrap">(620) 221-2980</span> to ask about a pickup.</p><span class="u">Learn about the bus ministry</span></div>
+      <div class="bus-text"><p class="tag">Bus ministry</p><h3>Need a ride to church? Just ask.</h3><p>For decades our bus and van ministry has brought kids and students to church, and to Jesus. On Wednesday nights the bus picks up around 5:30 PM and drops off around 7:45 PM. Live in Cowley County? Let us know.</p><span class="u">Request a ride</span></div>
     </a>
   </section>
 
@@ -419,7 +419,7 @@ function ministries({ base }) {
         <ul class="ticks">${m.times.map((x) => html`<li>${x}</li>`)}</ul>
         ${m.safe ? html`<p class="note">${m.safe}</p>` : ''}
         ${m.key === 'kids' ? html`<a class="btn btn-dark" href="${appUrl('/checkin/family')}">Set up your family for check-in</a>` : ''}
-        ${m.key === 'bus' ? html`<div class="btn-row"><a class="btn btn-dark" href="${CHURCH.phoneHref}">Call about a ride</a><a class="btn btn-ghost-dark" href="${base}/serve">Serve on the bus team</a></div>` : ''}
+        ${m.key === 'bus' ? html`<div class="btn-row"><a class="btn btn-dark" href="${base}/ride">Request a ride</a><a class="btn btn-ghost-dark" href="${base}/serve">Serve on the bus team</a></div>` : ''}
       </div>
     </div></section>`)}
     <section class="wrap sec sec-last">
@@ -546,6 +546,39 @@ function serve({ csrf, base, sent, values = {}, error }) {
   };
 }
 
+function ride({ csrf, base, sent, values = {}, error }) {
+  return {
+    head: { kicker: 'Bus ministry', title: html`Need a ride to <span class="serif">church?</span>`, lead: 'For decades our bus and van ministry has brought kids and students to church, and to the Lord Jesus. We’d love to pick you up.' },
+    body: html`<section class="wrap sec-tight sec-last"><div class="two">
+      <div class="prose">
+        <div class="card min-photo" style="margin-bottom:28px"><img src="/img/bus.webp" alt="The Central Baptist Church bus" width="1200" height="900"></div>
+        <h2>How it works</h2>
+        <ul class="ticks">
+          <li><strong>${C.BUS.day}:</strong> the bus picks up ${C.BUS.pickup} and drops off ${C.BUS.dropoff}.</li>
+          <li>Exact times depend on how far away you live. We’ll call you to set up your pickup.</li>
+          <li>If you’re anywhere in Cowley County, let us know and we’ll see what we can do.</li>
+        </ul>
+        <p class="note">Questions? Call the church office at <a href="${CHURCH.phoneHref}">${CHURCH.phone}</a>.</p>
+      </div>
+      <div class="card form-card" id="request"><h2>Request a ride</h2>
+        ${sent ? html`<p class="ok" role="status">Thank you! We got your ride request, and someone from our bus ministry will call you to set up a pickup time.</p>` : html`<form method="post" action="${base}/ride" class="form" novalidate>
+          ${csrfField(csrf)}
+          ${error ? html`<p class="err" role="alert">${error}</p>` : ''}
+          <label>Parent or guardian name<input name="name" required autocomplete="name" value="${values.name || ''}"></label>
+          <div class="row2"><label>Phone<input name="phone" type="tel" required autocomplete="tel" value="${values.phone || ''}"></label>
+          <label>Email <span class="opt">(optional)</span><input name="email" type="email" autocomplete="email" value="${values.email || ''}"></label></div>
+          <label>Pickup address<input name="address" required autocomplete="street-address" value="${values.address || ''}" placeholder="Street address"></label>
+          <label>Town<input name="town" autocomplete="address-level2" value="${values.town || 'Winfield'}"></label>
+          <label>Who needs a ride? <span class="opt">(names and ages)</span><textarea name="riders" rows="3" required placeholder="Emma, 9&#10;Noah, 13">${values.riders || ''}</textarea></label>
+          <label>Anything we should know? <span class="opt">(optional)</span><textarea name="message" rows="2">${values.message || ''}</textarea></label>
+          <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <button class="btn btn-dark btn-block" type="submit">Request a ride</button>
+        </form>`}
+      </div>
+    </div></section>`,
+  };
+}
+
 function partners() {
   return {
     head: { kicker: 'Our partners', title: html`Cooperating for the <span class="serif">Gospel.</span>`, lead: 'We work together with Southern Baptists across Kansas, the nation, and the world.' },
@@ -573,4 +606,4 @@ function ics(e) {
     'END:VEVENT', 'END:VCALENDAR', ''].join('\r\n');
 }
 
-module.exports = { layout, home, visit, about, ministries, sermons, events, staff, give, connect, serve, partners, notFound, ics };
+module.exports = { layout, ride, home, visit, about, ministries, sermons, events, staff, give, connect, serve, partners, notFound, ics };
