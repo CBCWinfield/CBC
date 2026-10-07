@@ -455,3 +455,17 @@ body.menu-open { overflow: hidden; }
 .ann-btn:hover { background: var(--deep); color: var(--cream); }
 .ann-count { font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
 @media (max-width: 700px) { .ann-track { grid-auto-columns: 88%; gap: 12px; } .ann-video { border-radius: 16px; } .ann-slide img { border-radius: 14px; } }
+
+/* Bus ministry */
+.bus-band { margin-top: 20px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: center; overflow: hidden; text-decoration: none; color: var(--ink); }
+.bus-band img { display: block; width: 100%; height: 100%; min-height: 260px; object-fit: cover; }
+.bus-text { padding: clamp(26px, 4vw, 48px); display: grid; gap: 10px; }
+.bus-text h3 { font-family: var(--disp); font-weight: 800; letter-spacing: -0.02em; font-size: clamp(26px, 2.6vw, 34px); line-height: 1.1; }
+.bus-text p:not(.tag) { color: var(--muted); line-height: 1.7; }
+.bus-text .u { font-weight: 600; color: var(--green); }
+.nowrap { white-space: nowrap; }
+.min-photo { overflow: hidden; border-radius: 32px; padding: 0; }
+.min-photo img { display: block; width: 100%; height: auto; }
+.btn-ghost-dark { color: var(--deep); border: 1.5px solid rgba(16, 38, 26, .25); background: transparent; }
+.btn-ghost-dark:hover { border-color: var(--deep); }
+@media (max-width: 760px) { .bus-band { grid-template-columns: 1fr; } .bus-band img { min-height: 0; aspect-ratio: 4 / 3; } }

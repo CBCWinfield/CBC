@@ -23,7 +23,7 @@ const TIMES = [
   { day: 'Sunday', time: '9:30 AM', what: 'Sunday School & Adult Study', note: 'Classes for every age, from nursery to adults.' },
   { day: 'Sunday', time: '10:45 AM', what: 'Worship', note: 'Children’s Church meets at the same time for kids.' },
   { day: 'Monday', time: '1:00 PM', what: 'Adult Bible Study', note: 'An afternoon study through Scripture together.' },
-  { day: 'Wednesday', time: '6:00 PM', what: 'Wednesday Night', note: 'Central Teens for middle and high school students, and kids’ classes.' },
+  { day: 'Wednesday', time: '6:00 PM', what: 'Wednesday Night: Meal, Fellowship & Bible Study', note: 'Supper and fellowship, then Bible study for adults. Central Teens and kids’ classes meet at the same time.' },
 ];
 
 const MINISTRIES = [
@@ -40,8 +40,13 @@ const MINISTRIES = [
   },
   {
     key: 'adults', name: 'Adults', ages: 'Every season of life',
-    times: ['Adult Study, Sundays at 9:30 AM', 'Adult Bible Study, Mondays at 1:00 PM'],
-    body: 'Deepen your faith and build meaningful connections within our Adult Ministry. We offer small groups, Bible studies, and fellowship for every season of life.',
+    times: ['Adult Study, Sundays at 9:30 AM', 'Adult Bible Study, Mondays at 1:00 PM', 'Meal, fellowship & Bible study, Wednesdays at 6:00 PM'],
+    body: 'Deepen your faith and build meaningful connections within our Adult Ministry. We offer small groups, Bible studies, and fellowship for every season of life, including a Wednesday night meal and Bible study.',
+  },
+  {
+    key: 'bus', name: 'Bus Ministry', ages: 'Bringing kids & students to church',
+    times: ['Need a ride to church for your child? Call the church office at (620) 221-2980.', 'Want to drive or ride along? We’d love your help.'],
+    body: 'For decades, our bus and van ministry has brought children and students to the Lord Jesus, literally and figuratively. Week after week, faithful drivers and helpers give their time so kids can ride to church, hear the gospel, worship, and learn God’s Word. God bless our bus ministry and everyone who serves in it.',
   },
 ];
 
@@ -92,6 +97,6 @@ const SHOP = [
   { name: 'Under Armour Hat', sub: 'Central Baptist Church', price: '$28.99', img: 'hat-front.webp', back: 'hat-back.webp', slug: 'underarmour-hat' },
 ];
 
-const SERVE_AREAS = ['Nursery & Kids', 'Central Teens', 'Worship & music', 'Sound, video & livestream', 'Greeting & hospitality', 'Building & grounds', 'Church library', 'Missions & outreach', 'Wherever I’m needed'];
+const SERVE_AREAS = ['Nursery & Kids', 'Central Teens', 'Bus ministry (driving or riding along)', 'Worship & music', 'Sound, video & livestream', 'Greeting & hospitality', 'Building & grounds', 'Church library', 'Missions & outreach', 'Wherever I’m needed'];
 
 module.exports = { CHURCH, TIMES, MINISTRIES, OUTREACH, STAFF, DEACONS, EVENTS, PARTNERS, SHOP, SERVE_AREAS };

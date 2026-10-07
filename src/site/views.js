@@ -50,7 +50,7 @@ const NAV = [['/about', 'About'], ['/ministries', 'Ministries'], ['/sermons', 'S
 const MENU = [
   { label: 'About', href: '/about' },
   { label: 'Ministries', href: '/ministries', groups: [
-    { title: 'Ministries', links: [['/ministries#kids', 'Central Kids'], ['/ministries#students', 'Central Teens'], ['/ministries#adults', 'Adults']] },
+    { title: 'Ministries', links: [['/ministries#kids', 'Central Kids'], ['/ministries#students', 'Central Teens'], ['/ministries#adults', 'Adults'], ['/ministries#bus', 'Bus Ministry']] },
     { title: 'Missions & outreach', links: [
       ['https://kfl.org/baby-bottle-project/', 'Kansans For Life Baby Bottle Project', 'ext'],
       ['https://casasporcristo.org/', 'Mexico Mission Trip (Casas Por Cristo)', 'ext'],
@@ -98,7 +98,7 @@ function layout({ title, desc, page, body, base = '', head }) {
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=20">
+<link rel="stylesheet" href="/css/site.css?v=21">
 <script src="/js/site.js?v=6" defer></script>
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
@@ -156,7 +156,7 @@ ${body}
     </div>
     <div>
       <h2>Gather</h2>
-      <span>Sun 9:30 · Sunday School</span><span>Sun 10:45 · Worship</span><span>Mon 1:00 · Adult Bible Study</span><span>Wed 6:00 · Wednesday Night</span>
+      <span>Sun 9:30 · Sunday School</span><span>Sun 10:45 · Worship</span><span>Mon 1:00 · Adult Bible Study</span><span>Wed 6:00 · Meal &amp; Bible Study</span>
     </div>
     <div>
       <h2>Explore</h2>
@@ -188,7 +188,7 @@ function timesBand() {
   return html`<section class="times" aria-label="Service times"><div class="times-in">
     <div class="time"><span class="time-day">Sunday</span><span class="time-at">9:30 AM</span><span class="time-what">Sunday School &amp; Adult Study</span></div>
     <div class="time"><span class="time-day">Sunday</span><span class="time-at">10:45 AM</span><span class="time-what">Worship · Children’s Church</span></div>
-    <div class="time"><span class="time-day">Wednesday</span><span class="time-at">6:00 PM</span><span class="time-what">Wednesday Night · Teens &amp; Kids</span></div>
+    <div class="time"><span class="time-day">Wednesday</span><span class="time-at">6:00 PM</span><span class="time-what">Meal, Fellowship &amp; Bible Study · Teens &amp; Kids</span></div>
     <a class="where" href="${CHURCH.maps}" target="_blank" rel="noopener"><span class="where-pin">${PIN}</span><span class="where-text"><strong>904 Wheat Rd.</strong><span>Winfield, KS 67156 · Directions</span></span></a>
   </div></section>`;
 }
@@ -243,7 +243,7 @@ function home({ latest, base }) {
     <div class="grid3">
       <div class="card step"><span class="step-n">01</span><h3>Someone will meet you</h3><p>Pull in at 904 Wheat Rd. A greeter at the door will help you find your way, grab coffee, and get settled.</p></div>
       <div class="card step"><span class="step-n">02</span><h3>Your kids are in good hands</h3><p>Each child gets a printed name tag and matching pickup code. Only you, or people you list, can pick them up.</p></div>
-      <div class="card step"><span class="step-n">03</span><h3>Come exactly as you are</h3><p>Worship runs about an hour. Wear what’s comfortable. No pressure, and we won’t add you to any lists.</p></div>
+      <div class="card step"><span class="step-n">03</span><h3>No pressure, ever</h3><p>Sit wherever you like, take it all in, and we won’t add you to any lists.</p></div>
     </div>
   </section>
 
@@ -253,8 +253,12 @@ function home({ latest, base }) {
     <div class="grid3">
       <a class="card min-card" href="${base}/ministries#kids"><div class="min-art min-kids"><span>Kids</span></div><div class="min-body"><p class="tag">Nursery – 5th grade</p><p>A safe, fun place to learn about Jesus. Sundays at 9:30 and 10:45, and Wednesday nights.</p></div></a>
       <a class="card min-card" href="${base}/ministries#students"><div class="min-art min-teens"><span>Teens</span></div><div class="min-body"><p class="tag">Middle &amp; high school</p><p>Central Teens meets Wednesdays at 6:00 to dig into Scripture and build real friendships.</p></div></a>
-      <a class="card min-card" href="${base}/ministries#adults"><div class="min-art min-adults"><span>Adults</span></div><div class="min-body"><p class="tag">Study &amp; fellowship</p><p>Sunday School at 9:30 and Monday Adult Bible Study at 1:00, working through Scripture together.</p></div></a>
+      <a class="card min-card" href="${base}/ministries#adults"><div class="min-art min-adults"><span>Adults</span></div><div class="min-body"><p class="tag">Study &amp; fellowship</p><p>Sunday School at 9:30, Monday Bible Study at 1:00, and a Wednesday meal and Bible study at 6:00.</p></div></a>
     </div>
+    <a class="card bus-band" href="${base}/ministries#bus">
+      <img src="/img/bus.webp" alt="The Central Baptist Church bus" width="1200" height="900" loading="lazy">
+      <div class="bus-text"><p class="tag">Bus ministry</p><h3>Need a ride to church? Just ask.</h3><p>For decades our bus and van ministry has brought kids and students to church, and to Jesus. Call <span class="nowrap">(620) 221-2980</span> to ask about a pickup.</p><span class="u">Learn about the bus ministry</span></div>
+    </a>
   </section>
 
   <section id="about" class="wrap sec"><div class="pastor">
@@ -290,7 +294,7 @@ function home({ latest, base }) {
     head: {
       kicker: `Winfield, Kansas · Since ${CHURCH.founded}`,
       title: html`A church family on Wheat Road for <span class="serif">${years()} years.</span>`,
-      lead: 'A place to know Jesus, grow in His Word, and belong to a family that will pray for you by name. Come as you are this Sunday.',
+      lead: 'A place to know Jesus, grow in His Word, and belong to a family that will pray for you by name. We’d love to see you this Sunday.',
       actions: html`<a class="btn btn-gold" href="${base}/visit">Plan your visit ${ARROW}</a><a class="btn btn-ghost" href="#sermons">${PLAY} Watch the latest sermon</a>`,
     },
     body,
@@ -324,7 +328,7 @@ function visit({ csrf, base, sent }) {
         <h2>When we gather</h2>
         ${schedule()}
         <h2>When you arrive</h2>
-        <p>Pull in at <a href="${CHURCH.maps}" target="_blank" rel="noopener">904 Wheat Rd.</a> A greeter at the door will help you find your way, grab coffee, and get settled. Worship runs about an hour. Wear what’s comfortable.</p>
+        <p>Pull in at <a href="${CHURCH.maps}" target="_blank" rel="noopener">904 Wheat Rd.</a> A greeter at the door will help you find your way, grab coffee, and get settled. Wear what’s comfortable.</p>
         <h2>Bringing kids?</h2>
         <p>Children are welcome in worship, and Children’s Church meets during the 10:45 service. At the welcome desk we’ll check your kids in and print their name tags with a matching pickup code for you. Only you, or the people you list, can pick them up.</p>
         <p>Want to skip the line? <a href="${appUrl('/checkin/family')}">Set up your family online</a> before you come.</p>
@@ -403,9 +407,9 @@ function about({ base }) {
 }
 
 function ministries({ base }) {
-  const art = { kids: html`<div class="card"><img src="/img/central-kids.webp" alt="Central Kids" width="640" height="320"></div>`, students: html`<div class="card"><img src="/img/central-teens.webp" alt="Central Teens" width="640" height="320"></div>`, adults: html`<div class="min-art min-adults"><span>Adults</span></div>` };
+  const art = { kids: html`<div class="card"><img src="/img/central-kids.webp" alt="Central Kids" width="640" height="320"></div>`, students: html`<div class="card"><img src="/img/central-teens.webp" alt="Central Teens" width="640" height="320"></div>`, adults: html`<div class="min-art min-adults"><span>Adults</span></div>`, bus: html`<div class="card min-photo"><img src="/img/bus.webp" alt="The Central Baptist Church bus, ready for Sunday pickups" width="1200" height="900" loading="lazy"></div>` };
   return {
-    head: { kicker: 'Ministries', title: html`Every age, growing in Christ <span class="serif">together.</span>`, lead: 'Kids, teens, and adults growing in faith side by side, and a church that serves Winfield and the world.' },
+    head: { kicker: 'Ministries', title: html`Every age, growing in Christ <span class="serif">together.</span>`, lead: 'Kids, teens, and adults growing in faith side by side, a bus ministry that brings kids to church, and a church that serves Winfield and the world.' },
     body: html`${C.MINISTRIES.map((m, i) => html`<section class="wrap sec" id="${m.key}"><div class="min-row${i % 2 ? ' flip' : ''}">
       <div class="min-logo">${art[m.key]}</div>
       <div class="prose">
@@ -415,6 +419,7 @@ function ministries({ base }) {
         <ul class="ticks">${m.times.map((x) => html`<li>${x}</li>`)}</ul>
         ${m.safe ? html`<p class="note">${m.safe}</p>` : ''}
         ${m.key === 'kids' ? html`<a class="btn btn-dark" href="${appUrl('/checkin/family')}">Set up your family for check-in</a>` : ''}
+        ${m.key === 'bus' ? html`<div class="btn-row"><a class="btn btn-dark" href="${CHURCH.phoneHref}">Call about a ride</a><a class="btn btn-ghost-dark" href="${base}/serve">Serve on the bus team</a></div>` : ''}
       </div>
     </div></section>`)}
     <section class="wrap sec sec-last">
