@@ -77,6 +77,12 @@ async function polishAndSave(id, v) {
   return p;
 }
 
+async function createAnnouncement(v, userId) {
+  const row = await db.one(`INSERT INTO announcements (title, description, event_date, event_time, when_note, details, created_by)
+    VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`, [v.title, v.description || null, v.event_date || null, v.event_time || null, v.when_note || null, v.details || null, userId]);
+  return polishAndSave(row.id, v);
+}
+
 // ---------------------------------------------------------------- admin views
 function themeOptions(cur) {
   const names = { wheat: 'Wheat field (green)', cross: 'The cross', kids: 'Central Kids', teens: 'Central Teens', missions: 'Missions', fellowship: 'Food & fellowship', worship: 'Worship & music', prayer: 'Prayer', calendar: 'Save the date', celebration: 'Celebration' };
@@ -112,7 +118,7 @@ function adminPage({ csrf, items, reels, live }) {
 
   <div class="an-grid">
     <section class="ci-card an-new">
-      <h2>New announcement</h2>
+      <div class="an-new-head"><h2>New announcement</h2><a class="btn btn-quiet btn-small" href="/checkin/import/announcements">⇪ Import a list</a></div>
       <form method="post" action="/checkin/announcements" class="an-form" data-busy="${aiOn ? 'Writing your slide…' : 'Making your slide…'}">${csrfField(csrf)}
         ${formFields()}
         <button class="btn" type="submit">✨ Make the slide</button>
@@ -207,9 +213,7 @@ function routes(app, { render }) {
   app.post('/checkin/announcements', need, security.rateLimit('announce', { max: 60, windowMs: 3600000 }), async (req, res) => {
     const v = readForm(req.body);
     if (!v.title) { security.flash(req, 'error', 'Give the announcement a title.'); return res.redirect('/checkin/announcements'); }
-    const row = await db.one(`INSERT INTO announcements (title, description, event_date, event_time, when_note, details, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`, [v.title, v.description, v.event_date, v.event_time, v.when_note, v.details, req.user.id]);
-    const p = await polishAndSave(row.id, v);
+    const p = await createAnnouncement(v, req.user.id);
     security.flash(req, 'ok', `Your slide “${p.headline}” is ready and showing on the website.`);
     res.redirect('/checkin/announcements');
   });
@@ -377,4 +381,4 @@ function routes(app, { render }) {
   });
 }
 
-module.exports = { routes, canAnnounce, list, latestReel, longDate, keyOf, nextSunday };
+module.exports = { routes, createAnnouncement, canAnnounce, list, latestReel, longDate, keyOf, nextSunday };

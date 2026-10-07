@@ -394,7 +394,7 @@
       r.onload = function () {
         var text = document.getElementById('csv-text');
         text.value = r.result;
-        info.textContent = 'Ready: ' + f.name + ' (' + Math.max(1, Math.round(f.size / 1024)).toLocaleString() + ' KB). Press Import books.';
+        info.textContent = 'Ready: ' + f.name + ' (' + Math.max(1, Math.round(f.size / 1024)).toLocaleString() + ' KB). Press Import.';
         document.getElementById('csv-paste').hidden = true;
       };
       r.readAsText(f);

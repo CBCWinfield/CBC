@@ -185,7 +185,7 @@ function incidentList({ user, rows, filter }) {
   const admin = D.can(user, 'coadmin');
   return html`
   <div class="ci-section-head"><div><h1>Incident reports</h1><p class="muted">${admin ? 'All reports. Only admins see this list.' : 'Reports you’ve filed.'}</p></div>
-    <div class="ci-family-tools"><a class="btn btn-small" href="/checkin/incidents/new">New report</a></div></div>
+    <div class="ci-family-tools"><a class="btn btn-small" href="/checkin/incidents/new">New report</a>${admin ? html` <a class="btn btn-quiet btn-small" href="/checkin/import/incidents">⇪ Import reports</a>` : ''}</div></div>
   ${admin ? html`<p class="ci-chips">${[['', 'All'], ['open', 'Open'], ['reviewed', 'Reviewed'], ['closed', 'Closed']].map(([k, l]) => html`<a class="ci-chip${filter === k ? ' is-on' : ''}" href="/checkin/incidents${k ? `?status=${k}` : ''}">${l}</a>`)}</p>` : ''}
   ${rows.length ? html`<div class="table-wrap"><table class="ci-table"><thead><tr><th>When</th><th>Type</th><th>Who</th><th>Severity</th><th>Filed by</th><th>Status</th></tr></thead><tbody>
     ${rows.map((r) => html`<tr class="sev-${r.severity}"><td><a href="/checkin/incidents/${r.id}">${t.fmtDate(r.occurred_at)} ${t.fmtTime(r.occurred_at)}</a></td><td>${r.category}</td><td>${r.people_text || '—'}</td>

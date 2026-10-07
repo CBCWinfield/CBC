@@ -50,7 +50,7 @@ function layout({ title, user, csrf, flash = [], body, current, settings, wide =
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="/css/style.css?v=12">
-<script src="/js/app.js?v=8" defer></script>
+<script src="/js/app.js?v=9" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>

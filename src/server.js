@@ -31,7 +31,7 @@ app.use(async (req, res, next) => {
 
 app.use(serveStatic(path.join(__dirname, '..', 'public'), { maxAge: 86400 }));
 // The catalog import accepts a large spreadsheet; everything else stays small.
-app.use(bodyParser({ limit: (req) => (/^\/checkin\/announcements\/reels\/\d+\/video$/.test(req.path) ? 80 : ['/admin/books/import', '/checkin/policies', '/checkin/serve/import'].includes(req.path) ? 30 : 6) * 1024 * 1024 }));
+app.use(bodyParser({ limit: (req) => (/^\/checkin\/announcements\/reels\/\d+\/video$/.test(req.path) ? 80 : (['/admin/books/import', '/checkin/policies', '/checkin/serve/import'].includes(req.path) || /^\/checkin\/import\//.test(req.path)) ? 30 : 6) * 1024 * 1024 }));
 app.use(security.sessions());
 app.use(security.csrf());
 

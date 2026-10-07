@@ -77,12 +77,12 @@ function routes(app, { render, needRole, currentEvent }) {
 }
 
 // ---------------------------------------------------------------- website messages
-const KIND = { connect: ['✉', 'Message'], visit: ['👋', 'Planning a visit'], serve: ['🙋', 'Wants to serve'], ride: ['🚌', 'Bus ride request'] };
+const KIND = { connect: ['✉', 'Message'], visit: ['👋', 'Planning a visit'], serve: ['🙋', 'Wants to serve'], ride: ['🚌', 'Bus ride request'], lead: ['📇', 'Contact'] };
 function inquiriesPage({ csrf, rows, showAll }) {
   return html`
-  <div class="ci-section-head"><div><h1>Website messages</h1>
-    <p class="muted">Messages, visit plans and volunteer offers from the church website. Each one is also emailed to the church office.</p></div>
-    <a class="btn btn-quiet btn-small" href="/checkin/inquiries${showAll ? '' : '?all=1'}">${showAll ? 'Show only new' : 'Show answered too'}</a></div>
+  <div class="ci-section-head"><div><h1>Website messages &amp; contacts</h1>
+    <p class="muted">Messages, visit plans, ride requests and volunteer offers from the church website, plus contacts you import. Website messages are also emailed to the church office.</p></div>
+    <div class="ci-family-tools"><a class="btn btn-quiet btn-small" href="/checkin/import/leads">⇪ Import contacts</a> <a class="btn btn-quiet btn-small" href="/checkin/inquiries${showAll ? '' : '?all=1'}">${showAll ? 'Show only new' : 'Show answered too'}</a></div></div>
   ${rows.length ? html`<div class="mr-list">${rows.map((q) => html`<article class="ci-card mr-card${q.handled_at ? ' is-done' : ''}">
     <div class="mr-top"><span class="ci-avatar ci-avatar-adult" aria-hidden="true">${(KIND[q.kind] || ['✉'])[0]}</span>
       <div class="mr-who"><strong>${q.name}</strong><span class="small muted">${(KIND[q.kind] || [, 'Message'])[1]}${q.topic && q.kind !== 'visit' ? `: ${q.topic}` : ''} · ${t.fmtDateTime(q.created_at)}</span></div>

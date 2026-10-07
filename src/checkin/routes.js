@@ -1323,6 +1323,8 @@ module.exports = (app) => {
   workflows.routes(app, { render, needRole, currentEvent });
   // Membership requests (check-in admins can approve, like the librarian).
   members.routes(app, { render, needRole, currentEvent });
+  // Import a list (CSV) into incident reports, families, leads or announcements.
+  require('./imports').routes(app, { render, personValues, savePerson });
   // Announcements and the weekly announcement video.
   require('../announce').routes(app, { render });
 };

@@ -25,7 +25,7 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
   ] : [];
   // Everything else lives in the "More" menu.
   const more = [];
-  if (D.can(user, 'coadmin')) more.push(['/checkin/admin', 'Admin dashboard', 'admin'], ['/checkin/members', pendingMembers ? `Membership requests (${pendingMembers})` : 'Membership requests', 'members'], ['/checkin/inquiries', 'Website messages', 'inquiries']);
+  if (D.can(user, 'coadmin')) more.push(['/checkin/admin', 'Admin dashboard', 'admin'], ['/checkin/members', pendingMembers ? `Membership requests (${pendingMembers})` : 'Membership requests', 'members'], ['/checkin/inquiries', 'Messages & contacts', 'inquiries']);
   if (require('../announce').canAnnounce(user)) more.push(['/checkin/announcements', 'Announcements', 'announce']);
   if (staff) more.push(['/checkin/serve', 'Serving calendar', 'serve'], ['/checkin/incidents', 'Incident reports', 'incidents']);
   if (D.isTeam(user)) more.push(['/checkin/training', user.checkinLocked ? 'Training (to do)' : 'Training', 'training']);
@@ -52,8 +52,8 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=Montserrat:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="/css/style.css?v=9">
-<link rel="stylesheet" href="/css/checkin.css?v=13">
-<script src="/js/app.js?v=8" defer></script>
+<link rel="stylesheet" href="/css/checkin.css?v=14">
+<script src="/js/app.js?v=9" defer></script>
 <script src="/js/checkin.js?v=8" defer></script>
 </head>
 <body class="ci${bare ? ' ci-bare' : ''}">
@@ -530,7 +530,7 @@ function scanPage({ csrf, event, match, code, error, user }) {
 function familiesPage({ csrf, rows, q, user, event }) {
   return html`
   <div class="ci-section-head"><h1>Families</h1>
-    <div class="ci-family-tools">${D.can(user, 'leader') ? html`<a class="btn btn-small" href="/checkin/new">New family</a> <a class="btn btn-quiet btn-small" href="/checkin/invite">Email a sign-up link</a>` : ''}</div></div>
+    <div class="ci-family-tools">${D.can(user, 'leader') ? html`<a class="btn btn-small" href="/checkin/new">New family</a> <a class="btn btn-quiet btn-small" href="/checkin/invite">Email a sign-up link</a> <a class="btn btn-quiet btn-small" href="/checkin/import/families">⇪ Import families</a>` : ''}</div></div>
   <form class="ci-filter" method="get" action="/checkin/families"><input type="search" name="q" value="${q || ''}" placeholder="Search families, people, phone or email"></form>
   <p class="small muted">${event ? html`<strong>Quick Check</strong> checks the whole family in for <strong>${event.name}</strong> and prints the kids’ name tags. Tap a family’s name instead to choose who’s here.` : html`Tap a family to check them in. <a href="/checkin?change=1">Choose an event</a> to use Quick Check.`}</p>
   <ul class="ci-family-list" data-tour="families">${rows.map((f) => familyRow(f, event ? { csrf, back: `/checkin/families${q ? `?q=${encodeURIComponent(q)}` : ''}` } : {}))}</ul>

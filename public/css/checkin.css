@@ -807,3 +807,8 @@ a.ci-name-link:hover { text-decoration: underline; }
   .an-grid, .an-grid-reel { grid-template-columns: 1fr; }
   .an-row { grid-template-columns: 1fr 1fr; } .an-row .grow { grid-column: 1 / -1; }
 }
+.imp-cols { columns: 2; gap: 24px; padding-left: 18px; margin: 10px 0 14px; }
+.imp-cols li { break-inside: avoid; margin-bottom: 4px; }
+.imp-cols .req { color: var(--danger, #A3311F); font-size: .8rem; }
+.an-new-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 640px) { .imp-cols { columns: 1; } }
