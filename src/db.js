@@ -632,6 +632,15 @@ const MIGRATIONS = [
       );
     `,
   },
+  {
+    // "Notable" books: a gold trophy marks books the librarian considers especially good or important.
+    version: 12,
+    sql: `
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS notable boolean NOT NULL DEFAULT false;
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS notable_note text;
+      CREATE INDEX IF NOT EXISTS books_notable ON books (id) WHERE notable;
+    `,
+  },
 ];
 
 async function migrate() {

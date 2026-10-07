@@ -530,3 +530,23 @@ fieldset.card legend + * { clear: both; }
   .join-steps { grid-template-columns: 1fr; }
   .join-form { padding: 16px; }
 }
+
+/* Notable books: a gold trophy on the cover corner, and a pill on the book page */
+.book-card-cover { position: relative; display: block; }
+.book-detail-cover .book-card-cover { display: inline-block; width: 100%; max-width: 280px; }
+.notable-mark { position: absolute; top: -8px; right: -8px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  color: #5A3E05; background: radial-gradient(circle at 35% 30%, #FFF1BF 0%, #F2CD6B 45%, #C8962E 100%);
+  box-shadow: 0 0 0 2px #fff, 0 3px 8px rgba(90, 62, 5, .35); }
+.book-detail-cover .notable-mark { width: 42px; height: 42px; top: -12px; right: -12px; }
+.book-detail-cover .notable-mark svg { width: 22px; height: 22px; }
+.notable-pill { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; padding: 6px 14px 6px 10px; border-radius: 999px;
+  font-weight: 700; font-size: .9rem; color: #5A3E05; background: linear-gradient(135deg, #FFF4CC, #F2D481); box-shadow: inset 0 0 0 1px rgba(200, 150, 46, .5); }
+.notable-pill svg { color: #A87A1C; }
+.notable-why { font-weight: 500; color: #6B5320; }
+.notable-why::before { content: '·'; margin-right: 8px; }
+.check-notable .notable-ico { color: #B8892A; display: inline-flex; vertical-align: -3px; }
+.notable-h { color: #C8962E; display: inline-flex; vertical-align: -2px; }
+.notable-h svg { width: .9em; height: .9em; }
+.notable-toggle { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 18px 0; }
+.notable-toggle .btn svg { color: #B8892A; vertical-align: -3px; }
+.cat-notable { font-weight: 700; } .cat-notable .notable-ico { color: #B8892A; display: inline-flex; vertical-align: -3px; }

@@ -48,12 +48,12 @@ module.exports = (app) => {
     const q = clean(req.query.q, 200);
     const filters = {
       q, category: clean(req.query.category, 100), subcategory: clean(req.query.subcategory, 150), audience: clean(req.query.audience, 30),
-      format: clean(req.query.format, 40), available: req.query.available === '1',
+      format: clean(req.query.format, 40), available: req.query.available === '1', notable: req.query.notable === '1',
     };
     const sort = CATALOG_SORTS.includes(req.query.sort) ? req.query.sort : 'title';
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const { rows, total } = await books.list(filters, { limit: PAGE, offset: (page - 1) * PAGE, sort });
-    const params = new URLSearchParams(Object.entries({ ...filters, available: filters.available ? '1' : '', sort: sort === 'title' ? '' : sort }).filter(([, v]) => v));
+    const params = new URLSearchParams(Object.entries({ ...filters, available: filters.available ? '1' : '', notable: filters.notable ? '1' : '', sort: sort === 'title' ? '' : sort }).filter(([, v]) => v));
     res.render(V.catalog({
       ...filters, rows, total, page, pages: Math.ceil(total / PAGE),
       categories: await books.categories(), base: `/catalog?${params}`, formats: await books.formats(),
@@ -69,7 +69,7 @@ module.exports = (app) => {
     const reason = !req.user
       ? 'Log in or apply for a free library account to check out books.'
       : block && block.reason;
-    res.render(V.bookPage({ book, user: req.user, s: req.settings, myActive: block && block.mine, canCheckout: !block, reason }), {
+    res.render(V.bookPage({ book, user: req.user, s: req.settings, myActive: block && block.mine, canCheckout: !block, reason, csrf: res.locals.csrf }), {
       title: book.title, current: 'catalog', description: book.description ? book.description.slice(0, 160) : undefined,
     });
   });

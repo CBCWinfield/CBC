@@ -240,6 +240,11 @@ function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = 
       <section class="box">
         <h2 class="box-head">Book data</h2>
         <div class="box-body">
+          <h3 class="box-sub">Notable book</h3>
+          <input type="hidden" name="notable_form" value="1">
+          <label class="check"><input type="checkbox" name="notable" value="1"${checked(!!book.notable)}> Mark as a notable book (gold trophy in the catalog)</label>
+          ${f('notable_note', 'Why it’s notable', { hint: 'Optional, one line readers see, e.g. “A classic biography of a modern martyr.”' })}
+
           <h3 class="box-sub">Inventory</h3>
           <div class="row">
             ${f('call_number', 'SKU (library no.)', { hint: 'The number on the book’s label, e.g. 6871 or DVD78.' })}

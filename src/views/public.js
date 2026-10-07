@@ -41,7 +41,7 @@ function landing({ s, recent, counts, categories, user }) {
 
   ${categories.length ? html`<section class="cats">
     <h2>Browse by subject</h2>
-    <ul class="cat-list">${categories.map((c) => html`<li><a href="/catalog?category=${encodeURIComponent(c.category)}">${c.category} <span class="muted">${c.n}</span></a></li>`)}</ul>
+    <ul class="cat-list"><li><a href="/catalog?notable=1" class="cat-notable"><span class="notable-ico">${P.TROPHY}</span> Notable books</a></li>${categories.map((c) => html`<li><a href="/catalog?category=${encodeURIComponent(c.category)}">${c.category} <span class="muted">${c.n}</span></a></li>`)}</ul>
   </section>` : ''}
 
   <section class="visit">
@@ -59,13 +59,13 @@ function landing({ s, recent, counts, categories, user }) {
   </section>`;
 }
 
-function catalog({ q, category, subcategory, audience, format, available, rows, total, page, pages, categories, subcategories = [], formats = [], base, sort = 'title', sorts = [] }) {
-  const chipBase = (sub) => `/catalog?${new URLSearchParams(Object.entries({ q, category, subcategory: sub, audience, format, available: available ? '1' : '' }).filter(([, v]) => v))}`;
+function catalog({ q, category, subcategory, audience, format, available, notable, rows, total, page, pages, categories, subcategories = [], formats = [], base, sort = 'title', sorts = [] }) {
+  const chipBase = (sub) => `/catalog?${new URLSearchParams(Object.entries({ q, category, subcategory: sub, audience, format, available: available ? '1' : '', notable: notable ? '1' : '' }).filter(([, v]) => v))}`;
   return html`
   <div class="page-head">
     ${audience === 'Children' ? html`<div class="audience-banner"><img src="/img/central-kids.webp" alt="Central Kids" width="640" height="312"></div>` : ''}
     ${audience === 'Youth' ? html`<div class="audience-banner"><img src="/img/central-teens.webp" alt="Central Teens" width="640" height="305"></div>` : ''}
-    <h1>${audience === 'Children' ? 'Books for children' : audience === 'Youth' ? 'Books for teens' : 'Catalog'}</h1>
+    <h1>${notable ? html`<span class="notable-h">${P.TROPHY}</span> Notable books` : audience === 'Children' ? 'Books for children' : audience === 'Youth' ? 'Books for teens' : 'Catalog'}</h1>
     <p class="muted">${total.toLocaleString()} ${total === 1 ? 'title' : 'titles'}${q ? html` matching “${q}”` : ''}${category ? html` in ${category}${subcategory ? ` › ${subcategory}` : ''}` : ''}</p>
   </div>
   <form class="filters" method="get" action="/catalog">
@@ -79,8 +79,9 @@ function catalog({ q, category, subcategory, audience, format, available, rows, 
     <div class="field"><label for="f-sort">Sort by</label>
       <select id="f-sort" name="sort" data-autosubmit>${sorts.map(([k, label]) => html`<option value="${k}"${selected(k, sort)}>${label}</option>`)}</select></div>
     <label class="check"><input type="checkbox" name="available" value="1"${checked(available)}> Available now</label>
+    <label class="check check-notable"><input type="checkbox" name="notable" value="1"${checked(notable)}> <span class="notable-ico">${P.TROPHY}</span> Notable only</label>
     <button class="btn" type="submit">Search</button>
-    ${q || category || audience || format || available ? html`<a class="btn btn-quiet" href="/catalog">Clear</a>` : ''}
+    ${q || category || audience || format || available || notable ? html`<a class="btn btn-quiet" href="/catalog">Clear</a>` : ''}
   </form>
   ${subcategories.length > 1 ? html`<nav class="subcats" aria-label="Narrow ${category}">
     <a href="${chipBase('')}"${!subcategory ? raw(' aria-current="page"') : ''}>All ${category}</a>
@@ -93,7 +94,7 @@ function catalog({ q, category, subcategory, audience, format, available, rows, 
   ${P.pager({ page, pages, base })}`;
 }
 
-function bookPage({ book, user, s, myActive, canCheckout, reason }) {
+function bookPage({ book, user, s, myActive, canCheckout, reason, csrf }) {
   const details = [
     ['Author', book.author], ['Series', book.series], ['Subject', [book.category, book.subcategory].filter(Boolean).join(' › ')], ['For', book.audience], ['Format', book.format],
     ...Object.entries(book.details || {}).filter(([k]) => k !== 'Artist' || book.author !== book.details.Artist),
@@ -102,8 +103,9 @@ function bookPage({ book, user, s, myActive, canCheckout, reason }) {
   return html`
   <p class="crumb"><a href="/catalog">Catalog</a>${book.category ? html` / <a href="/catalog?category=${encodeURIComponent(book.category)}">${book.category}</a>` : ''}</p>
   <article class="book-detail">
-    <div class="book-detail-cover">${P.cover(book, 'lg')}</div>
+    <div class="book-detail-cover"><span class="book-card-cover">${P.cover(book, 'lg')}${P.notableBadge(book)}</span></div>
     <div class="book-detail-body">
+      ${P.notableBadge(book, 'lg')}
       <h1>${book.title}</h1>
       ${book.subtitle ? html`<p class="subtitle">${book.subtitle}</p>` : ''}
       ${book.short_description ? html`<p class="short-desc">${book.short_description}</p>` : ''}
@@ -116,6 +118,10 @@ function bookPage({ book, user, s, myActive, canCheckout, reason }) {
       </div>
       ${book.description ? html`<div class="description">${book.description.split(/\n{2,}/).map((p) => html`<p>${p}</p>`)}</div>` : ''}
       <dl class="facts">${details.map(([k, v]) => html`<dt>${k}</dt><dd>${v}</dd>`)}</dl>
+      ${user && user.role !== 'patron' && user.status === 'approved' ? html`<form method="post" action="/admin/books/${book.id}/notable" class="notable-toggle">${P.csrfField(csrf)}
+        <input type="hidden" name="notable" value="${book.notable ? '0' : '1'}">
+        <button class="btn btn-quiet btn-small" type="submit">${P.TROPHY} ${book.notable ? 'Remove notable mark' : 'Mark as a notable book'}</button>
+        ${book.notable ? '' : html`<span class="small muted">Staff only. Adds a gold trophy so readers can spot especially good or important books.</span>`}</form>` : ''}
       ${book.tags ? html`<p class="tags">${book.tags.split(',').map((x) => x.trim()).filter(Boolean).map((tag) => html`<a href="/catalog?q=${encodeURIComponent(tag)}">${tag}</a>`)}</p>` : ''}
     </div>
   </article>`;

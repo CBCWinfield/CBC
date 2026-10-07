@@ -3,7 +3,7 @@
 const db = require('./db');
 
 const BOOK_COLS = `b.id, b.title, b.subtitle, b.author, b.isbn, b.category, b.audience, b.format, b.description,
-  b.tags, b.publisher, b.published_year, b.pages, b.copies_total, b.shelf_location, b.active,
+  b.tags, b.publisher, b.published_year, b.pages, b.copies_total, b.shelf_location, b.active, b.notable, b.notable_note,
   b.short_description, b.legacy_id, b.call_number, b.series, b.subcategory, b.details, b.cover_status, b.cover_note, b.cover_source_url,
   b.created_at, b.updated_at, (b.cover_image IS NOT NULL) AS has_cover,
   GREATEST(b.copies_total - COALESCE(a.n, 0), 0)::int AS available, COALESCE(a.n, 0)::int AS out_count`;
@@ -13,7 +13,7 @@ const BOOK_FROM = `books b LEFT JOIN (
 
 const ACTIVE = `status IN ('reserved','checked_out')`;
 
-function bookFilters({ q, category, subcategory, audience, format, available, includeInactive, noCover } = {}) {
+function bookFilters({ q, category, subcategory, audience, format, available, notable, includeInactive, noCover } = {}) {
   const where = [];
   const params = [];
   if (!includeInactive) where.push('b.active');
@@ -29,6 +29,7 @@ function bookFilters({ q, category, subcategory, audience, format, available, in
   if (audience) { params.push(audience); where.push(`b.audience = $${params.length}`); }
   if (format) { params.push(format); where.push(`b.format = $${params.length}`); }
   if (available) where.push('b.copies_total - COALESCE(a.n, 0) > 0');
+  if (notable) where.push('b.notable');
   return { where: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
 }
 

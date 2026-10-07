@@ -278,6 +278,17 @@ module.exports = (app) => {
     await page(req, res, 'books', 'Edit book', A.bookForm({ csrf: res.locals.csrf, book, categoryPaths: await books.categoryPaths(), history: await checkouts.forBook(book.id) }));
   });
 
+  // Quick toggle from the book page: mark or unmark a notable book (gold trophy).
+  app.post('/admin/books/:id/notable', requireStaff, async (req, res) => {
+    const id = intParam(req.params.id);
+    const on = req.body.notable === '1';
+    const row = await db.one('UPDATE books SET notable = $2, notable_note = CASE WHEN $2 THEN notable_note ELSE NULL END WHERE id = $1 RETURNING title', [id, on]);
+    if (!row) throw new HttpError(404, 'That book wasn’t found.');
+    refreshSearch();
+    security.flash(req, 'ok', on ? `“${row.title}” is marked as a notable book. Add a short reason on its edit page if you like.` : `Removed the notable mark from “${row.title}”.`);
+    res.redirect(`/books/${id}`);
+  });
+
   app.post('/admin/books/:id', requireStaff, async (req, res) => {
     const id = intParam(req.params.id);
     const existing = await books.get(id);
@@ -294,6 +305,9 @@ module.exports = (app) => {
     [id, v.title, v.subtitle, v.author, v.isbn, v.category, v.audience, v.format, v.description, v.tags, v.publisher,
       v.published_year, v.pages, v.copies_total, v.shelf_location, req.body.active === '1', v.call_number, v.series, v.subcategory,
       v.short_description, details ? JSON.stringify(details) : null]);
+    if (req.body.notable_form === '1') {
+      await db.query('UPDATE books SET notable = $2, notable_note = $3 WHERE id = $1', [id, req.body.notable === '1', req.body.notable === '1' ? clean(req.body.notable_note, 200) || null : null]);
+    }
     const cover = await coverFrom(req.body);
     if (cover) await db.query("UPDATE books SET cover_image = $2, cover_type = $3, cover_status = 'done', cover_note = 'added by staff' WHERE id = $1", [id, cover.data, cover.type]);
     else if (req.body.remove_cover === '1') await db.query("UPDATE books SET cover_image = NULL, cover_type = NULL, cover_status = 'none' WHERE id = $1", [id]);
