@@ -181,3 +181,22 @@ test('YouTube feed parsing for the sermon carousel', () => {
   assert.ok(!Number.isNaN(new Date(v[1].published).getTime()));
   assert.strictEqual(yt.parse('<feed><entry><yt:videoId>bad id!</yt:videoId></entry></feed>').length, 0, 'ignores malformed ids');
 });
+
+test('homepage banner follows the church calendar (Central time)', () => {
+  const { byCalendar, seasonFor } = require('../src/site/season');
+  const at = (iso) => byCalendar(new Date(iso));
+  assert.strictEqual(at('2026-10-27T04:30:00Z'), 'wheat'); // still Oct 26, 11:30 PM in Kansas
+  assert.strictEqual(at('2026-10-27T05:00:00Z'), 'fall'); // midnight Oct 27 in Kansas
+  assert.strictEqual(at('2026-11-27T18:00:00Z'), 'fall');
+  assert.strictEqual(at('2026-11-28T18:00:00Z'), 'winter');
+  assert.strictEqual(at('2026-12-01T18:00:00Z'), 'christmas');
+  assert.strictEqual(at('2026-12-31T18:00:00Z'), 'christmas');
+  assert.strictEqual(at('2027-01-01T18:00:00Z'), 'winter');
+  assert.strictEqual(at('2027-03-14T18:00:00Z'), 'winter');
+  assert.strictEqual(at('2027-03-15T18:00:00Z'), 'easter');
+  assert.strictEqual(at('2027-05-01T18:00:00Z'), 'easter');
+  assert.strictEqual(at('2027-05-02T18:00:00Z'), 'wheat');
+  assert.strictEqual(seasonFor({ season: 'Easter' }, {}, new Date('2026-07-01')), 'easter'); // preview link
+  assert.strictEqual(seasonFor({}, { SITE_SEASON: 'wheat' }, new Date('2026-12-10T18:00:00Z')), 'wheat'); // pinned
+  assert.strictEqual(seasonFor({ season: 'bogus' }, {}, new Date('2026-12-10T18:00:00Z')), 'christmas'); // unset = calendar
+});

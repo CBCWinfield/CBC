@@ -38,6 +38,34 @@ const CROSS = raw(`<figure class="hero-cross">
   <figcaption>The Cross is <span class="serif">Central.</span></figcaption>
 </figure>`);
 
+// Homepage hero in December and at Easter: the story told in pictures, in a window where the cross stands.
+// public/js/story.js draws the scenes and captions; without it, the window simply shows the cross and a verse.
+const STORY_VERSE = {
+  christmas: ['Luke 2:11', 'For unto you is born this day in the city of David a Saviour, which is Christ the Lord.', 'The Christmas story'],
+  easter: ['Matthew 28:6', 'He is not here: for he is risen, as he said. Come, see the place where the Lord lay.', 'The Easter story'],
+};
+const CROSS_ART = String(CROSS).match(/<svg class="hc-art"[\s\S]*?<\/svg>/)[0];
+function STORY(kind) {
+  const [ref, text, title] = STORY_VERSE[kind];
+  return raw(`<figure class="hero-story is-cross" data-story="${kind}" aria-label="${title}, told in pictures">
+  <div class="story-stage">
+    <canvas class="story-canvas" aria-hidden="true"></canvas>
+    <div class="story-cross" aria-hidden="true">${CROSS_ART}</div>
+  </div>
+  <figcaption class="story-cap">
+    <p class="story-eyebrow">${title}</p>
+    <p class="story-verse">${text}</p>
+    <p class="story-ref">${ref}</p>
+  </figcaption>
+  <div class="story-ctrl" hidden>
+    <button type="button" class="story-btn" data-prev aria-label="Previous scene"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <button type="button" class="story-btn story-play" data-play aria-label="Pause the story" aria-pressed="false"><svg class="i-pause" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg><svg class="i-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+    <button type="button" class="story-btn" data-next aria-label="Next scene"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>
+    <div class="story-dots"></div>
+  </div>
+</figure>`);
+}
+
 // Staff photo on disk? Returns a cache-busting stamp or 0. Photos go in public/img/staff/<key>.jpg.
 function staffPhoto(key) {
   try { return Math.floor(fs.statSync(path.join(__dirname, '..', '..', 'public', 'img', 'staff', `${key}.jpg`)).mtimeMs / 1000); } catch { return 0; }
@@ -76,9 +104,13 @@ const MENU = [
 ];
 
 // Page wrapper: the green banner (nav, heading, swaying wheat), the page, and the footer.
-// On the homepage the wheat can trade places with falling leaves (fall) or snow (winter); see seasonFor in routes.js.
+// On the homepage the banner follows the church calendar (see season.js): falling leaves, snow, the Christmas
+// story told in pictures (with snow), the crucifixion and resurrection (over the wheat), or the wheat.
 function layout({ title, desc, page, body, base = '', head, season = 'wheat' }) {
-  const seasonal = page === 'home' && (season === 'fall' || season === 'winter');
+  const s = page === 'home' ? season : 'wheat';
+  const sky = s === 'fall' ? 'fall' : s === 'winter' || s === 'christmas' ? 'winter' : null;
+  const story = s === 'christmas' || s === 'easter' ? s : null;
+  const seasonal = !!(sky || story);
   const href = (p) => (p.startsWith('http') ? p : `${base}${p}`);
   const link = (u) => (u === 'shop' ? CHURCH.shop : u.startsWith('app:') ? appUrl(u.slice(4)) : href(u));
   const cur = (p) => (page === p.replace(/^\//, '') || (p === '/' && page === 'home') ? raw(' aria-current="page"') : '');
@@ -99,12 +131,12 @@ function layout({ title, desc, page, body, base = '', head, season = 'wheat' }) 
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=24">
+<link rel="stylesheet" href="/css/site.css?v=25">
 <script src="/js/site.js?v=6" defer></script>
-${seasonal ? raw('<script src="/js/season.js?v=1" defer></script>') : ''}
+${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? raw('<script src="/js/story.js?v=1" defer></script>') : ''}
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
-<body class="page-${page}${seasonal ? ` season-${season}` : ''}">
+<body class="page-${page}${seasonal ? ` season-${s}` : ''}">
 <a class="skip" href="#main">Skip to content</a>
 <header class="hero${isHome ? '' : ' hero-page'}">
   <nav class="nav" aria-label="Main">
@@ -126,10 +158,10 @@ ${seasonal ? raw('<script src="/js/season.js?v=1" defer></script>') : ''}
     <h1>${head.title}</h1>
     ${head.lead ? html`<p class="hero-lead">${head.lead}</p>` : ''}
     ${head.actions ? html`<div class="hero-actions">${head.actions}</div>` : ''}
-    ${isHome ? CROSS : ''}
+    ${isHome ? (story ? STORY(story) : CROSS) : ''}
   </div>
-  <div class="field" aria-hidden="true"><div class="field-inner">${seasonal ? '' : wheat()}</div></div>
-  ${seasonal ? raw(`<canvas class="season-sky" data-season="${season}" aria-hidden="true"></canvas>`) : ''}
+  <div class="field" aria-hidden="true"><div class="field-inner">${sky ? '' : wheat()}</div></div>
+  ${sky ? raw(`<canvas class="season-sky" data-season="${sky}" aria-hidden="true"></canvas>`) : ''}
 </header>
 <div class="menu" id="menu" hidden>
   <div class="menu-top"><img src="/img/logo-central-white.png" alt="" width="640" height="224"><button class="menu-btn menu-close" type="button" aria-expanded="true" aria-controls="menu"><span class="menu-lines" aria-hidden="true"></span><span class="visually-hidden">Close menu</span></button></div>

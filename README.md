@@ -159,3 +159,22 @@ Check-in lives in the same Render service as the library, at `/checkin`, and ins
 - Tests: `test/checkin-e2e.js` walks through check-in against a running server.
 
 Local run: `DATABASE_URL=postgresql://localhost/cbc ADMIN_EMAIL=… ADMIN_PASSWORD=… npm start`
+
+## Homepage seasons
+
+The banner at the top of the church homepage changes with the calendar (Central time):
+
+| Dates | Banner |
+| --- | --- |
+| Oct 27 – Nov 27 | Leaves falling and settling on the ground |
+| Nov 28 – Nov 30 | Snow |
+| December | Snow, and the Christmas story told in pictures where the cross stands (Luke 1–2, Matthew 1–2) |
+| Jan 1 – Mar 14 | Snow |
+| Mar 15 – May 1 | The wheat, and the crucifixion and resurrection told in pictures (Matthew, Luke, John, 1 Corinthians 15) |
+| May 2 – Oct 26 | The wheat |
+
+Every caption is the King James Bible, word for word. Each telling ends on the cross. Visitors can pause, and step through it verse by verse.
+
+- **Preview any of them:** add `?season=fall`, `winter`, `christmas`, `easter` or `wheat` to the homepage address.
+- **Pin one instead of following the calendar:** in Render, set `SITE_SEASON` to one of those names. Remove it (or set it to `auto`) to go back to the calendar.
+- The dates live in `src/site/season.js`; the stories in `public/js/story.js`.
