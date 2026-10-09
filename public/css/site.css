@@ -102,6 +102,12 @@ body.menu-open { overflow: hidden; }
 @keyframes sway { 0%, 100% { transform: rotate(var(--r)); } 40% { transform: rotate(calc(var(--r) + var(--a))); } 70% { transform: rotate(calc(var(--r) + var(--a) * .55)); } }
 @media (prefers-reduced-motion: reduce) { .sway { animation: none; } html { scroll-behavior: auto; } }
 
+/* Seasonal homepage banners: falling leaves (fall) or snow (winter) in place of the wheat */
+.season-sky { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; pointer-events: none; }
+.season-fall .field::after, .season-winter .field::after { display: none; }
+.season-fall .hero { background: radial-gradient(1200px 520px at 70% 92%, rgba(214, 124, 52, .30), transparent 60%), radial-gradient(900px 600px at 20% 10%, #33492A 0%, transparent 60%), linear-gradient(#162F1E 0%, #12281A 60%, #1C2C1A 100%); }
+.season-winter .hero { background: radial-gradient(1200px 520px at 70% 92%, rgba(205, 225, 245, .16), transparent 60%), radial-gradient(900px 600px at 20% 10%, #24493B 0%, transparent 60%), linear-gradient(#11281F 0%, #0E2420 60%, #15302A 100%); }
+
 /* Inner-page header: the same banner, shorter, with the field lower */
 .hero-page .hero-in { padding-top: clamp(36px, 6vw, 80px); }
 .hero-page h1 { font-size: clamp(44px, 6.4vw, 92px); max-width: 14ch; }

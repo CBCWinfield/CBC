@@ -76,7 +76,9 @@ const MENU = [
 ];
 
 // Page wrapper: the green banner (nav, heading, swaying wheat), the page, and the footer.
-function layout({ title, desc, page, body, base = '', head }) {
+// On the homepage the wheat can trade places with falling leaves (fall) or snow (winter); see seasonFor in routes.js.
+function layout({ title, desc, page, body, base = '', head, season = 'wheat' }) {
+  const seasonal = page === 'home' && (season === 'fall' || season === 'winter');
   const href = (p) => (p.startsWith('http') ? p : `${base}${p}`);
   const link = (u) => (u === 'shop' ? CHURCH.shop : u.startsWith('app:') ? appUrl(u.slice(4)) : href(u));
   const cur = (p) => (page === p.replace(/^\//, '') || (p === '/' && page === 'home') ? raw(' aria-current="page"') : '');
@@ -97,11 +99,12 @@ function layout({ title, desc, page, body, base = '', head }) {
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=23">
+<link rel="stylesheet" href="/css/site.css?v=24">
 <script src="/js/site.js?v=6" defer></script>
+${seasonal ? raw('<script src="/js/season.js?v=1" defer></script>') : ''}
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
-<body class="page-${page}">
+<body class="page-${page}${seasonal ? ` season-${season}` : ''}">
 <a class="skip" href="#main">Skip to content</a>
 <header class="hero${isHome ? '' : ' hero-page'}">
   <nav class="nav" aria-label="Main">
@@ -125,7 +128,8 @@ function layout({ title, desc, page, body, base = '', head }) {
     ${head.actions ? html`<div class="hero-actions">${head.actions}</div>` : ''}
     ${isHome ? CROSS : ''}
   </div>
-  <div class="field" aria-hidden="true"><div class="field-inner">${wheat()}</div></div>
+  <div class="field" aria-hidden="true"><div class="field-inner">${seasonal ? '' : wheat()}</div></div>
+  ${seasonal ? raw(`<canvas class="season-sky" data-season="${season}" aria-hidden="true"></canvas>`) : ''}
 </header>
 <div class="menu" id="menu" hidden>
   <div class="menu-top"><img src="/img/logo-central-white.png" alt="" width="640" height="224"><button class="menu-btn menu-close" type="button" aria-expanded="true" aria-controls="menu"><span class="menu-lines" aria-hidden="true"></span><span class="visually-hidden">Close menu</span></button></div>

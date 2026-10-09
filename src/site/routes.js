@@ -15,10 +15,27 @@ const SITE_HOSTS = (process.env.SITE_HOSTS || 'cbcwinfield.org,www.cbcwinfield.o
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const baseFor = (req) => (SITE_HOSTS.includes(String(req.headers.host || '').split(':')[0].toLowerCase()) ? '' : '/site');
 
+// Which homepage banner to show: the wheat field, falling leaves, or snow.
+// Preview any of them with ?season=fall, ?season=winter or ?season=wheat.
+// SITE_SEASON picks the live one: wheat (the default), fall, winter, or auto
+// (falling leaves October through November, snow December through February, wheat the rest of the year).
+const SEASONS = ['wheat', 'fall', 'winter'];
+function seasonFor(req, now = new Date()) {
+  const asked = String(req.query.season || '').toLowerCase();
+  if (SEASONS.includes(asked)) return asked;
+  const set = String(process.env.SITE_SEASON || 'wheat').toLowerCase();
+  if (SEASONS.includes(set)) return set;
+  if (set === 'auto') {
+    const m = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', month: 'numeric' }).format(now));
+    return m === 10 || m === 11 ? 'fall' : m === 12 || m <= 2 ? 'winter' : 'wheat';
+  }
+  return 'wheat';
+}
+
 function show(req, res, page, view, { title, desc, status = 200 } = {}) {
   res.status(status);
   res.setHeader('Cache-Control', 'no-cache');
-  res.send(V.layout({ title, desc, page, body: view.body, head: view.head, base: baseFor(req) }).toString());
+  res.send(V.layout({ title, desc, page, body: view.body, head: view.head, base: baseFor(req), season: seasonFor(req) }).toString());
 }
 
 async function saveInquiry(kind, v, { to } = {}) {
