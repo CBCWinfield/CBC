@@ -32,4 +32,14 @@ function seasonFor(query = {}, env = process.env, now = new Date()) {
   return byCalendar(now);
 }
 
-module.exports = { SEASONS, byCalendar, seasonFor };
+// How the Christmas and Easter stories are shown: in an arched window where the cross stands ("window"),
+// or across the green banner as a landscape of hills ("pano"). SITE_STORY_STYLE picks; ?story= previews.
+const STYLES = ['window', 'pano'];
+function styleFor(query = {}, env = process.env) {
+  const asked = String(query.story || '').toLowerCase();
+  if (STYLES.includes(asked)) return asked;
+  const set = String(env.SITE_STORY_STYLE || '').toLowerCase();
+  return STYLES.includes(set) ? set : 'window';
+}
+
+module.exports = { SEASONS, byCalendar, seasonFor, styleFor };

@@ -10,7 +10,7 @@ const { clean } = require('../routes/guards');
 const yt = require('../lib/youtube');
 const V = require('./views');
 const C = require('./content');
-const { seasonFor } = require('./season');
+const { seasonFor, styleFor } = require('./season');
 
 const SITE_HOSTS = (process.env.SITE_HOSTS || 'cbcwinfield.org,www.cbcwinfield.org').split(',').map((h) => h.trim().toLowerCase());
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -19,7 +19,7 @@ const baseFor = (req) => (SITE_HOSTS.includes(String(req.headers.host || '').spl
 function show(req, res, page, view, { title, desc, status = 200 } = {}) {
   res.status(status);
   res.setHeader('Cache-Control', 'no-cache');
-  res.send(V.layout({ title, desc, page, body: view.body, head: view.head, base: baseFor(req), season: seasonFor(req.query) }).toString());
+  res.send(V.layout({ title, desc, page, body: view.body, head: view.head, base: baseFor(req), season: seasonFor(req.query), storyStyle: styleFor(req.query) }).toString());
 }
 
 async function saveInquiry(kind, v, { to } = {}) {

@@ -8,6 +8,8 @@
   if (!canvas || !canvas.getContext) return;
   var hero = canvas.parentNode;
   var mode = canvas.getAttribute('data-season');
+  // When the Christmas story fills the banner, its own snowy hills are the ground: snow falls past, no drift.
+  var noGround = canvas.getAttribute('data-ground') === 'none';
   if (mode !== 'fall' && mode !== 'winter') return;
   var ctx = canvas.getContext('2d');
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -164,6 +166,7 @@
       A: rand(6, 26), w: rand(0.4, 1.4), ph: rand(0, 6.28), t: rand(0, 10), alpha: near ? rand(0.75, 1) : rand(0.35, 0.6), drift: rand(-6, 6) };
   }
   function snowTop(x) {
+    if (noGround) return H + 20;
     var i = clamp((x / BIN) | 0, 0, bins.length - 1);
     return H - bins[i];
   }
@@ -217,6 +220,7 @@
     ctx.fillStyle = '#FFFFFF';
     for (var i = 0; i < flakes.length; i++) if (!flakes[i].near) drawFlake(flakes[i]);
     ctx.globalAlpha = 1;
+    if (noGround) { for (var q = 0; q < flakes.length; q++) if (flakes[q].near) drawFlake(flakes[q]); ctx.globalAlpha = 1; return; }
     // A softer ridge behind the drift, for depth
     ctx.beginPath(); ctx.moveTo(0, H);
     for (var r = 0; r < bins.length; r += 2) { var rx = r * BIN, ru = rx / Math.max(W, 1); ctx.lineTo(rx, H - base[r] - FH * 0.12 - 14 * Math.sin(ru * Math.PI * 2.3 + 2.0) - 6 * Math.sin(ru * Math.PI * 5.1)); }

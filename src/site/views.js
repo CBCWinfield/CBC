@@ -41,10 +41,25 @@ const CROSS = raw(`<figure class="hero-cross">
 // Homepage hero in December and at Easter: the story told in pictures, in a window where the cross stands.
 // public/js/story.js draws the scenes and captions; without it, the window simply shows the cross and a verse.
 const STORY_VERSE = {
-  christmas: ['Luke 2:11', 'For unto you is born this day in the city of David a Saviour, which is Christ the Lord.', 'The Christmas story'],
-  easter: ['Matthew 28:6', 'He is not here: for he is risen, as he said. Come, see the place where the Lord lay.', 'The Easter story'],
+  christmas: ['Luke 2:11', 'For unto you is born this day in the city of David a Saviour, which is Christ the Lord.', 'The Christmas Story'],
+  easter: ['Matthew 28:6', 'He is not here: for he is risen, as he said. Come, see the place where the Lord lay.', 'The Crucifixion and Resurrection Story'],
 };
 const CROSS_ART = String(CROSS).match(/<svg class="hc-art"[\s\S]*?<\/svg>/)[0];
+// The verse, its reference, and the story controls (shared by both ways of showing the story).
+function storyText(kind, tag) {
+  const [ref, text, title] = STORY_VERSE[kind];
+  return `<${tag} class="story-cap">
+    <p class="story-eyebrow">${title}</p>
+    <p class="story-verse">${text}</p>
+    <p class="story-ref">${ref}</p>
+  </${tag}>
+  <div class="story-ctrl" hidden>
+    <button type="button" class="story-btn" data-prev aria-label="Previous scene"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <button type="button" class="story-btn story-play" data-play aria-label="Pause the story" aria-pressed="false"><svg class="i-pause" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg><svg class="i-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+    <button type="button" class="story-btn" data-next aria-label="Next scene"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>
+    <div class="story-dots"></div>
+  </div>`;
+}
 function STORY(kind) {
   const [ref, text, title] = STORY_VERSE[kind];
   return raw(`<figure class="hero-story is-cross" data-story="${kind}" aria-label="${title}, told in pictures">
@@ -52,18 +67,18 @@ function STORY(kind) {
     <canvas class="story-canvas" aria-hidden="true"></canvas>
     <div class="story-cross" aria-hidden="true">${CROSS_ART}</div>
   </div>
-  <figcaption class="story-cap">
-    <p class="story-eyebrow">${title}</p>
-    <p class="story-verse">${text}</p>
-    <p class="story-ref">${ref}</p>
-  </figcaption>
-  <div class="story-ctrl" hidden>
-    <button type="button" class="story-btn" data-prev aria-label="Previous scene"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
-    <button type="button" class="story-btn story-play" data-play aria-label="Pause the story" aria-pressed="false"><svg class="i-pause" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg><svg class="i-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg></button>
-    <button type="button" class="story-btn" data-next aria-label="Next scene"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>
-    <div class="story-dots"></div>
-  </div>
+  ${storyText(kind, 'figcaption')}
 </figure>`);
+}
+
+// The story told across the banner itself: hills of the land the camera travels through, with the
+// verse and controls set on the near hillside. Takes the place of the wheat field (or snow drift).
+function STORY_PANO(kind) {
+  const title = STORY_VERSE[kind][2];
+  return raw(`<div class="field hero-pano" data-story="${kind}" role="region" aria-label="${title}, told in pictures">
+  <div class="pano-stage"><canvas class="pano-canvas" aria-hidden="true"></canvas></div>
+  <div class="pano-text">${storyText(kind, 'div')}</div>
+</div>`);
 }
 
 // Staff photo on disk? Returns a cache-busting stamp or 0. Photos go in public/img/staff/<key>.jpg.
@@ -106,10 +121,11 @@ const MENU = [
 // Page wrapper: the green banner (nav, heading, swaying wheat), the page, and the footer.
 // On the homepage the banner follows the church calendar (see season.js): falling leaves, snow, the Christmas
 // story told in pictures (with snow), the crucifixion and resurrection (over the wheat), or the wheat.
-function layout({ title, desc, page, body, base = '', head, season = 'wheat' }) {
+function layout({ title, desc, page, body, base = '', head, season = 'wheat', storyStyle = 'window' }) {
   const s = page === 'home' ? season : 'wheat';
   const sky = s === 'fall' ? 'fall' : s === 'winter' || s === 'christmas' ? 'winter' : null;
   const story = s === 'christmas' || s === 'easter' ? s : null;
+  const panoStory = story && storyStyle === 'pano';
   const seasonal = !!(sky || story);
   const href = (p) => (p.startsWith('http') ? p : `${base}${p}`);
   const link = (u) => (u === 'shop' ? CHURCH.shop : u.startsWith('app:') ? appUrl(u.slice(4)) : href(u));
@@ -136,7 +152,7 @@ function layout({ title, desc, page, body, base = '', head, season = 'wheat' }) 
 ${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? raw('<script src="/js/story.js?v=1" defer></script>') : ''}
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
-<body class="page-${page}${seasonal ? ` season-${s}` : ''}">
+<body class="page-${page}${seasonal ? ` season-${s}` : ''}${panoStory ? ' story-pano' : ''}">
 <a class="skip" href="#main">Skip to content</a>
 <header class="hero${isHome ? '' : ' hero-page'}">
   <nav class="nav" aria-label="Main">
@@ -158,10 +174,10 @@ ${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? ra
     <h1>${head.title}</h1>
     ${head.lead ? html`<p class="hero-lead">${head.lead}</p>` : ''}
     ${head.actions ? html`<div class="hero-actions">${head.actions}</div>` : ''}
-    ${isHome ? (story ? STORY(story) : CROSS) : ''}
+    ${isHome ? (story && !panoStory ? STORY(story) : CROSS) : ''}
   </div>
-  <div class="field" aria-hidden="true"><div class="field-inner">${sky ? '' : wheat()}</div></div>
-  ${sky ? raw(`<canvas class="season-sky" data-season="${sky}" aria-hidden="true"></canvas>`) : ''}
+  ${panoStory ? STORY_PANO(story) : html`<div class="field" aria-hidden="true"><div class="field-inner">${sky ? '' : wheat()}</div></div>`}
+  ${sky ? raw(`<canvas class="season-sky" data-season="${sky}"${panoStory ? ' data-ground="none"' : ''} aria-hidden="true"></canvas>`) : ''}
 </header>
 <div class="menu" id="menu" hidden>
   <div class="menu-top"><img src="/img/logo-central-white.png" alt="" width="640" height="224"><button class="menu-btn menu-close" type="button" aria-expanded="true" aria-controls="menu"><span class="menu-lines" aria-hidden="true"></span><span class="visually-hidden">Close menu</span></button></div>

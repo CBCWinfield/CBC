@@ -1,13 +1,16 @@
 /* The Christmas story (December) and the crucifixion and resurrection (Mar 15 – May 1), told in
-   pictures in the homepage window where the cross usually stands. Every caption is the King James
-   Bible, word for word, and the pictures show only what those verses say. Each telling ends on the cross. */
+   pictures on the homepage. Every caption is the King James Bible, word for word, and the pictures
+   show only what those verses say. Each telling ends on the cross.
+   Two ways to show it: in an arched window where the cross usually stands (.hero-story), or across
+   the green banner itself as a landscape of hills the camera travels through (.hero-pano). */
 (function () {
   'use strict';
-  var fig = document.querySelector('.hero-story');
+  var fig = document.querySelector('.hero-story, .hero-pano');
   if (!fig) return;
+  var pano = fig.classList.contains('hero-pano');
   var kind = fig.getAttribute('data-story');
-  var stage = fig.querySelector('.story-stage');
-  var canvas = fig.querySelector('.story-canvas');
+  var stage = fig.querySelector(pano ? '.pano-stage' : '.story-stage');
+  var canvas = fig.querySelector(pano ? '.pano-canvas' : '.story-canvas');
   if (!canvas || !canvas.getContext || (kind !== 'christmas' && kind !== 'easter')) return;
   var c = canvas.getContext('2d');
   var LW = 400, LH = 500, SC = 1, T = 0;
@@ -324,6 +327,7 @@
     c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(x - 0.32 * s, y - 0.66 * s, 0.64 * s, 0.66 * s);
     c.fillStyle = '#030605'; c.beginPath(); c.moveTo(x - 0.22 * s, y); c.lineTo(x - 0.22 * s, y - 0.32 * s); c.arc(x, y - 0.32 * s, 0.22 * s, Math.PI, 0); c.lineTo(x + 0.22 * s, y); c.closePath(); c.fill();
     if (open) glow(x, y - 0.25 * s, 0.4 * s, '255,236,190', 0.25 * open);
+    if (stoneOff === null) return; // the stone is being moved by the scene itself
     var sx = x + (stoneOff || 0) * s, rot = (stoneOff || 0) * 1.6;
     c.save(); c.translate(sx, y - 0.31 * s); c.rotate(rot);
     var sg = c.createRadialGradient(-0.1 * s, -0.12 * s, 0.02 * s, 0, 0, 0.33 * s); sg.addColorStop(0, '#4A4440'); sg.addColorStop(1, '#25211F');
@@ -344,7 +348,7 @@
   var BLUE_VEIL = '#1E3658';
   var STORIES = {
     christmas: {
-      title: 'The Christmas story',
+      title: 'The Christmas Story',
       scenes: [
         { name: 'Nazareth', caps: [
           { ref: 'Luke 1:26–27', text: 'And in the sixth month the angel Gabriel was sent from God unto a city of Galilee, named Nazareth, To a virgin espoused to a man whose name was Joseph, of the house of David; and the virgin’s name was Mary.' },
@@ -515,7 +519,7 @@
       ],
     },
     easter: {
-      title: 'The Easter story',
+      title: 'The Crucifixion and Resurrection Story',
       scenes: [
         { name: 'Jerusalem', zoom: 1.14, caps: [
           { ref: 'Matthew 21:8', text: 'And a very great multitude spread their garments in the way; others cut down branches from the trees, and strawed them in the way.' },
@@ -707,6 +711,335 @@
     },
   };
 
+
+  /* ---------- the landscape: the story told across the banner ---------- */
+  // Four bands of hills, far to near. Each slides at its own speed as the camera travels,
+  // which is what gives the page its depth.
+  var BH = 320, BW = 800, cam = 0, camSet = false, K = 1, lastDt = 0.016;
+  var LAY = {
+    far: { spd: 0.22, base: 86, w: [[13, 0.0062, 1], [7, 0.017, 2], [3, 0.041, 0.5]], col: '#24493A', haze: '#3C6650', s: 0.38 },
+    mid: { spd: 0.48, base: 120, w: [[16, 0.0047, 0.4], [8, 0.013, 1.7], [3, 0.033, 2.4]], col: '#173827', haze: '#2A5540', s: 0.56 },
+    near: { spd: 0.8, base: 158, w: [[13, 0.0036, 2.2], [6, 0.011, 0.3], [2, 0.029, 1.1]], col: '#0E2618', haze: '#1D4430', s: 0.82 },
+    front: { spd: 1.25, base: 206, w: [[10, 0.0042, 1], [4, 0.014, 0], [2, 0.037, 2]], col: '#07160D', haze: '#0F2A1A', s: 1.12 },
+  };
+  var ORDER = ['far', 'mid', 'near', 'front'];
+  function LY(L, wx) { var y = L.base; for (var i = 0; i < L.w.length; i++) y += L.w[i][0] * Math.sin(wx * L.w[i][1] + L.w[i][2]); return y; }
+  function Pat(C) {
+    return {
+      x: function (l, ox) { return BW / 2 + ox * K + (C - cam) * LAY[l].spd; },
+      y: function (l, ox) { return LY(LAY[l], C * LAY[l].spd + ox * K); },
+      s: function (l) { return LAY[l].s; },
+    };
+  }
+  function pRidge(l, fill) {
+    var L = LAY[l], off = cam * L.spd;
+    c.beginPath(); c.moveTo(-10, BH + 10);
+    for (var sx = -10; sx <= BW + 10; sx += 4) c.lineTo(sx, LY(L, sx - BW / 2 + off));
+    c.lineTo(BW + 10, BH + 10); c.closePath(); c.fillStyle = fill; c.fill();
+  }
+  function pCap(l, col, wdt) {
+    var L = LAY[l], off = cam * L.spd;
+    c.beginPath(); for (var sx = -10; sx <= BW + 10; sx += 4) { var y = LY(L, sx - BW / 2 + off); if (sx < -9) c.moveTo(sx, y); else c.lineTo(sx, y); }
+    c.strokeStyle = col; c.lineWidth = wdt; c.stroke();
+  }
+  function pStars(seed, n, maxY, a) {
+    if (a <= 0) return;
+    var r = rng(seed); c.fillStyle = '#FFF8E6';
+    for (var i = 0; i < n; i++) {
+      var x = r() * BW, y = r() * maxY, sz = r() * 1 + 0.3, sp = 0.6 + r() * 1.6;
+      c.globalAlpha = a * (0.5 + 0.5 * Math.sin(T * sp + i)) * (1 - y / maxY) * 0.9;
+      c.beginPath(); c.arc(x, y, sz, 0, 6.283); c.fill();
+    }
+    c.globalAlpha = 1;
+  }
+  // The light of the hour along the horizon, fading up into the banner's green.
+  function horizon(rgb, a, y) {
+    if (a <= 0) return;
+    var g = c.createLinearGradient(0, 0, 0, BH);
+    g.addColorStop(0, 'rgba(' + rgb + ',0)'); g.addColorStop(y / BH, 'rgba(' + rgb + ',' + a + ')'); g.addColorStop(Math.min(1, (y + 60) / BH), 'rgba(' + rgb + ',' + a * 0.4 + ')'); g.addColorStop(1, 'rgba(' + rgb + ',0)');
+    c.fillStyle = g; c.fillRect(0, 0, BW, BH);
+  }
+  function wheatRow(seed) {
+    var r = rng(seed), L = LAY.front, off = cam * L.spd;
+    for (var sx = -6; sx < BW + 6; sx += 7 + r() * 6) {
+      var y = LY(L, sx - BW / 2 + off) + 4 + r() * 10, hh = 30 + r() * 26, sw = Math.sin(T * 1.1 + sx * 0.05) * 3;
+      c.strokeStyle = 'rgba(176,140,62,.85)'; c.lineWidth = 1.1; c.beginPath(); c.moveTo(sx, y); c.quadraticCurveTo(sx + sw * 0.4, y - hh * 0.6, sx + sw, y - hh); c.stroke();
+      c.fillStyle = r() < 0.5 ? '#E2BE66' : '#C9A24A';
+      for (var q = 0; q < 4; q++) { c.beginPath(); c.ellipse(sx + sw + (q % 2 ? 1.3 : -1.3), y - hh + q * 3.2, 1.3, 2.6, (q % 2 ? 0.4 : -0.4), 0, 6.283); c.fill(); }
+    }
+  }
+  function cutawayHouse(x, y, w, h) {
+    // A stone footing down into the hillside, so the house sits on the land.
+    c.fillStyle = '#0A1A10'; c.beginPath(); c.moveTo(x - 30, y + 60); c.lineTo(x - 8, y - 4); c.lineTo(x + w + 8, y - 4); c.lineTo(x + w + 40, y + 60); c.closePath(); c.fill();
+    var g = c.createLinearGradient(0, y - h, 0, y); g.addColorStop(0, '#4A3320'); g.addColorStop(1, '#2C1D12');
+    c.fillStyle = g; c.fillRect(x, y - h, w, h);
+    glow(x + w * 0.3, y - h * 0.35, w * 0.6, '255,190,110', 0.25);
+    c.fillStyle = '#0B140E'; c.fillRect(x - 8, y - h - 10, w + 16, 12); c.fillRect(x - 8, y - h, 10, h); c.fillRect(x + w - 2, y - h, 10, h);
+    c.fillStyle = '#0A1426'; c.beginPath(); c.moveTo(x + w * 0.14, y - h * 0.45); c.lineTo(x + w * 0.14, y - h * 0.75); c.arc(x + w * 0.2, y - h * 0.75, w * 0.06, Math.PI, 0); c.lineTo(x + w * 0.26, y - h * 0.45); c.closePath(); c.fill();
+  }
+  function mound(x, y, w, h, col) {
+    c.fillStyle = col; c.beginPath(); c.moveTo(x - w / 2, y + 10);
+    c.bezierCurveTo(x - w * 0.3, y - h * 0.2, x - w * 0.18, y - h, x, y - h); c.bezierCurveTo(x + w * 0.18, y - h, x + w * 0.3, y - h * 0.2, x + w / 2, y + 10); c.closePath(); c.fill();
+  }
+
+  var PANO = {
+    christmas: {
+      locs: { nazareth: 0, road: 1200, bethlehem: 2400, fields: 3600, east: 4800, house: 6000, finale: 7200 },
+      snow: true,
+      props: function (loc, l, P) {
+        var S = P.s(l);
+        if (loc === 'nazareth') {
+          if (l === 'far') town(5, P.x('far', 260), P.y('far', 260) + 3, 0.55, '#16301F', 0.9, 7);
+          if (l === 'near') { house(P.x('near', -330), P.y('near', -330) + 8, 110 * S, 92 * S, '#0A1A10', 1, 'lit'); olive(P.x('near', -190), P.y('near', -190) + 6, 66 * S, '#0A1A10', 4); }
+        } else if (loc === 'road') {
+          if (l === 'far') town(9, P.x('far', 330), P.y('far', 330) + 3, 0.6, '#16301F', 0.9, 9);
+          if (l === 'mid') { olive(P.x('mid', -260), P.y('mid', -260) + 4, 70 * S, '#112619', 2); olive(P.x('mid', 220), P.y('mid', 220) + 4, 60 * S, '#112619', 8); }
+        } else if (loc === 'bethlehem') {
+          if (l === 'mid') town(17, P.x('mid', -230), P.y('mid', -230) + 4, 0.95, '#112619', 1, 10);
+          if (l === 'near') { shelter(P.x('near', 0), P.y('near', 0) + 8, 200 * S, 132 * S, '#0A1A10'); manger(P.x('near', 100), P.y('near', 100) + 8, 52 * S, '#0A1A10'); }
+        } else if (loc === 'fields') {
+          if (l === 'far') town(13, P.x('far', -360), P.y('far', -360) + 3, 0.55, '#16301F', 0.9, 8);
+          if (l === 'near') { var r = rng(77); for (var i = 0; i < 10; i++) { var ox = -330 + r() * 640, gz = 0.5 + 0.5 * Math.sin(T * 0.7 + i * 2); sheep(P.x('near', ox), P.y('near', ox) + 6 + r() * 14, 26 * S, r() < 0.5 ? 1 : -1, gz, '#D9D6C8', '#0A1510'); } }
+        } else if (loc === 'east') {
+          if (l === 'far') walls(P.x('far', -380), P.y('far', -380) + 4, 120, 18, '#16301F');
+          if (l === 'mid') { house(P.x('mid', 300), P.y('mid', 300) + 6, 60, 44, '#112619', 1, 'lit'); house(P.x('mid', 250), P.y('mid', 250) + 6, 34, 26, '#112619', 0.6); house(P.x('mid', 370), P.y('mid', 370) + 6, 30, 22, '#112619', 0.5); }
+        } else if (loc === 'house') {
+          if (l === 'near') cutawayHouse(P.x('near', -90), P.y('near', -90) + 8, 360 * S, 150 * S);
+        } else if (loc === 'finale') {
+          if (l === 'far') town(23, P.x('far', -40), P.y('far', -40) + 3, 1.2, '#16301F', 1, 15);
+        }
+      },
+      scenes: [
+        { loc: 'nazareth', mood: function () { return { stars: 1, hz: ['60,90,140', 0.25] }; }, actors: function (k, P) {
+          var S = P.s('near'), come = ease(ramp(k.at(0), 3, 6)), leave = ease(ramp(k.at(2), 6, 9)), ga = come * (1 - leave);
+          LIGHT.dir = 1;
+          person({ x: P.x('near', -60), y: P.y('near', -60) + 8, h: 118 * S, f: 1, veil: BLUE_VEIL, bow: 0.15 + 0.7 * ease(ramp(k.at(1), 1, 3)) * (1 - 0.4 * ease(ramp(k.at(2), 0, 2))) + 0.5 * ease(ramp(k.at(2), 1, 3)), rim: ga > 0.05 ? 1 : 0, rimCol: 'rgba(255,236,190,' + 0.75 * ga + ')' });
+          angel({ x: P.x('near', 80), y: P.y('near', 80) - 14 - 26 * (1 - come) - 14 * leave, h: 128 * S, f: -1, a: ga, arms: k.cap >= 1 ? 'out' : null });
+        } },
+        { loc: 'road', cam: function (k) { return 0.7 * (-260 + 440 * (k.t / k.dur)) * K / 0.8; }, mood: function () { return { stars: 0.4, hz: ['235,150,90', 0.45], sun: [0.62, 110, 18] }; }, actors: function (k, P) {
+          var S = P.s('near'), ox = -260 + 440 * (k.t / k.dur);
+          LIGHT.dir = 1; LIGHT.col = 'rgba(255,190,110,.8)';
+          person({ x: P.x('near', ox + 44), y: P.y('near', ox + 44) + 8, h: 122 * S, f: 1, cloth: true, staff: true, walk: k.t * 3.6 });
+          person({ x: P.x('near', ox), y: P.y('near', ox) + 8, h: 110 * S, f: 1, veil: BLUE_VEIL, belly: 1, walk: k.t * 3.6 + 1.6, bow: 0.15 });
+        } },
+        { loc: 'bethlehem', mood: function () { return { stars: 1, hz: ['50,80,130', 0.25] }; }, actors: function (k, P) {
+          var S = P.s('near'), ba = ease(ramp(k.at(1), 0.5, 3));
+          glow(P.x('near', 100), P.y('near', 100) - 30 * S, 170 * S, '255,214,140', 0.3 * ba);
+          baby(P.x('near', 100), P.y('near', 100) + 8 - 36 * S, 30 * S, ba);
+          LIGHT.col = 'rgba(255,220,150,' + (0.3 + 0.5 * ba) + ')';
+          person({ x: P.x('near', 50), y: P.y('near', 50) + 8, h: 106 * S, f: 1, veil: BLUE_VEIL, kneel: 1, bow: 0.3 + 0.3 * ba, belly: 1 - ba, rim: 1 });
+          person({ x: P.x('near', 168), y: P.y('near', 168) + 8, h: 124 * S, f: -1, cloth: true, staff: true, bow: 0.25, rim: -1 });
+        } },
+        { loc: 'fields', mood: function (k) { var ga = ease(ramp(k.at(1), 0, 2.2)), host = ease(ramp(k.at(5), 0, 3)); return { stars: 1 - ga * 0.6, hz: ['50,80,130', 0.22], glory: ga * 0.55 + host * 0.25 }; }, actors: function (k, P) {
+          var S = P.s('near'), ga = ease(ramp(k.at(1), 0, 2.2)), host = ease(ramp(k.at(5), 0, 3)), praise = ease(ramp(k.at(6), 0, 2)), fear = ease(ramp(k.at(1), 0.6, 2.2));
+          LIGHT.col = 'rgba(255,226,160,' + (0.2 + 0.6 * ga) + ')';
+          person({ x: P.x('near', -220), y: P.y('near', -220) + 8, h: 118 * S, f: 1, cloth: true, staff: 'crook', kneel: fear, bow: fear * 0.7, rim: 1 });
+          person({ x: P.x('near', -150), y: P.y('near', -150) + 10, h: 112 * S, f: 1, cloth: true, sit: 1 - fear, kneel: fear, bow: 0.2 + fear * 0.6, rim: 1 });
+          person({ x: P.x('near', 230), y: P.y('near', 230) + 8, h: 122 * S, f: -1, cloth: true, staff: 'crook', kneel: fear, bow: fear * 0.7, rim: -1 });
+          var hr = rng(9), cx = P.x('near', 20);
+          for (var j = 0; j < 30; j++) { var hx = hr() * BW, hy = 30 + hr() * 70; if (Math.abs(hx - cx) < 70) hx += hx < cx ? -90 : 90; angel({ x: hx, y: hy + Math.sin(T * 0.9 + j) * 2, h: 20 + hr() * 14, a: host * (0.55 + 0.45 * hr()), f: hx < cx ? 1 : -1, arms: praise > 0.5 ? 'raise' : null, ph: j, big: 0.9 }); }
+          angel({ x: cx, y: P.y('near', 20) - 30 - 20 * (1 - ga), h: 132 * S, f: 1, a: ga, arms: k.cap >= 2 ? (k.cap >= 6 ? 'raise' : 'out') : null, big: 1.8 });
+        } },
+        { loc: 'bethlehem', mood: function () { return { stars: 1, hz: ['50,80,130', 0.25] }; }, actors: function (k, P) {
+          var S = P.s('near'), come = ease(ramp(k.at(0), 0, 4));
+          glow(P.x('near', 100), P.y('near', 100) - 30 * S, 170 * S, '255,214,140', 0.3);
+          baby(P.x('near', 100), P.y('near', 100) + 8 - 36 * S, 30 * S, 1);
+          LIGHT.col = 'rgba(255,220,150,.75)';
+          person({ x: P.x('near', -10), y: P.y('near', -10) + 8, h: 124 * S, f: 1, cloth: true, staff: true, bow: 0.25, rim: 1 });
+          person({ x: P.x('near', 50), y: P.y('near', 50) + 8, h: 106 * S, f: 1, veil: BLUE_VEIL, kneel: 1, bow: 0.35 + 0.35 * ease(ramp(k.at(1), 0, 2)), rim: 1 });
+          [[156, 3.5, 112], [204, 3.8, 116], [256, 4.5, 122]].forEach(function (m, i) {
+            var ox = mix(m[0] + 260, m[0], come);
+            person({ x: P.x('near', ox), y: P.y('near', ox) + 8, h: m[2] * S, f: -1, cloth: true, staff: i === 2 ? 'crook' : null, kneel: i < 2 ? ease(ramp(k.at(0), m[1], m[1] + 1.5)) : 0, bow: 0.7 * ease(ramp(k.at(0), m[1] + 0.5, m[1] + 2.5)), walk: come < 1 ? k.t * 4 + i : null, rim: -1 });
+          });
+        } },
+        { loc: 'east', mood: function () { return { stars: 1, hz: ['50,80,130', 0.22] }; }, actors: function (k, P) {
+          var S = P.s('near'), p = k.t / k.dur, mv = ease(ramp(k.at(2), 0, 8)), joy = ease(ramp(k.at(3), 0, 1.5));
+          var hx = P.x('mid', 300), stx = mix(P.x('mid', -60), hx + 8, mv), sty = mix(26, 54, mv);
+          bstar(stx, sty, 4 + joy * 1.2, 1);
+          if (mv > 0.7) { c.save(); c.globalCompositeOperation = 'lighter'; var bg = c.createLinearGradient(0, 60, 0, P.y('mid', 300)); bg.addColorStop(0, 'rgba(255,240,200,' + 0.22 * ease(ramp(mv, 0.7, 1)) + ')'); bg.addColorStop(1, 'rgba(255,240,200,0)'); c.fillStyle = bg; c.beginPath(); c.moveTo(hx + 4, 62); c.lineTo(hx + 12, 62); c.lineTo(hx + 40, P.y('mid', 300) - 30); c.lineTo(hx - 24, P.y('mid', 300) - 30); c.closePath(); c.fill(); c.restore(); }
+          LIGHT.dir = 1; LIGHT.col = 'rgba(255,240,205,' + (0.3 + 0.4 * mv) + ')';
+          var gx = mix(-380, 40, p);
+          [[0, 124, 'gold'], [-40, 116, 'incense'], [-80, 128, 'myrrh'], [-120, 114, null]].forEach(function (m, i) {
+            var ox = gx + m[0]; person({ x: P.x('near', ox), y: P.y('near', ox) + 8, h: m[1] * S, f: 1, hat: i % 2 === 0, cloth: i % 2 === 1, walk: k.t * 3 + i * 1.3, arms: joy > 0.3 && i < 3 ? 'raise' : null });
+          });
+        } },
+        { loc: 'house', mood: function () { return { stars: 1, hz: ['50,80,130', 0.22] }; }, actors: function (k, P) {
+          var S = P.s('near'), bowd = ease(ramp(k.at(0), 2, 4.5)), give = ease(ramp(k.at(1), 0.5, 3));
+          bstar(P.x('near', 0), 22, 4.5, 1);
+          LIGHT.dir = -1; LIGHT.col = 'rgba(255,220,160,.6)';
+          person({ x: P.x('near', -40), y: P.y('near', -90) + 6, h: 104 * S, f: 1, veil: BLUE_VEIL, sit: 1, bow: 0.15, col: '#140D07' });
+          person({ x: P.x('near', 0), y: P.y('near', -90) + 6, h: 56 * S, f: 1, col: '#140D07', rim: -1, rimCol: 'rgba(255,240,205,.8)' });
+          [[72, 'gold', 112], [118, 'incense', 110], [164, 'myrrh', 114], [212, null, 118]].forEach(function (m, i) {
+            var kn = i < 3 ? bowd : bowd * 0.4;
+            person({ x: P.x('near', m[0]), y: P.y('near', -90) + 6, h: m[2] * S, f: -1, hat: i % 2 === 0, cloth: i % 2 === 1, kneel: kn, bow: kn * (give > 0 && i < 3 ? 0.35 : 0.8), arms: give > 0.1 && m[1] ? 'offer' : null, gift: m[1], col: '#140D07' });
+          });
+        } },
+        { loc: 'finale', mood: function (k) { return { stars: 1, hz: ['50,80,130', 0.25], gold: 0.35 * ease(ramp(k.at(1), 0, 4)) }; }, actors: function (k, P) {
+          var ca = ease(ramp(k.at(1), 1, 5));
+          if (ca > 0) { glow(P.x('far', 230), P.y('far', 230) - 30, 120, '246,222,156', 0.4 * ca); c.save(); c.globalAlpha = ca; rcross(P.x('far', 230), P.y('far', 230) + 2, 56, '#E8C878', {}); c.restore(); }
+        } },
+      ],
+    },
+    easter: {
+      locs: { jerusalem: 0, olives: 1200, via: 2400, calvary: 3600, garden: 4800, path: 6000 },
+      wheat: true,
+      props: function (loc, l, P, n) {
+        var S = P.s(l);
+        if (loc === 'jerusalem') {
+          if (l === 'mid') { var x0 = P.x('mid', 20), y0 = P.y('mid', 180) + 6; c.fillStyle = '#8C7A5E'; c.fillRect(x0 + 70, y0 - 78, 140, 40); c.fillRect(x0 + 96, y0 - 90, 90, 14); walls(x0, y0, 300, 42, '#6E6250', x0 + 150); }
+          if (l === 'near') { palm(P.x('near', -340), P.y('near', -340) + 8, 112 * S, '#1C2418'); palm(P.x('near', -80), P.y('near', -80) + 8, 96 * S, '#1C2418', 0.3); var cols = ['#7A2E2A', '#2F4F6E', '#8C6A2E', '#5A3A5E', '#3E5A3A']; for (var i = 0; i < 7; i++) { var ox = 30 + i * 34; c.fillStyle = cols[i % 5]; c.save(); c.translate(P.x('near', ox), P.y('near', ox) + 10 + (i % 2) * 3); c.rotate((i % 3 - 1) * 0.12); c.fillRect(-15, -3, 30, 6); c.restore(); } }
+        } else if (loc === 'olives') {
+          if (l === 'far') walls(P.x('far', 120), P.y('far', 200) + 4, 220, 22, '#16301F');
+          if (l === 'near') { olive(P.x('near', -330), P.y('near', -330) + 8, 120 * S, '#0A1A10', 3); olive(P.x('near', -120), P.y('near', -120) + 6, 90 * S, '#0B1C12', 7); olive(P.x('near', 290), P.y('near', 290) + 8, 116 * S, '#0A1A10', 5); var rx = P.x('near', 80), ry = P.y('near', 80) + 8; rock([[rx - 30, ry], [rx - 32, ry - 26], [rx - 10, ry - 40], [rx + 24, ry - 34], [rx + 36, ry - 14], [rx + 34, ry]], '#0E1A13'); }
+        } else if (loc === 'via') {
+          if (l === 'mid') walls(P.x('mid', -420), P.y('mid', -300) + 6, 260, 44, '#22372A');
+        } else if (loc === 'calvary') {
+          if (l === 'near') { mound(P.x('near', 0), P.y('near', 0) + 8, 520 * S, 46 * S, '#0D2317'); if (n > 3) { var hy = P.y('near', 0) + 8 - 42 * S; rcross(P.x('near', -66), hy + 6, 98 * S, '#1C1410', { rim: 1 }); rcross(P.x('near', 66), hy + 6, 98 * S, '#1C1410', { rim: 1 }); rcross(P.x('near', 0), hy, 118 * S, '#1C1410', { rim: 1 }); } }
+        } else if (loc === 'garden') {
+          if (l === 'near') { olive(P.x('near', -300), P.y('near', -300) + 8, 100 * S, '#0A1A10', 2); var tx = P.x('near', 60), ty = P.y('near', 60) + 8; tomb(tx, ty, 92 * S, '#1A1C1C', n < 4 ? 0.75 : n > 5 ? 0.85 : null, n > 5 ? 1 : 0); }
+        } else if (loc === 'path') {
+          if (l === 'near') { olive(P.x('near', -330), P.y('near', -330) + 8, 100 * S, '#0A1A10', 2); olive(P.x('near', 320), P.y('near', 320) + 8, 96 * S, '#0A1A10', 6); }
+        }
+      },
+      scenes: [
+        { loc: 'jerusalem', cam: function (k) { return (-120 + 200 * (k.t / k.dur)) * K * 0.6; }, mood: function () { return { hz: ['250,225,170', 0.5], sun: [0.78, 40, 14], tint: ['#7C8A6A', 0.35] }; }, actors: function (k, P) {
+          var S = P.s('near'), p = k.t / k.dur;
+          LIGHT.dir = 1; LIGHT.col = 'rgba(255,236,190,.8)';
+          [[-300, 112, 1], [-262, 116, 1], [262, 118, -1], [300, 112, -1], [338, 120, -1]].forEach(function (m, i) { person({ x: P.x('near', m[0]), y: P.y('near', m[0]) + 8, h: m[1] * S, f: m[2], cloth: i % 2 === 0, veil: i % 2 ? '#3A2E26' : null, arms: k.cap >= 1 || i % 2 ? 'wave' : null, col: '#1A1A12' }); });
+          var ox = mix(-160, 120, p), gx = P.x('near', ox), gy = P.y('near', ox) + 10;
+          colt(gx, gy, 104 * S, 1, k.t * 3.2, '#16160F');
+          rider(gx - 6 * S, gy - 104 * S * 0.66, 86 * S, '#1A1A12');
+        } },
+        { loc: 'olives', mood: function () { return { stars: 0.9, hz: ['70,100,150', 0.25], moon: [0.72, 40, 12] }; }, actors: function (k, P) {
+          var S = P.s('near'), kn = ease(ramp(k.at(1), 0, 2.5)), walkIn = ease(ramp(k.t, 0, 6)), sleepA = ease(ramp(k.at(1), 1, 4));
+          LIGHT.col = 'rgba(210,225,255,.7)'; LIGHT.dir = 1;
+          [[-250, 92], [-210, 88], [-170, 90]].forEach(function (d) { person({ x: P.x('near', d[0]), y: P.y('near', d[0]) + 8, h: d[1] * S, f: 1, cloth: true, sit: 1, bow: 1.15, a: sleepA, rim: 1, rimCol: 'rgba(210,225,255,.45)', col: '#0B1A12' }); });
+          var ox = mix(-120, 30, walkIn);
+          person({ x: P.x('near', ox), y: P.y('near', ox) + 8, h: 126 * S, f: 1, cloth: true, kneel: kn, bow: 0.25 + kn * 0.35, arms: kn > 0.5 ? 'pray' : null, walk: walkIn < 1 ? k.t * 3 : null });
+          var an = ease(ramp(k.at(3), 0, 2.5));
+          angel({ x: P.x('near', 150), y: P.y('near', 150) - 40 + 16 * (1 - an), h: 110 * S, f: -1, a: an, arms: 'out' });
+        } },
+        { loc: 'via', cam: function (k) { return (-140 + 240 * (k.t / k.dur)) * K * 0.7; }, mood: function () { return { hz: ['200,140,100', 0.4], tint: ['#3E3328', 0.35] }; }, actors: function (k, P) {
+          var S = P.s('near'), ox = mix(-160, 120, k.t / k.dur), fa = ease(ramp(k.at(2), 0, 3));
+          LIGHT.dir = -1; LIGHT.col = 'rgba(255,200,140,.55)';
+          var x = P.x('near', ox), y = P.y('near', ox) + 8;
+          person({ x: x, y: y, h: 124 * S, f: 1, cloth: true, bow: 0.6, walk: k.t * 2.2, col: '#120C0C' });
+          carried(x, y, 124 * S, '#1E1410');
+          [[-70, 108, BLUE_VEIL], [-110, 104, '#3A2638'], [-150, 112, null], [-190, 106, '#3A2638']].forEach(function (m, i) { var fx = ox + m[0] - 30 * (1 - fa); person({ x: P.x('near', fx), y: P.y('near', fx) + 8, h: m[1] * S, f: 1, veil: m[2], cloth: !m[2], bow: 0.6, walk: k.t * 2.2 + i, a: i < 1 ? 1 : fa, col: '#140E0E' }); });
+        } },
+        { loc: 'calvary', mood: function (k) { var dk = ease(ramp(k.at(3), 0, 4)); return { hz: ['210,140,90', 0.45 * (1 - dk) + 0.15], tint: ['#3A2E28', 0.4], dark: dk * 0.7, shake: k.at(5) }; }, actors: function (k, P) {
+          var S = P.s('near'), dk = ease(ramp(k.at(3), 0, 4)), bow = ease(ramp(k.at(4), 4, 6));
+          var hy = P.y('near', 0) + 8 - 42 * S, wood = mixCol('#2A1C14', '#0C0807', dk), body = mixCol('#070505', '#000000', dk);
+          LIGHT.dir = -1; LIGHT.col = 'rgba(255,190,130,' + 0.45 * (1 - dk) + ')';
+          rcross(P.x('near', -66), hy + 6, 98 * S, wood, { fig: true, figCol: body, rim: -1 });
+          rcross(P.x('near', 66), hy + 6, 98 * S, wood, { fig: true, figCol: body, rim: -1 });
+          rcross(P.x('near', 0), hy, 118 * S, wood, { fig: true, figCol: body, title: true, bow: bow, rim: -1 });
+          var col = mixCol('#120C0C', '#030203', dk);
+          [[-270, BLUE_VEIL], [-240, '#2A1C26'], [-210, null]].forEach(function (m) { person({ x: P.x('near', m[0]), y: P.y('near', m[0]) + 8, h: 96 * S, f: 1, veil: m[1], cloth: !m[1], bow: 0.5, col: col }); });
+          person({ x: P.x('near', 230), y: P.y('near', 230) + 8, h: 120 * S, f: -1, helmet: true, spear: true, bow: k.cap >= 5 ? -0.2 : 0, col: col });
+        } },
+        { loc: 'garden', mood: function () { return { stars: 0.4, hz: ['200,120,100', 0.4], tint: ['#2E2630', 0.3] }; }, actors: function (k, P) {
+          var S = P.s('near'), roll = ease(ramp(k.at(1), 4, 9)), tx = P.x('near', 60), ty = P.y('near', 60) + 8;
+          tombStone(tx, ty, 92 * S, mix(0.75, 0, roll));
+          if (k.cap >= 3) { c.fillStyle = '#8A2E24'; c.beginPath(); c.arc(tx, ty - 28 * S, 3, 0, 6.283); c.fill(); }
+          LIGHT.dir = -1; LIGHT.col = 'rgba(255,180,130,.5)';
+          var leave = ease(ramp(k.at(1), 10, 13)), jx = mix(40, 150, roll) + 40 * leave;
+          person({ x: P.x('near', jx), y: P.y('near', jx) + 8, h: 120 * S, f: -1, cloth: true, bow: 0.45, arms: roll > 0 && roll < 1 ? 'reach' : null, a: 1 - leave });
+          var wa = ease(ramp(k.at(2), 0, 2)), ga = ease(ramp(k.at(3), 0, 2.5));
+          person({ x: P.x('near', -230), y: P.y('near', -230) + 10, h: 100 * S, f: 1, veil: BLUE_VEIL, sit: 1, bow: 0.5, a: wa });
+          person({ x: P.x('near', -186), y: P.y('near', -186) + 10, h: 100 * S, f: 1, veil: '#3A2638', sit: 1, bow: 0.4, a: wa });
+          person({ x: P.x('near', -70), y: P.y('near', -70) + 8, h: 122 * S, f: 1, helmet: true, spear: true, a: ga });
+          person({ x: P.x('near', 250), y: P.y('near', 250) + 8, h: 122 * S, f: -1, helmet: true, spear: true, a: ga });
+        } },
+        { loc: 'garden', mood: function (k) { var dw = ease(ramp(k.t, 0, k.dur)); return { stars: 1 - dw, hz: ['240,170,120', 0.2 + 0.4 * dw], tint: ['#2E2630', 0.3 * (1 - dw)], shake: k.at(1) }; }, actors: function (k, P) {
+          var S = P.s('near'), desc = ease(ramp(k.at(1), 1.5, 4.5)), roll = ease(ramp(k.at(1), 4.5, 8)), bright = ease(ramp(k.at(2), 0, 1.5));
+          var tx = P.x('near', 60), ty = P.y('near', 60) + 8;
+          if (roll > 0) glow(tx, ty - 25 * S, 40 * S, '255,236,190', 0.25 * roll);
+          tombStone(tx, ty, 92 * S, mix(0, 0.85, roll));
+          LIGHT.dir = 1; LIGHT.col = 'rgba(255,245,225,' + 0.8 * desc + ')';
+          var wo = mix(-380, -230, ease(ramp(k.at(0), 0, 7)));
+          person({ x: P.x('near', wo), y: P.y('near', wo) + 8, h: 104 * S, f: 1, veil: BLUE_VEIL, walk: k.cap === 0 ? k.t * 3 : null });
+          person({ x: P.x('near', wo - 40), y: P.y('near', wo - 40) + 8, h: 102 * S, f: 1, veil: '#3A2638', walk: k.cap === 0 ? k.t * 3 + 1 : null });
+          var fall = ease(ramp(k.at(3), 1.2, 3)), st1 = 1 - ramp(fall, 0.35, 0.7), jit = k.cap >= 3 && fall < 1 ? Math.sin(T * 40) * 1.2 : 0;
+          person({ x: P.x('near', -70) + jit, y: P.y('near', -70) + 8, h: 122 * S, f: 1, helmet: true, spear: true, bow: fall * 0.6, rot: fall * 0.25, a: st1 });
+          person({ x: P.x('near', 250) + jit, y: P.y('near', 250) + 8, h: 122 * S, f: -1, helmet: true, spear: true, bow: fall * 0.6, rot: -fall * 0.25, a: st1 });
+          fallen(P.x('near', -78), P.y('near', -78) + 8, 122 * S, 1, INK, 1 - st1); fallen(P.x('near', 246), P.y('near', 246) + 8, 122 * S, -1, INK, 1 - st1);
+          var ax = tx + 78 * S * roll, ay = mix(-40, ty - 30 * S, desc);
+          angel({ x: ax, y: roll >= 1 ? ty - 56 * S : ay, h: (roll >= 1 ? 100 : 128) * S, a: desc, f: -1, big: 2 + bright, sit: roll >= 1 });
+        } },
+        { loc: 'garden', mood: function () { return { hz: ['245,180,120', 0.55] }; }, actors: function (k, P) {
+          var S = P.s('near'), tx = P.x('near', 60), ty = P.y('near', 60) + 8, look = ease(ramp(k.at(1), 2, 5));
+          LIGHT.dir = 1; LIGHT.col = 'rgba(255,240,215,.75)';
+          glow(tx, ty - 25 * S, 40 * S, '255,236,190', 0.25);
+          fallen(P.x('near', -78), P.y('near', -78) + 8, 122 * S, 1, INK, 1);
+          var w1 = mix(-160, -40, look);
+          person({ x: P.x('near', w1), y: P.y('near', w1) + 8, h: 104 * S, f: 1, veil: BLUE_VEIL, bow: 0.3 + 0.3 * look });
+          person({ x: P.x('near', w1 - 40), y: P.y('near', w1 - 40) + 8, h: 102 * S, f: 1, veil: '#3A2638', bow: 0.3 + 0.2 * look });
+          angel({ x: tx + 78 * S, y: ty - 56 * S, h: 100 * S, f: -1, sit: true, arms: 'out', big: 1.9 });
+        } },
+        { loc: 'path', mood: function () { return { hz: ['250,215,150', 0.6], sun: [0.34, 112, 20], tint: ['#6F7A5A', 0.3] }; }, actors: function (k, P) {
+          var S = P.s('near'), kn = ease(ramp(k.at(0), 3.5, 6));
+          LIGHT.dir = 1; LIGHT.col = 'rgba(255,236,190,.85)';
+          risen({ x: P.x('near', 80), y: P.y('near', 80) + 8, h: 130 * S, f: -1, arms: k.cap === 0 && kn < 0.5 ? 'out' : null });
+          var w1 = mix(-200, 4, ease(ramp(k.at(0), 0, 4))), w2 = mix(-246, -40, ease(ramp(k.at(0), 0, 4.4)));
+          person({ x: P.x('near', w1), y: P.y('near', w1) + 8, h: 104 * S, f: 1, veil: BLUE_VEIL, kneel: kn, bow: 0.8 * kn, arms: kn > 0.6 ? 'reach' : null, col: '#151A12' });
+          person({ x: P.x('near', w2), y: P.y('near', w2) + 8, h: 102 * S, f: 1, veil: '#3A2638', kneel: kn, bow: 0.8 * kn, col: '#151A12' });
+        } },
+        { loc: 'calvary', mood: function () { return { hz: ['250,215,150', 0.65], sun: [0.5, 104, 22], tint: ['#6F7A5A', 0.25] }; }, actors: function () {} },
+      ],
+    },
+  };
+  function tombStone(x, y, s, off) {
+    var sx = x + off * s; c.save(); c.translate(sx, y - 0.31 * s); c.rotate(off * 1.6);
+    var sg = c.createRadialGradient(-0.1 * s, -0.12 * s, 0.02 * s, 0, 0, 0.33 * s); sg.addColorStop(0, '#4A4440'); sg.addColorStop(1, '#25211F');
+    c.fillStyle = sg; c.beginPath(); c.arc(0, 0, 0.31 * s, 0, 6.283); c.fill();
+    c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, 0.27 * s, 0.4, 2.2); c.stroke(); c.restore();
+  }
+
+  var actorCanvas = null, ac = null, mainC = c;
+  function panoRender(sc, k, a) {
+    var ps = PANO[kind], s2 = ps.scenes[si];
+    var target = ps.locs[s2.loc] + (s2.cam ? s2.cam(k) : 0);
+    if (!camSet) { cam = target; camSet = true; } else cam += (target - cam) * (1 - Math.exp(-lastDt * 1.15));
+    var m = s2.mood ? s2.mood(k) : {};
+    c.setTransform(SC, 0, 0, SC, 0, 0); c.clearRect(0, 0, BW, BH);
+    c.save();
+    if (m.shake != null) shake(m.shake, 2.6, 3);
+    pStars(41, Math.round(BW / 8), 90, m.stars || 0);
+    horizon((m.hz || ['50,80,130', 0.2])[0], (m.hz || [0, 0.2])[1], LAY.far.base - 10);
+    if (m.sun) { var sx = BW * m.sun[0], sy = m.sun[1]; glow(sx, sy, 120, '255,220,150', 0.5); c.fillStyle = 'rgba(255,240,205,.95)'; c.beginPath(); c.arc(sx, sy, m.sun[2], 0, 6.283); c.fill(); }
+    if (m.moon) { var mx = BW * m.moon[0], my = m.moon[1]; glow(mx, my, 70, '220,230,255', 0.3); c.fillStyle = '#E9ECF2'; c.beginPath(); c.arc(mx, my, m.moon[2], 0, 6.283); c.fill(); }
+    if (m.gold) glow(BW * 0.82, 40, 260, '246,222,156', m.gold);
+    var tint = m.tint || ['#000000', 0];
+    ORDER.forEach(function (l) {
+      var L = LAY[l], col = mixCol(L.col, tint[0], tint[1]), hz = mixCol(L.haze, tint[0], tint[1]);
+      var g = c.createLinearGradient(0, L.base - 24, 0, L.base + 70);
+      if (ps.snow && l === 'front') { g.addColorStop(0, '#9DB2C0'); g.addColorStop(0.35, '#5F7786'); g.addColorStop(1, '#22343E'); }
+      else if (ps.snow) { g.addColorStop(0, mixCol(L.haze, '#C9D6DF', l === 'near' ? 0.42 : l === 'mid' ? 0.3 : 0.2)); g.addColorStop(0.3, hz); g.addColorStop(1, col); }
+      else { g.addColorStop(0, hz); g.addColorStop(0.45, col); g.addColorStop(1, col); }
+      pRidge(l, g);
+      if (ps.snow && l === 'front') pCap(l, 'rgba(225,236,244,.55)', 1.4);
+      for (var name in ps.locs) {
+        var C = ps.locs[name];
+        if (Math.abs((C - cam) * L.spd) < BW * 0.5 + 520 * K) { LIGHT = { dir: -1, col: 'rgba(240, 205, 130, .5)' }; ps.props(name, l, Pat(C), si); }
+      }
+      if (l === 'near') {
+        // The people of the scene come and go softly as the camera arrives and leaves.
+        if (!actorCanvas || actorCanvas.width !== canvas.width || actorCanvas.height !== canvas.height) { actorCanvas = document.createElement('canvas'); actorCanvas.width = canvas.width; actorCanvas.height = canvas.height; ac = actorCanvas.getContext('2d'); }
+        c.restore(); c = ac; c.setTransform(SC, 0, 0, SC, 0, 0); c.clearRect(0, 0, BW, BH); c.save();
+        LIGHT = { dir: -1, col: 'rgba(240, 205, 130, .6)' };
+        s2.actors(k, Pat(ps.locs[s2.loc])); c.restore(); noRim();
+        c = mainC; c.save();
+        if (m.shake != null) shake(m.shake, 2.6, 3);
+        c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = a; c.drawImage(actorCanvas, 0, 0); c.globalAlpha = 1; c.setTransform(SC, 0, 0, SC, 0, 0);
+      }
+      if (l === 'front' && ps.wheat) wheatRow(5);
+    });
+    if (m.glory) glow(BW / 2, 90, BW * 0.7, '255,226,160', m.glory * 0.6);
+    if (m.dark) { var dg = c.createLinearGradient(0, 0, 0, BH); dg.addColorStop(0, 'rgba(4,4,6,0)'); dg.addColorStop(0.35, 'rgba(4,4,6,' + m.dark * 0.7 + ')'); dg.addColorStop(1, 'rgba(4,4,6,' + m.dark * 0.8 + ')'); c.fillStyle = dg; c.fillRect(0, 0, BW, BH); }
+    c.restore(); noRim();
+  }
+
   /* ---------- the player ---------- */
   var story = STORIES[kind], scenes = story.scenes;
   scenes.forEach(function (sc) {
@@ -743,6 +1076,14 @@
   }
   function render() {
     var sc = scenes[si], k = kOf(sc, st);
+    if (pano) {
+      var brandA = sc.caps[k.cap].brand ? ease(ramp(k.at(k.cap), 0, 1.6)) : 0;
+      var a = playing ? Math.min(ramp(st, 0.8, 2.6), 1 - ramp(st, sc.dur - 1.2, sc.dur - 0.2)) : 1;
+      panoRender(sc, k, a * (1 - brandA * 0.85));
+      if (brandA > 0) { c.setTransform(SC, 0, 0, SC, 0, 0); glow(BW * 0.82, 30, 300, '246,222,156', 0.3 * brandA); }
+      caption(sc, k);
+      return;
+    }
     c.setTransform(SC, 0, 0, SC, 0, 0);
     c.clearRect(0, 0, LW, LH);
     LIGHT = { dir: -1, col: 'rgba(240, 205, 130, .6)' };
@@ -758,6 +1099,7 @@
   function keyTime(sc) { return capTime(sc, sc.caps.length - 1); }
   function go(i, ci) {
     si = (i + scenes.length) % scenes.length;
+    if (!playing) camSet = false;
     st = playing ? 0 : capTime(scenes[si], ci || 0);
     render();
   }
@@ -794,7 +1136,7 @@
   function frame(now) {
     if (!running) return;
     if (!playing || !visible || document.hidden) { running = false; return; }
-    var dt = last ? Math.min((now - last) / 1000, 0.05) : 0.016; last = now;
+    var dt = last ? Math.min((now - last) / 1000, 0.05) : 0.016; last = now; lastDt = dt;
     T += dt; st += dt;
     if (st >= scenes[si].dur) { si = (si + 1) % scenes.length; st = 0; }
     render();
@@ -804,7 +1146,8 @@
   function measure() {
     var w = stage.clientWidth, h = stage.clientHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
-    SC = canvas.width / LW; render();
+    if (pano) { SC = canvas.height / BH; BW = canvas.width / SC; K = clamp(BW / 780, 0.42, 1); } else SC = canvas.width / LW;
+    render();
   }
   fig.classList.add('is-ready');
   measure();
@@ -813,5 +1156,5 @@
   if (window.IntersectionObserver) new IntersectionObserver(function (e) { visible = e[0].isIntersecting; start(); }).observe(fig);
   document.addEventListener('visibilitychange', start);
   // For checking each scene by eye: __story.show(scene, seconds)
-  window.__story = { scenes: scenes.map(function (s) { return { name: s.name, dur: s.dur, starts: s.starts }; }), show: function (i, t, tt) { playing = false; running = false; si = i; st = t; T = tt == null ? t : tt; shown = ''; render(); } };
+  window.__story = { scenes: scenes.map(function (s) { return { name: s.name, dur: s.dur, starts: s.starts }; }), show: function (i, t, tt) { playing = false; running = false; si = i; st = t; T = tt == null ? t : tt; shown = ''; camSet = false; render(); } };
 })();
