@@ -282,7 +282,7 @@ function home({ latest, base }) {
   return {
     head: {
       kicker: `Winfield, Kansas · Since ${CHURCH.founded}`,
-      title: html`A church family on Wheat Road for <span class="serif">${years()} years.</span>`,
+      title: html`A church family on Wheat Road <span class="nowrap">for <span class="serif">${years()} years.</span></span>`,
       lead: 'A place to know Jesus, grow in His Word, and belong to a family that will pray for you by name. We’d love to see you this Sunday.',
       actions: html`<a class="btn btn-gold" href="${base}/visit">Plan your visit ${ARROW}</a><a class="btn btn-ghost" href="#sermons">${PLAY} Watch the latest sermon</a>`,
     },
