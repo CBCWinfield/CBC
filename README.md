@@ -159,3 +159,24 @@ Check-in lives in the same Render service as the library, at `/checkin`, and ins
 - Tests: `test/checkin-e2e.js` walks through check-in against a running server.
 
 Local run: `DATABASE_URL=postgresql://localhost/cbc ADMIN_EMAIL=… ADMIN_PASSWORD=… npm start`
+
+## Homepage seasons
+
+The banner at the top of the church homepage changes with the calendar (Central time):
+
+| Dates | Banner |
+| --- | --- |
+| Oct 27 – Nov 27 | Leaves falling and settling on the ground |
+| Nov 28 – Nov 30 | Snow |
+| December | Snow, and the Christmas Story told in pictures (Luke 1–2, Matthew 1–2) |
+| Jan 1 – Mar 14 | Snow |
+| Mar 15 – May 1 | The wheat, and the Crucifixion and Resurrection Story told in pictures (Matthew, Luke, John, 1 Corinthians 15) |
+| May 2 – Oct 26 | The wheat |
+
+Every caption is the King James Bible, word for word. Each telling ends on the cross. Visitors can pause, and step through it verse by verse.
+
+- **Watch the stories any time of year:** cbcwinfield.org/christmas-story and cbcwinfield.org/crucifixion-resurrection-story (add `/landscape` for the version told across the banner).
+- **Preview any of them:** add `?season=fall`, `winter`, `christmas`, `easter` or `wheat` to the homepage address.
+- **Two ways to show the stories:** in an arched window where the cross stands (`window`, the default), or across the green banner as a landscape of hills the camera travels through (`pano`). Set `SITE_STORY_STYLE` in Render to choose; preview with `?season=christmas&story=pano`.
+- **Pin one instead of following the calendar:** in Render, set `SITE_SEASON` to one of those names. Remove it (or set it to `auto`) to go back to the calendar.
+- The dates live in `src/site/season.js`; the stories in `public/js/story.js`.
