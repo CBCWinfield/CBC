@@ -175,6 +175,7 @@ The banner at the top of the church homepage changes with the calendar (Central 
 
 Every caption is the King James Bible, word for word. Each telling ends on the cross. Visitors can pause, and step through it verse by verse.
 
+- **Watch the stories any time of year:** cbcwinfield.org/christmas-story and cbcwinfield.org/crucifixion-resurrection-story (add `/landscape` for the version told across the banner).
 - **Preview any of them:** add `?season=fall`, `winter`, `christmas`, `easter` or `wheat` to the homepage address.
 - **Two ways to show the stories:** in an arched window where the cross stands (`window`, the default), or across the green banner as a landscape of hills the camera travels through (`pano`). Set `SITE_STORY_STYLE` in Render to choose; preview with `?season=christmas&story=pano`.
 - **Pin one instead of following the calendar:** in Render, set `SITE_SEASON` to one of those names. Remove it (or set it to `auto`) to go back to the calendar.

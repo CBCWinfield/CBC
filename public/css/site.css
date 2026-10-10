@@ -109,7 +109,7 @@ body.menu-open { overflow: hidden; }
 .season-winter .hero { background: radial-gradient(1200px 520px at 70% 92%, rgba(205, 225, 245, .16), transparent 60%), radial-gradient(900px 600px at 20% 10%, #24493B 0%, transparent 60%), linear-gradient(#11281F 0%, #0E2420 60%, #15302A 100%); }
 
 /* December and Easter: the story told in pictures, in an arched window where the cross stands */
-.hero-story { position: absolute; z-index: 1; right: var(--pad); top: clamp(-24px, -0.9vw, -4px); width: clamp(260px, 25vw, 360px); margin: 0; color: var(--cream); }
+.hero-story { position: absolute; z-index: 3; right: var(--pad); top: clamp(-24px, -0.9vw, -4px); width: clamp(260px, 25vw, 360px); margin: 0; color: var(--cream); }
 .story-stage { position: relative; aspect-ratio: 4 / 5; border-radius: 50% 50% 18px 18px / 40% 40% 3.6% 3.6%; overflow: hidden; background: #0C2115;
   box-shadow: 0 0 0 1px rgba(226, 190, 102, .5), 0 0 0 8px rgba(226, 190, 102, .07), 0 34px 70px -24px rgba(0, 0, 0, .7), 0 0 80px rgba(226, 190, 102, .12); }
 .story-stage::after { content: ''; position: absolute; inset: 9px; border-radius: inherit; border: 1px solid rgba(226, 190, 102, .32); pointer-events: none; }
@@ -158,6 +158,15 @@ body.menu-open { overflow: hidden; }
   .pano-text { position: relative; left: auto; bottom: auto; width: auto; margin: -56px var(--pad) 28px; }
   .pano-text .story-cap { min-height: 10em; }
 }
+
+/* The story pages (/christmas-story, /crucifixion-resurrection-story) */
+.page-story .hero h1 { font-size: clamp(44px, 5.6vw, 84px); line-height: 1.02; max-width: 11ch; }
+.page-story .hero-lead { max-width: 520px; }
+.story-more { max-width: 760px; }
+.story-more h2 { margin-top: 10px; font-family: var(--disp); font-weight: 800; letter-spacing: -0.02em; font-size: clamp(28px, 3vw, 40px); line-height: 1.1; }
+.story-more .body { margin-top: 12px; color: var(--muted); }
+.story-more-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.story-more-note { margin-top: 22px; font-size: 16px; }
 
 /* Inner-page header: the same banner, shorter, with the field lower */
 .hero-page .hero-in { padding-top: clamp(36px, 6vw, 80px); }

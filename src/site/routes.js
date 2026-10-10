@@ -16,10 +16,10 @@ const SITE_HOSTS = (process.env.SITE_HOSTS || 'cbcwinfield.org,www.cbcwinfield.o
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const baseFor = (req) => (SITE_HOSTS.includes(String(req.headers.host || '').split(':')[0].toLowerCase()) ? '' : '/site');
 
-function show(req, res, page, view, { title, desc, status = 200 } = {}) {
+function show(req, res, page, view, { title, desc, status = 200, season, storyStyle } = {}) {
   res.status(status);
   res.setHeader('Cache-Control', 'no-cache');
-  res.send(V.layout({ title, desc, page, body: view.body, head: view.head, base: baseFor(req), season: seasonFor(req.query), storyStyle: styleFor(req.query) }).toString());
+  res.send(V.layout({ title, desc, page, body: view.body, head: view.head, base: baseFor(req), season: season || seasonFor(req.query), storyStyle: storyStyle || styleFor(req.query) }).toString());
 }
 
 async function saveInquiry(kind, v, { to } = {}) {
@@ -59,6 +59,15 @@ module.exports = (app) => {
   page('/connect', 'connect', (req, res) => V.connect({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1', topic: clean(req.query.topic, 120) }), { title: 'Connect' });
   page('/serve', 'serve', (req, res) => V.serve({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1' }), { title: 'Serve' });
   page('/partners', 'partners', () => V.partners(), { title: 'Our partners' });
+  // The Christmas Story and the Crucifixion and Resurrection Story, to watch any time of year.
+  for (const [kind, P] of Object.entries(V.STORY_PAGES)) {
+    for (const style of ['window', 'pano']) {
+      app.get(`/site${P.path}${style === 'pano' ? '/landscape' : ''}`, (req, res) => {
+        const view = V.storyPage({ kind, style, base: baseFor(req) });
+        show(req, res, 'story', view, { title: view.title, desc: view.desc, season: kind, storyStyle: style });
+      });
+    }
+  }
   // Old Wix addresses, so existing links and search results still land somewhere useful.
   const OLD = { '/blank': '/about', '/blank-1': '/sermons', '/blank-2': '/give', '/blank-3': '/ministries', '/blank-4': '/connect', '/blank-4-1': '/connect', '/blank-5': '/staff', '/blank-6': '/serve', '/blank-7': null, '/event-list': '/events', '/home-1-1-1': '/', '/groups': '/connect', '/my-groups': '/connect' };
   for (const [from, to] of Object.entries(OLD)) {

@@ -122,7 +122,8 @@ const MENU = [
 // On the homepage the banner follows the church calendar (see season.js): falling leaves, snow, the Christmas
 // story told in pictures (with snow), the crucifixion and resurrection (over the wheat), or the wheat.
 function layout({ title, desc, page, body, base = '', head, season = 'wheat', storyStyle = 'window' }) {
-  const s = page === 'home' ? season : 'wheat';
+  const story0 = page === 'story';
+  const s = page === 'home' || story0 ? season : 'wheat';
   const sky = s === 'fall' ? 'fall' : s === 'winter' || s === 'christmas' ? 'winter' : null;
   const story = s === 'christmas' || s === 'easter' ? s : null;
   const panoStory = story && storyStyle === 'pano';
@@ -130,7 +131,7 @@ function layout({ title, desc, page, body, base = '', head, season = 'wheat', st
   const href = (p) => (p.startsWith('http') ? p : `${base}${p}`);
   const link = (u) => (u === 'shop' ? CHURCH.shop : u.startsWith('app:') ? appUrl(u.slice(4)) : href(u));
   const cur = (p) => (page === p.replace(/^\//, '') || (p === '/' && page === 'home') ? raw(' aria-current="page"') : '');
-  const isHome = page === 'home';
+  const isHome = page === 'home' || page === 'story';
   return html`<!doctype html>
 <html lang="en">
 <head>
@@ -149,10 +150,10 @@ function layout({ title, desc, page, body, base = '', head, season = 'wheat', st
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/css/site.css?v=25">
 <script src="/js/site.js?v=6" defer></script>
-${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? raw('<script src="/js/story.js?v=1" defer></script>') : ''}
+${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? raw('<script src="/js/story.js?v=2" defer></script>') : ''}
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
-<body class="page-${page}${seasonal ? ` season-${s}` : ''}${panoStory ? ' story-pano' : ''}">
+<body class="page-${page === 'story' ? 'home page-story' : page}${seasonal ? ` season-${s}` : ''}${panoStory ? ' story-pano' : ''}">
 <a class="skip" href="#main">Skip to content</a>
 <header class="hero${isHome ? '' : ' hero-page'}">
   <nav class="nav" aria-label="Main">
@@ -174,7 +175,7 @@ ${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? ra
     <h1>${head.title}</h1>
     ${head.lead ? html`<p class="hero-lead">${head.lead}</p>` : ''}
     ${head.actions ? html`<div class="hero-actions">${head.actions}</div>` : ''}
-    ${isHome ? (story && !panoStory ? STORY(story) : CROSS) : ''}
+    ${isHome ? (story && !panoStory ? STORY(story) : story0 ? '' : CROSS) : ''}
   </div>
   ${panoStory ? STORY_PANO(story) : html`<div class="field" aria-hidden="true"><div class="field-inner">${sky ? '' : wheat()}</div></div>`}
   ${sky ? raw(`<canvas class="season-sky" data-season="${sky}"${panoStory ? ' data-ground="none"' : ''} aria-hidden="true"></canvas>`) : ''}
@@ -647,4 +648,36 @@ function ics(e) {
     'END:VEVENT', 'END:VCALENDAR', ''].join('\r\n');
 }
 
-module.exports = { layout, ride, home, visit, about, ministries, sermons, events, staff, give, connect, serve, partners, notFound, ics };
+// A page of its own for each story, to watch any time of year: /christmas-story and
+// /crucifixion-resurrection-story, each also at /landscape for the version told across the banner.
+const STORY_PAGES = {
+  christmas: { path: '/christmas-story', title: 'The Christmas Story', refs: 'Luke 1–2 · Matthew 1–2', lead: 'The birth of our Lord, told in pictures, in the words of the King James Bible. Sit back and let it play, or pause and step through it verse by verse.' },
+  easter: { path: '/crucifixion-resurrection-story', title: 'The Crucifixion and Resurrection Story', refs: 'Matthew · Luke · John · 1 Corinthians 15', lead: 'From the triumphal entry to the empty tomb, told in pictures, in the words of the King James Bible. Let it play, or pause and step through it verse by verse.' },
+};
+function storyPage({ kind, style, base }) {
+  const P = STORY_PAGES[kind], other = STORY_PAGES[kind === 'christmas' ? 'easter' : 'christmas'];
+  const here = style === 'pano' ? `${P.path}/landscape` : P.path;
+  const pill = (href, label, on) => html`<a class="btn btn-sm ${on ? 'btn-gold' : 'btn-ghost'}" href="${base}${href}"${on ? raw(' aria-current="page"') : ''}>${label}</a>`;
+  return {
+    head: {
+      kicker: P.refs,
+      title: html`${P.title}`,
+      lead: P.lead,
+      actions: html`${pill(P.path, 'Window', style !== 'pano')}${pill(`${P.path}/landscape`, 'Landscape', style === 'pano')}`,
+    },
+    body: html`<main id="main" class="wrap sec sec-last">
+    <div class="card pad-card story-more">
+      <p class="eyebrow">Also told in pictures</p>
+      <h2>${other.title}</h2>
+      <p class="body">${other.refs}. It plays on our homepage ${kind === 'christmas' ? 'from March 15 through May 1' : 'all through December'}, and here any time.</p>
+      <div class="story-more-links"><a class="btn btn-dark" href="${base}${other.path}">Watch it</a><a class="btn btn-line" href="${base}${other.path}/landscape">Landscape version</a></div>
+      <p class="muted story-more-note">Every word on screen is Scripture. <a href="${base}/visit">Come worship with us this Sunday</a> at 904 Wheat Rd.</p>
+    </div>
+  </main>`,
+    title: P.title,
+    desc: `${P.title}, told in pictures in the words of the King James Bible, from Central Baptist Church in Winfield, Kansas.`,
+    here,
+  };
+}
+
+module.exports = { layout, storyPage, STORY_PAGES, ride, home, visit, about, ministries, sermons, events, staff, give, connect, serve, partners, notFound, ics };

@@ -117,15 +117,27 @@
     c.beginPath(); c.ellipse(0.36 * s, (-0.6 + graze * 0.2) * s, 0.07 * s, 0.03 * s, -0.4, 0, 6.283); c.fill();
     c.restore();
   }
+  // The colt: a young ass, long-eared and short-legged, with jointed legs that step.
   function colt(x, y, s, f, w, col) {
-    c.save(); c.translate(x, y); c.scale(f, 1); c.fillStyle = col; c.strokeStyle = col; c.lineCap = 'round'; c.lineWidth = s * 0.075;
-    [-0.3, -0.18, 0.2, 0.32].forEach(function (lx, i) { var sw = Math.sin(w + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * 0.07; c.beginPath(); c.moveTo(lx * s, -0.5 * s); c.lineTo((lx + sw) * s, 0); c.stroke(); });
-    c.beginPath(); c.ellipse(0, -0.6 * s, 0.44 * s, 0.17 * s, 0, 0, 6.283); c.fill();
-    c.beginPath(); c.moveTo(0.26 * s, -0.7 * s); c.lineTo(0.38 * s, -0.98 * s); c.lineTo(0.5 * s, -0.96 * s); c.lineTo(0.42 * s, -0.6 * s); c.closePath(); c.fill();
-    c.beginPath(); c.ellipse(0.53 * s, -0.93 * s, 0.17 * s, 0.075 * s, 0.55, 0, 6.283); c.fill();
-    c.beginPath(); c.ellipse(0.39 * s, -1.08 * s, 0.028 * s, 0.11 * s, -0.25, 0, 6.283); c.fill();
-    c.beginPath(); c.ellipse(0.44 * s, -1.07 * s, 0.028 * s, 0.11 * s, 0.05, 0, 6.283); c.fill();
-    c.lineWidth = s * 0.04; c.beginPath(); c.moveTo(-0.42 * s, -0.64 * s); c.quadraticCurveTo(-0.5 * s, -0.5 * s, -0.48 * s, -0.36 * s); c.stroke();
+    c.save(); c.translate(x, y); c.scale(f * s, s); c.fillStyle = col; c.strokeStyle = col; c.lineCap = 'round'; c.lineJoin = 'round';
+    var legs = [[-0.32, 0], [-0.2, Math.PI], [0.22, Math.PI * 0.5], [0.33, Math.PI * 1.5]];
+    legs.forEach(function (L, i) {
+      var moving = w != null, sw = moving ? Math.sin(w + L[1]) : 0, lift = moving ? Math.max(0, Math.cos(w + L[1])) * 0.05 : 0;
+      var hx = L[0], kx = hx + sw * 0.045, fx = hx + sw * 0.08;
+      c.lineWidth = i < 2 ? 0.075 : 0.065; c.beginPath(); c.moveTo(hx, -0.52); c.lineTo(kx, -0.27 - lift * 0.5); c.stroke();
+      c.lineWidth = 0.045; c.beginPath(); c.moveTo(kx, -0.27 - lift * 0.5); c.lineTo(fx, -0.03 - lift); c.stroke();
+      c.fillRect(fx - 0.03, -0.035 - lift, 0.06, 0.035);
+    });
+    blob([[-0.47, -0.66], [-0.41, -0.77], [-0.12, -0.8], [0.2, -0.79], [0.36, -0.73], [0.41, -0.58], [0.3, -0.47], [0.02, -0.43], [-0.3, -0.46], [-0.45, -0.55]]); c.fill();
+    blob([[0.27, -0.74], [0.38, -0.98], [0.49, -1.05], [0.56, -1.0], [0.5, -0.88], [0.43, -0.6]]); c.fill();
+    blob([[0.47, -1.05], [0.57, -1.08], [0.69, -1.0], [0.78, -0.91], [0.77, -0.85], [0.69, -0.84], [0.57, -0.9], [0.48, -0.95]]); c.fill();
+    c.beginPath(); c.ellipse(0.49, -1.17, 0.032, 0.12, -0.32, 0, 6.283); c.fill();
+    c.beginPath(); c.ellipse(0.55, -1.16, 0.03, 0.115, 0.08, 0, 6.283); c.fill();
+    c.lineWidth = 0.012; c.strokeStyle = 'rgba(0,0,0,.35)';
+    for (var m = 0; m < 6; m++) { var t = m / 5, mx = mix(0.3, 0.5, t), my = mix(-0.76, -1.04, t); c.beginPath(); c.moveTo(mx, my); c.lineTo(mx - 0.035, my - 0.02); c.stroke(); }
+    c.fillStyle = 'rgba(255,236,190,.35)'; c.beginPath(); c.arc(0.62, -0.99, 0.012, 0, 6.283); c.fill();
+    c.strokeStyle = col; c.lineWidth = 0.03; c.beginPath(); c.moveTo(-0.45, -0.66); c.quadraticCurveTo(-0.54, -0.55, -0.51, -0.4); c.stroke();
+    c.fillStyle = col; c.beginPath(); c.ellipse(-0.51, -0.38, 0.025, 0.05, 0.2, 0, 6.283); c.fill();
     c.restore();
   }
   function manger(x, y, s, col) {
@@ -175,6 +187,9 @@
   var P_SIT = [[-0.05, -0.62], [-0.12, -0.58], [-0.15, -0.32], [-0.17, -0.03], [-0.1, 0], [0.26, 0], [0.29, -0.09], [0.15, -0.25], [0.11, -0.58], [0.05, -0.62]];
   var H_STAND = [0, -0.875], H_KNEEL = [0.02, -0.645], H_SIT = [0, -0.695];
 
+  // A person of the land, as a cut-paper silhouette with a painter's touch: a profile head (with a
+  // beard on the men), a mantle draped over the robe, folds in the cloth, a girdle at the waist,
+  // sleeves with hands, and sandaled feet that step when they walk.
   function person(o) {
     var k = o.kneel || 0, s = o.sit || 0, b = o.bow || 0, f = o.f || 1, h = o.h, i;
     var pts = [];
@@ -182,48 +197,89 @@
       pts.push([P_STAND[i][0] + (P_KNEEL[i][0] - P_STAND[i][0]) * k + (P_SIT[i][0] - P_STAND[i][0]) * s,
         P_STAND[i][1] + (P_KNEEL[i][1] - P_STAND[i][1]) * k + (P_SIT[i][1] - P_STAND[i][1]) * s]);
     }
-    if (o.walk != null) { var w = Math.sin(o.walk) * 0.04; pts[3][0] += w; pts[4][0] += w * 0.7; pts[5][0] -= w * 0.7; pts[6][0] -= w; }
+    var walking = o.walk != null, ws = walking ? Math.sin(o.walk) : 0;
+    if (walking) { var w = ws * 0.035; pts[3][0] += w; pts[4][0] += w * 0.7; pts[5][0] -= w * 0.7; pts[6][0] -= w; }
     if (o.belly) { pts[7][0] += 0.07 * o.belly; pts[6][0] += 0.02 * o.belly; }
     pts[0][0] += b * 0.03; pts[8][0] += b * 0.04; pts[9][0] += b * 0.04;
     var hx = H_STAND[0] + (H_KNEEL[0] - H_STAND[0]) * k + (H_SIT[0] - H_STAND[0]) * s + b * 0.075;
     var hy = H_STAND[1] + (H_KNEEL[1] - H_STAND[1]) * k + (H_SIT[1] - H_STAND[1]) * s + b * 0.07;
-    var bob = o.walk != null ? Math.abs(Math.cos(o.walk)) * 0.014 : 0;
-    var col = o.col || INK;
+    var bob = walking ? Math.abs(Math.cos(o.walk)) * 0.012 : 0;
+    var col = o.col || INK, lum = !!o.lum;
+    var fold = lum ? 'rgba(150,118,70,.32)' : 'rgba(0,0,0,.28)', sheen = lum ? 'rgba(255,255,255,.35)' : 'rgba(255,236,196,.09)';
+    var standing = k < 0.5 && s < 0.5;
     c.save(); c.translate(o.x, o.y); if (o.rot) c.rotate(o.rot); c.scale(f * h, h); c.translate(0, -bob);
     if (o.a != null) c.globalAlpha = o.a;
     rim(o.rim === undefined ? LIGHT.dir : o.rim, o.rimCol);
     c.fillStyle = col; c.strokeStyle = col; c.lineCap = 'round'; c.lineJoin = 'round';
+    // Feet first, peeking from under the hem, stepping in turn.
+    if (standing) {
+      var st1 = walking ? ws * 0.06 : 0;
+      c.beginPath(); c.ellipse(0.1 + st1, -0.008, 0.055, 0.016, 0, 0, 6.283); c.fill();
+      c.beginPath(); c.ellipse(-0.04 - st1, -0.008, 0.05, 0.015, 0, 0, 6.283); c.fill();
+    }
     blob(pts); c.fill();
-    c.beginPath(); c.arc(hx, hy, 0.072, 0, 6.283); c.fill();
-    if (o.cloth) { c.beginPath(); c.moveTo(hx + 0.065, hy - 0.04); c.quadraticCurveTo(hx + 0.01, hy - 0.118, hx - 0.065, hy - 0.078); c.quadraticCurveTo(hx - 0.13, hy - 0.02, hx - 0.128, hy + 0.15); c.lineTo(hx - 0.03, hy + 0.1); c.closePath(); c.fill(); }
-    if (o.hat) { c.beginPath(); c.moveTo(hx - 0.08, hy - 0.03); c.quadraticCurveTo(hx - 0.09, hy - 0.2, hx, hy - 0.22); c.quadraticCurveTo(hx + 0.09, hy - 0.2, hx + 0.08, hy - 0.03); c.closePath(); c.fill(); c.beginPath(); c.moveTo(hx - 0.06, hy); c.quadraticCurveTo(hx - 0.14, hy + 0.12, hx - 0.12, hy + 0.2); c.lineTo(hx - 0.05, hy + 0.08); c.closePath(); c.fill(); }
-    if (o.helmet) { c.beginPath(); c.arc(hx, hy - 0.005, 0.082, Math.PI, 0); c.fill(); c.beginPath(); c.ellipse(hx - 0.01, hy - 0.11, 0.1, 0.035, -0.1, 0, 6.283); c.fill(); }
+    // The neck and the head in profile: brow, nose, lips and chin.
+    c.fillRect(hx - 0.028, hy + 0.03, 0.05, 0.07);
+    c.beginPath(); c.arc(hx - 0.005, hy, 0.068, 0, 6.283); c.fill();
+    c.beginPath(); c.moveTo(hx + 0.045, hy - 0.04); c.lineTo(hx + 0.066, hy - 0.005); c.lineTo(hx + 0.09, hy + 0.018); c.lineTo(hx + 0.068, hy + 0.026); c.lineTo(hx + 0.072, hy + 0.04); c.lineTo(hx + 0.062, hy + 0.05); c.quadraticCurveTo(hx + 0.06, hy + 0.072, hx + 0.035, hy + 0.072); c.lineTo(hx + 0.01, hy + 0.04); c.closePath(); c.fill();
+    var beard = o.beard !== false && !o.veil && !o.helmet && (o.cloth || o.hat || o.beard);
+    if (beard) { c.beginPath(); c.moveTo(hx + 0.062, hy + 0.04); c.quadraticCurveTo(hx + 0.07, hy + 0.1, hx + 0.03, hy + 0.13); c.quadraticCurveTo(hx - 0.01, hy + 0.12, hx - 0.03, hy + 0.06); c.closePath(); c.fill(); }
+    noRim();
+    // The mantle, draped over the back shoulder and across the body; then the folds of the cloth.
+    var waistY = mix(pts[2][1], pts[7][1], 0.5);
+    c.fillStyle = sheen; c.beginPath(); c.moveTo(pts[0][0] - 0.01, pts[0][1] + 0.01);
+    c.quadraticCurveTo(pts[1][0] - 0.03, pts[1][1] + 0.05, pts[2][0] + 0.005, pts[2][1]);
+    c.quadraticCurveTo(pts[3][0] + 0.03, mix(pts[2][1], pts[3][1], 0.6), mix(pts[3][0], pts[6][0], 0.42), mix(pts[3][1], waistY, 0.42 + 0.3 * k));
+    c.quadraticCurveTo(pts[7][0] - 0.02, waistY + 0.02, pts[8][0] - 0.02, pts[8][1] + 0.04);
+    c.closePath(); c.fill();
+    c.strokeStyle = fold; c.lineWidth = 0.009;
+    c.beginPath(); c.moveTo(pts[2][0] + 0.005, pts[2][1]); c.quadraticCurveTo(pts[3][0] + 0.06, mix(pts[2][1], pts[3][1], 0.55), mix(pts[3][0], pts[6][0], 0.42), mix(pts[3][1], waistY, 0.42 + 0.3 * k)); c.stroke();
+    var hemY = pts[4][1];
+    for (var q = 0; q < 3; q++) {
+      var fx = mix(pts[3][0], pts[6][0], 0.3 + q * 0.2) + ws * 0.01 * (q - 1);
+      c.beginPath(); c.moveTo(fx - 0.01, mix(waistY, hemY, 0.25)); c.quadraticCurveTo(fx + 0.02 * (q - 1), mix(waistY, hemY, 0.65), fx + 0.015 * (q - 1) + ws * 0.015, hemY - 0.01); c.stroke();
+    }
+    if (standing) { c.strokeStyle = sheen; c.lineWidth = 0.014; c.beginPath(); c.moveTo(pts[2][0] + 0.02, waistY - 0.03); c.quadraticCurveTo(0, waistY + 0.005, pts[7][0] - 0.02, waistY - 0.03); c.stroke(); }
+    rim(o.rim === undefined ? LIGHT.dir : o.rim, o.rimCol);
+    c.fillStyle = col; c.strokeStyle = col;
+    if (o.cloth) { c.beginPath(); c.moveTo(hx + 0.06, hy - 0.045); c.quadraticCurveTo(hx + 0.005, hy - 0.12, hx - 0.07, hy - 0.078); c.quadraticCurveTo(hx - 0.135, hy - 0.02, hx - 0.13, hy + 0.16); c.lineTo(hx - 0.035, hy + 0.1); c.quadraticCurveTo(hx - 0.04, hy, hx + 0.02, hy - 0.04); c.closePath(); c.fill();
+      noRim(); c.strokeStyle = sheen; c.lineWidth = 0.012; c.beginPath(); c.moveTo(hx + 0.04, hy - 0.06); c.quadraticCurveTo(hx - 0.02, hy - 0.085, hx - 0.07, hy - 0.05); c.stroke(); rim(o.rim === undefined ? LIGHT.dir : o.rim, o.rimCol); }
+    if (o.hat) { c.beginPath(); c.moveTo(hx - 0.08, hy - 0.03); c.quadraticCurveTo(hx - 0.09, hy - 0.2, hx, hy - 0.22); c.quadraticCurveTo(hx + 0.09, hy - 0.2, hx + 0.07, hy - 0.04); c.closePath(); c.fill(); c.beginPath(); c.moveTo(hx - 0.06, hy); c.quadraticCurveTo(hx - 0.14, hy + 0.12, hx - 0.12, hy + 0.2); c.lineTo(hx - 0.05, hy + 0.08); c.closePath(); c.fill();
+      noRim(); c.strokeStyle = 'rgba(226,190,102,.35)'; c.lineWidth = 0.014; c.beginPath(); c.moveTo(hx - 0.078, hy - 0.06); c.quadraticCurveTo(hx, hy - 0.08, hx + 0.072, hy - 0.06); c.stroke(); rim(o.rim === undefined ? LIGHT.dir : o.rim, o.rimCol); }
+    if (o.helmet) { c.beginPath(); c.arc(hx, hy - 0.005, 0.082, Math.PI, 0); c.fill(); c.fillRect(hx - 0.085, hy - 0.01, 0.03, 0.07); c.beginPath(); c.ellipse(hx - 0.01, hy - 0.115, 0.1, 0.034, -0.1, 0, 6.283); c.fill(); }
     if (o.veil) {
       var vk = 1 - k * 0.35 - s * 0.2;
       c.fillStyle = o.veil;
-      c.beginPath(); c.moveTo(hx + 0.072, hy - 0.015); c.quadraticCurveTo(hx + 0.035, hy - 0.125, hx - 0.06, hy - 0.088);
+      c.beginPath(); c.moveTo(hx + 0.07, hy - 0.02); c.quadraticCurveTo(hx + 0.035, hy - 0.125, hx - 0.06, hy - 0.088);
       c.quadraticCurveTo(hx - 0.16, hy - 0.02, hx - 0.17, hy + 0.42 * vk); c.lineTo(hx - 0.05, hy + 0.36 * vk);
-      c.quadraticCurveTo(hx - 0.03, hy + 0.06, hx + 0.038, hy + 0.05); c.closePath(); c.fill();
+      c.quadraticCurveTo(hx - 0.03, hy + 0.06, hx + 0.03, hy + 0.05); c.closePath(); c.fill();
+      noRim(); c.strokeStyle = 'rgba(255,255,255,.12)'; c.lineWidth = 0.01; c.beginPath(); c.moveTo(hx + 0.05, hy - 0.06); c.quadraticCurveTo(hx - 0.07, hy - 0.06, hx - 0.11, hy + 0.3 * vk); c.stroke(); rim(o.rim === undefined ? LIGHT.dir : o.rim, o.rimCol);
       c.fillStyle = col;
     }
-    var sx = 0.06 + b * 0.04, sy = pts[8][1] + 0.08;
-    c.lineWidth = 0.055;
-    function arm(x2, y2) { c.beginPath(); c.moveTo(sx, sy); c.lineTo(x2, y2); c.stroke(); c.beginPath(); c.arc(x2, y2, 0.03, 0, 6.283); c.fill(); }
+    // Sleeves that taper to the wrist, and a hand.
+    var sx = 0.05 + b * 0.04, sy = pts[8][1] + 0.08;
+    function arm(x2, y2, back) {
+      var dx = x2 - sx, dy = y2 - sy, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+      c.beginPath(); c.moveTo(sx + nx * 0.04, sy + ny * 0.04); c.lineTo(x2 - dx * 0.12 + nx * 0.03, y2 - dy * 0.12 + ny * 0.03); c.lineTo(x2 - dx * 0.12 - nx * 0.03, y2 - dy * 0.12 - ny * 0.03); c.lineTo(sx - nx * 0.035, sy - ny * 0.035); c.closePath(); c.fill();
+      c.beginPath(); c.ellipse(x2, y2, 0.026, 0.018, Math.atan2(dy, dx), 0, 6.283); c.fill();
+      if (!back) { noRim(); c.strokeStyle = fold; c.lineWidth = 0.008; c.beginPath(); c.moveTo(x2 - dx * 0.16 + nx * 0.03, y2 - dy * 0.16 + ny * 0.03); c.lineTo(x2 - dx * 0.16 - nx * 0.03, y2 - dy * 0.16 - ny * 0.03); c.stroke(); rim(o.rim === undefined ? LIGHT.dir : o.rim, o.rimCol); c.fillStyle = col; }
+    }
     var am = o.arms;
-    if (am === 'raise') { arm(sx + 0.15, sy - 0.3); c.beginPath(); c.moveTo(sx - 0.1, sy); c.lineTo(sx - 0.22, sy - 0.28); c.stroke(); }
+    if (am === 'raise') { arm(sx - 0.17, sy - 0.3, true); arm(sx + 0.15, sy - 0.32); }
     else if (am === 'reach') arm(sx + 0.24, sy + 0.08);
     else if (am === 'low') arm(sx + 0.22, sy + 0.3);
-    else if (am === 'pray') arm(sx + 0.11, sy + 0.08);
-    else if (am === 'out') arm(sx + 0.2, sy - 0.04);
-    else if (am === 'offer') { arm(sx + 0.24, sy + 0.12); gift(sx + 0.28, sy + 0.1, o.gift); }
-    else if (am === 'wave') { var wv = Math.sin(T * 3 + o.x) * 0.12; arm(sx + 0.12, sy - 0.28); frond(sx + 0.12, sy - 0.28, -1.35 + wv, 0.4); }
+    else if (am === 'pray') arm(sx + 0.1, sy + 0.06);
+    else if (am === 'out') arm(sx + 0.22, sy - 0.06);
+    else if (am === 'open') { arm(sx - 0.2, sy + 0.08, true); arm(sx + 0.22, sy + 0.06); }
+    else if (am === 'offer') { arm(sx + 0.24, sy + 0.12); gift(sx + 0.28, sy + 0.1, o.gift); c.fillStyle = col; }
+    else if (am === 'wave') { var wv = Math.sin(T * 2.4 + o.x) * 0.1; arm(sx + 0.12, sy - 0.28); c.strokeStyle = col; frond(sx + 0.12, sy - 0.29, -1.35 + wv, 0.4); }
     if (o.staff) {
-      c.lineWidth = 0.026; c.beginPath(); c.moveTo(0.22, 0); c.lineTo(0.22, -0.98); c.stroke();
+      c.strokeStyle = col; c.lineWidth = 0.026; c.beginPath(); c.moveTo(0.22, 0); c.lineTo(0.22, -0.98); c.stroke();
       if (o.staff === 'crook') { c.beginPath(); c.arc(0.18, -0.98, 0.04, 0, Math.PI, true); c.stroke(); }
-      c.beginPath(); c.arc(0.205, -0.52, 0.035, 0, 6.283); c.fill();
+      arm(0.205, -0.52);
     }
-    if (o.spear) { c.lineWidth = 0.02; c.beginPath(); c.moveTo(0.2, 0); c.lineTo(0.2, -1.25); c.stroke(); c.beginPath(); c.moveTo(0.17, -1.22); c.lineTo(0.2, -1.36); c.lineTo(0.23, -1.22); c.closePath(); c.fill(); }
-    c.restore();
+    if (o.spear) { c.strokeStyle = col; c.lineWidth = 0.02; c.beginPath(); c.moveTo(0.2, 0); c.lineTo(0.2, -1.25); c.stroke(); c.beginPath(); c.moveTo(0.17, -1.22); c.lineTo(0.2, -1.36); c.lineTo(0.23, -1.22); c.closePath(); c.fill(); arm(0.19, -0.6); }
+    c.restore(); noRim();
   }
   function frond(x, y, ang, L) {
     c.save(); c.translate(x, y); c.rotate(ang); c.lineWidth = 0.018; c.beginPath(); c.moveTo(0, 0); c.lineTo(L, 0); c.stroke();
@@ -248,13 +304,22 @@
     c.lineWidth = 0.018; c.beginPath(); c.moveTo(-0.55, -0.01); c.lineTo(0.75, -0.04); c.stroke();
     c.restore(); noRim();
   }
-  // The Lord riding upon the colt (seated, robe draped over its side).
+  // The Lord riding upon the colt: seated, mantle over the shoulder, the robe falling down its side.
   function rider(x, y, h, col) {
-    c.save(); c.translate(x, y); c.scale(h, h); rim(LIGHT.dir); c.fillStyle = col;
-    blob([[-0.05, -0.8], [-0.12, -0.76], [-0.15, -0.42], [-0.16, -0.12], [0.02, -0.04], [0.2, -0.1], [0.22, 0.28], [0.12, 0.3], [0.08, 0.02], [0.12, -0.45], [0.11, -0.76], [0.05, -0.8]]);
-    c.fill(); c.beginPath(); c.arc(0.01, -0.875, 0.072, 0, 6.283); c.fill();
-    c.beginPath(); c.moveTo(0.075, -0.915); c.quadraticCurveTo(0.02, -0.995, -0.055, -0.955); c.quadraticCurveTo(-0.12, -0.9, -0.118, -0.73); c.lineTo(-0.02, -0.78); c.closePath(); c.fill();
-    c.restore(); noRim();
+    c.save(); c.translate(x, y); c.scale(h, h); rim(LIGHT.dir); c.fillStyle = col; c.strokeStyle = col; c.lineCap = 'round';
+    blob([[-0.06, -0.8], [-0.13, -0.76], [-0.15, -0.46], [-0.14, -0.2], [-0.06, -0.08], [0.08, -0.08], [0.17, -0.06], [0.2, 0.18], [0.16, 0.34], [0.1, 0.36], [0.08, 0.16], [0.03, -0.02], [0.12, -0.42], [0.1, -0.76], [0.04, -0.8]]); c.fill();
+    c.beginPath(); c.ellipse(0.15, 0.37, 0.05, 0.016, 0, 0, 6.283); c.fill();
+    var hx = 0.01, hy = -0.875;
+    c.fillRect(hx - 0.028, hy + 0.03, 0.05, 0.07); c.beginPath(); c.arc(hx - 0.005, hy, 0.068, 0, 6.283); c.fill();
+    c.beginPath(); c.moveTo(hx + 0.045, hy - 0.04); c.lineTo(hx + 0.066, hy - 0.005); c.lineTo(hx + 0.09, hy + 0.018); c.lineTo(hx + 0.068, hy + 0.026); c.lineTo(hx + 0.072, hy + 0.04); c.lineTo(hx + 0.062, hy + 0.05); c.quadraticCurveTo(hx + 0.06, hy + 0.072, hx + 0.035, hy + 0.072); c.lineTo(hx + 0.01, hy + 0.04); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(hx + 0.062, hy + 0.04); c.quadraticCurveTo(hx + 0.07, hy + 0.1, hx + 0.03, hy + 0.13); c.quadraticCurveTo(hx - 0.01, hy + 0.12, hx - 0.03, hy + 0.06); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(hx + 0.06, hy - 0.045); c.quadraticCurveTo(hx + 0.005, hy - 0.12, hx - 0.07, hy - 0.078); c.quadraticCurveTo(hx - 0.135, hy - 0.02, hx - 0.13, hy + 0.16); c.lineTo(hx - 0.035, hy + 0.1); c.quadraticCurveTo(hx - 0.04, hy, hx + 0.02, hy - 0.04); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(0.07, -0.66); c.lineTo(0.22, -0.46); c.lineTo(0.2, -0.43); c.lineTo(0.03, -0.6); c.closePath(); c.fill();
+    c.beginPath(); c.ellipse(0.23, -0.44, 0.026, 0.018, 0.9, 0, 6.283); c.fill();
+    noRim();
+    c.fillStyle = 'rgba(255,236,196,.09)'; c.beginPath(); c.moveTo(-0.07, -0.79); c.quadraticCurveTo(-0.17, -0.6, -0.12, -0.3); c.quadraticCurveTo(0, -0.2, 0.1, -0.5); c.quadraticCurveTo(0.08, -0.7, 0.04, -0.78); c.closePath(); c.fill();
+    c.strokeStyle = 'rgba(0,0,0,.28)'; c.lineWidth = 0.009; [0.05, 0.11].forEach(function (fx) { c.beginPath(); c.moveTo(fx, -0.04); c.quadraticCurveTo(fx + 0.05, 0.12, fx + 0.04, 0.32); c.stroke(); });
+    c.restore();
   }
   // The cross laid over his shoulder, its foot trailing on the ground behind.
   function carried(x, y, h, col) {
@@ -299,7 +364,7 @@
   // The risen Lord, in light.
   function risen(o) {
     glow(o.x, o.y - o.h * 0.55, o.h * 1.6, '255,228,160', 0.35);
-    person({ x: o.x, y: o.y, h: o.h, f: o.f, col: '#FBF3E1', rim: o.f, rimCol: 'rgba(214,170,90,.9)', arms: o.arms, cloth: true });
+    person({ x: o.x, y: o.y, h: o.h, f: o.f, col: '#FBF3E1', lum: true, rim: o.f, rimCol: 'rgba(214,170,90,.9)', arms: o.arms, cloth: true, beard: true });
   }
   function rcross(x, y, h, col, opt) {
     opt = opt || {};
