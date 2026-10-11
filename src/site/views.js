@@ -89,7 +89,7 @@ function staffPhoto(key) {
 const NAV = [['/about', 'About'], ['/ministries', 'Ministries'], ['/sermons', 'Sermons'], ['/events', 'Events'], ['/staff', 'Staff'], ['/connect', 'Connect']];
 
 // The main menu, with the same dropdowns the old site had. Links starting with "app:" go to the church app;
-// "ext" opens in a new tab.
+// "ext" (another site) and "tab" (the church library and family check-in) open in a new tab.
 const MENU = [
   { label: 'About', href: '/about' },
   { label: 'Ministries', href: '/ministries', groups: [
@@ -104,7 +104,7 @@ const MENU = [
   ] },
   { label: 'Sermons', href: '/sermons' },
   { label: 'Resources', href: '/events', groups: [
-    { title: 'At Central', links: [['app:/', 'Church library'], ['/events', 'Events'], ['shop', 'Church shop', 'ext'], ['app:/checkin/family', 'Family check-in']] },
+    { title: 'At Central', links: [['app:/', 'Church library', 'tab'], ['/events', 'Events'], ['shop', 'Church shop', 'ext'], ['app:/checkin/family', 'Family check-in', 'tab']] },
     { title: 'Southern Baptist partners', links: [
       ['https://www.kncsb.org/', 'Church Forward', 'ext'],
       ['https://www.sbc.net/', 'Southern Baptist Convention', 'ext'],
@@ -213,7 +213,7 @@ ${body}
     <div>
       <h2>Explore</h2>
       <a href="${href('/sermons')}">Sermons</a><a href="${href('/give')}">Give</a><a href="${appUrl('/checkin/prayer')}">Prayer Wall</a>
-      <a href="${CHURCH.shop}" target="_blank" rel="noopener">Church Shop</a><a href="${appUrl('/')}">Library</a>
+      <a href="${CHURCH.shop}" target="_blank" rel="noopener">Church Shop</a><a href="${appUrl('/')}" target="_blank" rel="noopener">Library</a>
       <a href="${CHURCH.youtube}" target="_blank" rel="noopener">YouTube</a><a href="${CHURCH.facebook}" target="_blank" rel="noopener">Facebook</a>
     </div>
   </div>
@@ -372,7 +372,7 @@ function visit({ csrf, base, sent }) {
         <p>Pull in at <a href="${CHURCH.maps}" target="_blank" rel="noopener">904 Wheat Rd.</a> A greeter at the door will help you find your way, grab coffee, and get settled. Wear what’s comfortable.</p>
         <h2>Bringing kids?</h2>
         <p>Children are welcome in worship, and Children’s Church meets during the 10:45 service. At the welcome desk we’ll check your kids in and print their name tags with a matching pickup code for you. Only you, or the people you list, can pick them up.</p>
-        <p>Want to skip the line? <a href="${appUrl('/checkin/family')}">Set up your family online</a> before you come.</p>
+        <p>Want to skip the line? <a href="${appUrl('/checkin/family')}" target="_blank" rel="noopener">Set up your family online</a> before you come.</p>
       </div>
       <aside class="card form-card">
         <h2>Let us know you’re coming</h2>
@@ -459,7 +459,7 @@ function ministries({ base }) {
         <p>${m.body}</p>
         <ul class="ticks">${m.times.map((x) => html`<li>${x}</li>`)}</ul>
         ${m.safe ? html`<p class="note">${m.safe}</p>` : ''}
-        ${m.key === 'kids' ? html`<a class="btn btn-dark" href="${appUrl('/checkin/family')}">Set up your family for check-in</a>` : ''}
+        ${m.key === 'kids' ? html`<a class="btn btn-dark" href="${appUrl('/checkin/family')}" target="_blank" rel="noopener">Set up your family for check-in</a>` : ''}
         ${m.key === 'bus' ? html`<div class="btn-row"><a class="btn btn-dark" href="${base}/ride">Request a ride</a><a class="btn btn-ghost-dark" href="${base}/serve">Serve on the bus team</a></div>` : ''}
       </div>
     </div></section>`)}
