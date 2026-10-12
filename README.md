@@ -152,6 +152,7 @@ Check-in lives in the same Render service as the library, at `/checkin`, and ins
 - `src/reminders.js`: reminder emails, every 15 minutes, 8 AM–8 PM library time
 - `src/lib/woo.js`: import/export of the old WooCommerce library format
 - `src/covers.js`: background cover finder (old site photos, then Open Library search; resized with `sharp` when installed)
+- `src/site/partner-logos.js`: logos for the Southern Baptist partners at the bottom of the Ministries page, copied from each organization's website (the file listed there, or the logo on their homepage if it moves), trimmed with `sharp`, served at `/partner-logos/<key>.png`, refreshed daily. The partners and their wording are `FAMILY` in `src/site/content.js`. Set `DISABLE_PARTNER_LOGOS=1` to turn the fetching off (each card then shows the organization's name).
 - `src/db.js`: schema migrations (add new ones to the end of `MIGRATIONS`)
 - Tests: `npm test` (unit). `test/e2e.js` walks through every flow against a running server.
 

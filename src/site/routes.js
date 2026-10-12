@@ -11,6 +11,7 @@ const yt = require('../lib/youtube');
 const V = require('./views');
 const C = require('./content');
 const { seasonFor, styleFor } = require('./season');
+const logos = require('./partner-logos');
 
 const SITE_HOSTS = (process.env.SITE_HOSTS || 'cbcwinfield.org,www.cbcwinfield.org').split(',').map((h) => h.trim().toLowerCase());
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -51,7 +52,7 @@ module.exports = (app) => {
   page('', 'home', async (req) => V.home({ latest: (await yt.recent())[0], base: baseFor(req) }));
   page('/visit', 'visit', (req, res) => V.visit({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1' }), { title: 'Plan your visit', desc: 'Service times, directions, and what to expect for your kids on your first Sunday at Central Baptist Church in Winfield, Kansas.' });
   page('/about', 'about', (req) => V.about({ base: baseFor(req) }), { title: 'About', desc: 'Central Baptist Church is a Southern Baptist congregation in Winfield, Kansas, celebrating 75 years of God’s faithfulness.' });
-  page('/ministries', 'ministries', (req) => V.ministries({ base: baseFor(req) }), { title: 'Ministries', desc: 'Central Kids, Central Teens, adult Bible studies, and missions at Central Baptist Church in Winfield, Kansas.' });
+  page('/ministries', 'ministries', (req) => V.ministries({ base: baseFor(req), logos: logos.info }), { title: 'Ministries', desc: 'Central Kids, Central Teens, adult Bible studies, and missions at Central Baptist Church in Winfield, Kansas.' });
   page('/sermons', 'sermons', async () => V.sermons({ videos: await yt.recent() }), { title: 'Sermons', desc: 'Watch the latest sermons from Central Baptist Church in Winfield, Kansas.' });
   page('/events', 'events', async (req) => { const A = require('../announce'); const [reel, slides] = await Promise.all([A.latestReel(), A.list()]); return V.events({ base: baseFor(req), reel, slides, longDate: A.longDate, keyOf: A.keyOf }); }, { title: 'Events & announcements', desc: 'This week’s announcements and upcoming events at Central Baptist Church in Winfield, Kansas.' });
   page('/staff', 'staff', () => V.staff(), { title: 'Staff & leaders' });
@@ -59,6 +60,15 @@ module.exports = (app) => {
   page('/connect', 'connect', (req, res) => V.connect({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1', topic: clean(req.query.topic, 120) }), { title: 'Connect' });
   page('/serve', 'serve', (req, res) => V.serve({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1' }), { title: 'Serve' });
   page('/partners', 'partners', () => V.partners(), { title: 'Our partners' });
+  // Partner logos on the Ministries page, copied from each organization's website (see partner-logos.js).
+  app.get('/site/partner-logos/:file', async (req, res) => {
+    const f = logos.file(String(req.params.file).replace(/\.(png|svg)$/, ''));
+    if (!f) { res.status(404).type('text/plain; charset=utf-8').send('Logo not available.'); return; }
+    res.setHeader('Content-Type', f.type);
+    res.setHeader('Cache-Control', req.query.v === f.v ? 'public, max-age=31536000, immutable' : 'public, max-age=3600');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+    res.send(f.data);
+  });
   // The Christmas Story and the Crucifixion and Resurrection Story, to watch any time of year.
   for (const [kind, P] of Object.entries(V.STORY_PAGES)) {
     for (const style of ['window', 'pano']) {

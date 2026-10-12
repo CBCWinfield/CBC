@@ -93,6 +93,23 @@ const PARTNERS = [
   ['Baptist Press', 'https://www.baptistpress.com/'],
 ];
 
+// Our Southern Baptist family, with their logos, at the bottom of the Ministries page. Logos are copied
+// from each organization's own website by site/partner-logos.js (same keys); `mark` shows until one arrives.
+const FAMILY = [
+  { key: 'scasb', level: 'Locally', name: 'South Central Association of Southern Baptists', mark: 'South Central Association', url: 'https://scasbks.com/',
+    body: 'Southern Baptist churches and church plants across Butler, Cowley, Sumner, and Harper counties, reaching people and raising up disciples and leaders together.' },
+  { key: 'churchforward', level: 'Kansas & Nebraska', name: 'Church Forward', mark: 'Church Forward', url: 'https://www.kncsb.org/',
+    body: 'The Kansas-Nebraska Convention of Southern Baptists, helping churches across both states start, grow, and reach their communities.' },
+  { key: 'sbc', level: 'Nationally', name: 'Southern Baptist Convention', mark: 'SBC', url: 'https://www.sbc.net/',
+    body: 'A fellowship of tens of thousands of churches whose giving supports missionaries across North America and around the world.' },
+  { key: 'namb', level: 'North America', name: 'North American Mission Board', mark: 'NAMB', url: 'https://www.namb.net/',
+    body: 'Plants churches and sends missionaries across the United States and Canada. The Annie Armstrong Easter Offering supports their work.' },
+  { key: 'imb', level: 'Around the world', name: 'International Mission Board', mark: 'IMB', url: 'https://www.imb.org/',
+    body: 'Sends and supports Southern Baptist missionaries among the nations, especially peoples who have yet to hear the gospel. The Lottie Moon Christmas Offering supports their work.' },
+  { key: 'bp', level: 'News', name: 'Baptist Press', mark: 'Baptist Press', url: 'https://www.baptistpress.com/',
+    body: 'The news service of the Southern Baptist Convention: stories of missions, churches, and Southern Baptist life from around the world.' },
+];
+
 // Central Gear (Fourthwall shop), as featured on the homepage design.
 const SHOP = [
   { name: 'Black Hoodie', sub: 'White drawstring · Central Baptist', price: '$34.06', img: 'hoodie.webp', slug: 'black-hoodie-white-string-central-baptist-church', feature: true },
@@ -106,4 +123,4 @@ const SHOP = [
 
 const SERVE_AREAS = ['Nursery & Kids', 'Central Teens', 'Bus ministry (driving or riding along)', 'Worship & music', 'Sound, video & livestream', 'Greeting & hospitality', 'Building & grounds', 'Church library', 'Missions & outreach', 'Wherever I’m needed'];
 
-module.exports = { BUS, CHURCH, TIMES, MINISTRIES, OUTREACH, STAFF, DEACONS, EVENTS, PARTNERS, SHOP, SERVE_AREAS };
+module.exports = { BUS, CHURCH, TIMES, MINISTRIES, OUTREACH, STAFF, DEACONS, EVENTS, PARTNERS, FAMILY, SHOP, SERVE_AREAS };

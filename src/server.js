@@ -148,6 +148,7 @@ if (require.main === module) {
       app.listen(PORT, () => console.log(`Library running on port ${PORT}`));
       if (process.env.DISABLE_REMINDERS !== '1') { reminders.start(); require('./checkin/automations').start(); require('./checkin/autocheckout').start(); }
       if (process.env.DISABLE_COVERS !== '1') covers.start();
+      if (process.env.DISABLE_PARTNER_LOGOS !== '1') require('./site/partner-logos').start();
     })
     .catch((err) => {
       console.error('Startup failed:', err);
