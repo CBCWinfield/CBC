@@ -108,6 +108,8 @@ const MENU = [
     { title: 'Southern Baptist partners', links: [
       ['https://www.kncsb.org/', 'Church Forward', 'ext'],
       ['https://www.sbc.net/', 'Southern Baptist Convention', 'ext'],
+      ['https://www.namb.net/', 'North American Mission Board', 'ext'],
+      ['https://www.imb.org/', 'International Mission Board', 'ext'],
       ['https://scasbks.com/', 'South Central Association of Southern Baptists', 'ext'],
       ['https://www.baptistpress.com/', 'Baptist Press', 'ext'],
     ] },

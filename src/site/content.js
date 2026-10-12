@@ -87,6 +87,8 @@ const EVENTS = [
 const PARTNERS = [
   ['Church Forward (Kansas-Nebraska Convention of Southern Baptists)', 'https://www.kncsb.org/'],
   ['Southern Baptist Convention', 'https://www.sbc.net/'],
+  ['North American Mission Board (NAMB)', 'https://www.namb.net/'],
+  ['International Mission Board (IMB)', 'https://www.imb.org/'],
   ['South Central Association of Southern Baptists', 'https://scasbks.com/'],
   ['Baptist Press', 'https://www.baptistpress.com/'],
 ];
