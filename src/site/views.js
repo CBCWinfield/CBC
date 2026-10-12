@@ -143,9 +143,9 @@ function layout({ title, desc, page, body, base = '', head, season = 'wheat', st
 <meta property="og:title" content="${title || 'Central Baptist Church'}">
 <meta property="og:description" content="${desc || `A church family on Wheat Road in Winfield, Kansas, for ${years()} years.`}">
 <meta property="og:type" content="website">
-<link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" href="/img/favicon-32.png" type="image/png" sizes="32x32">
-<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="icon" href="/favicon.ico?v=2" sizes="any">
+<link rel="icon" href="/img/favicon-32.png?v=2" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png?v=2">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/css/site.css?v=25">
