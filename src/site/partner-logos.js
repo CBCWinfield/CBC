@@ -15,6 +15,10 @@ const SOURCES = {
   namb: { site: 'https://www.namb.net/', files: ['https://www.namb.net/wp-content/uploads/2026/03/logo.svg'] },
   imb: { site: 'https://www.imb.org/', files: ['https://www.imb.org/wp-content/uploads/2025/02/Logo.svg'] },
   bp: { site: 'https://www.baptistpress.com/', files: ['https://www.baptistpress.com/wp-content/uploads/2020/08/baptistpress__main-logo.svg'] },
+  // Missions & outreach: found on each one's own homepage.
+  kfl: { site: 'https://kfl.org/', files: [] },
+  casas: { site: 'https://casasporcristo.org/', files: [] },
+  occ: { site: 'https://www.samaritanspurse.org/what-we-do/operation-christmas-child/', files: [] },
 };
 
 const UA = 'Mozilla/5.0 (compatible; CentralBaptistWinfield/1.0; +https://cbcwinfield.org)';

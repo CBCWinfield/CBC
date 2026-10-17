@@ -150,7 +150,7 @@ function layout({ title, desc, page, body, base = '', head, season = 'wheat', st
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png?v=2">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=25">
+<link rel="stylesheet" href="/css/site.css?v=26">
 <script src="/js/site.js?v=6" defer></script>
 ${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? raw('<script src="/js/story.js?v=2" defer></script>') : ''}
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
@@ -449,13 +449,21 @@ function about({ base }) {
   };
 }
 
-// One partner card: their logo on a tile that suits it (or their name, until the logo arrives), then a few words and a link.
+// A partner's logo on a tile that suits it (or their name, until the logo arrives).
+function logoTile(key, mark, logo, base) {
+  const wide = logo && logo.width && logo.height ? logo.width / logo.height >= 1.8 : true;
+  return !logo ? html`<span class="fam-logo fam-word" aria-hidden="true">${mark}</span>`
+    : html`<span class="fam-logo${logo.tone === 'light' ? ' on-dark' : ''}${wide ? ' wide' : ''}"${logo.bg && /^#[0-9a-f]{6}$/.test(logo.bg) ? raw(` style="background:${logo.bg}"`) : ''}><img src="${base}/partner-logos/${key}.png?v=${logo.v}" alt=""${logo.width ? raw(` width="${logo.width}" height="${logo.height}"`) : ''} loading="lazy" decoding="async"></span>`;
+}
+// One partner card: the logo tile, then a few words and a link.
 function familyCard(f, logo, base) {
   const host = new URL(f.url).hostname.replace(/^www\./, '');
-  const wide = logo && logo.width && logo.height ? logo.width / logo.height >= 1.8 : true;
-  const tile = !logo ? html`<span class="fam-logo fam-word" aria-hidden="true">${f.mark}</span>`
-    : html`<span class="fam-logo${logo.tone === 'light' ? ' on-dark' : ''}${wide ? ' wide' : ''}"${logo.bg && /^#[0-9a-f]{6}$/.test(logo.bg) ? raw(` style="background:${logo.bg}"`) : ''}><img src="${base}/partner-logos/${f.key}.png?v=${logo.v}" alt=""${logo.width ? raw(` width="${logo.width}" height="${logo.height}"`) : ''} loading="lazy" decoding="async"></span>`;
-  return html`<a class="card fam-card" href="${f.url}" target="_blank" rel="noopener">${tile}<p class="tag">${f.level}</p><h3>${f.name}</h3><p>${f.body}</p><span class="u">Visit ${host} ${OUT}</span></a>`;
+  return html`<a class="card fam-card" href="${f.url}" target="_blank" rel="noopener">${logoTile(f.key, f.mark, logo, base)}<p class="tag">${f.level}</p><h3>${f.name}</h3><p>${f.body}</p><span class="u">Visit ${host} ${OUT}</span></a>`;
+}
+// One ministry we support: its logo and name heading a short paragraph on how Central takes part, and a link to it.
+function outreachRow(o, logo, base) {
+  return html`<article class="card out-row" id="${o.key}"><a class="out-mark" href="${o.url}" target="_blank" rel="noopener" aria-label="${o.name} (opens their website)">${logoTile(o.key, o.name, logo, base)}</a>
+    <div class="out-text"><p class="tag">${o.when}</p><h3>${o.name}<span>${o.what}</span></h3><p>${o.body}</p><a class="u" href="${o.url}" target="_blank" rel="noopener">Visit ${o.site} ${OUT}</a></div></article>`;
 }
 
 function ministries({ base, logos = () => null }) {
@@ -475,11 +483,12 @@ function ministries({ base, logos = () => null }) {
       </div>
     </div></section>`)}
     <section class="wrap sec">
-      <div class="sec-head"><div><p class="eyebrow">Missions &amp; outreach</p><h2 class="h-sec" style="max-width:16ch">Serving beyond our walls.</h2></div><a class="btn btn-dark" href="${base}/serve">Find a place to serve</a></div>
-      <div class="grid3">${C.OUTREACH.map((o) => html`<div class="card out-card"><h3>${o.name}</h3><p>${o.body}</p><span><a href="${o.url}" target="_blank" rel="noopener" class="u">Learn more</a>${o.url2 ? html` · <a href="${o.url2}" target="_blank" rel="noopener" class="u">IMB</a>` : ''}</span></div>`)}</div>
+      <div class="sec-head"><div><p class="eyebrow">Missions &amp; outreach</p><h2 class="h-sec" style="max-width:16ch">Serving beyond our walls.</h2></div><p class="lead fam-lead">Here is how Central takes part in each ministry we support, from a baby bottle on the kitchen counter to missionaries among the nations.</p></div>
+      <div class="out-list">${C.OUTREACH.map((o) => outreachRow(o, logos(o.key), base))}</div>
+      <div class="btn-row out-go"><a class="btn btn-dark" href="${base}/serve">Find a place to serve</a></div>
     </section>
     <section class="wrap sec sec-last" id="partners">
-      <div class="sec-head"><div><p class="eyebrow">Our Southern Baptist family</p><h2 class="h-sec" style="max-width:15ch">From Winfield to the <span class="serif">nations.</span></h2></div><p class="lead fam-lead">Together with Southern Baptist churches near and far, we pray, give, and serve through these partners.</p></div>
+      <div class="sec-head"><div><p class="eyebrow">Our Southern Baptist family</p><h2 class="h-sec" style="max-width:15ch">The family we <span class="serif">belong to.</span></h2></div><p class="lead fam-lead">Central is a Southern Baptist church. We belong to these fellowships of churches, and we pray, give, and serve together through them.</p></div>
       <div class="fam">${C.FAMILY.map((f) => familyCard(f, logos(f.key), base))}</div>
     </section>`,
   };

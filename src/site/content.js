@@ -55,11 +55,19 @@ const MINISTRIES = [
   },
 ];
 
+// Missions & outreach on the Ministries page: what each partner does and how Central takes part, with the
+// partner's logo (site/partner-logos.js, same keys) heading each paragraph and a link to their website.
 const OUTREACH = [
-  { name: 'Kansans For Life Baby Bottle Project', body: 'Each Mother’s Day we collect baby-bottle donations to support pro-life work across Kansas.', url: 'https://kfl.org/baby-bottle-project/' },
-  { name: 'Mexico Mission Trip', body: 'Every November a team travels to Juárez with Casas Por Cristo to build a home for a family in need.', url: 'https://casasporcristo.org/' },
-  { name: 'Operation Christmas Child', body: 'We pack shoeboxes with Samaritan’s Purse so children around the world hear the good news of Jesus.', url: 'https://www.samaritanspurse.org/' },
-  { name: 'North American & International Missions', body: 'We support the work of Southern Baptist missionaries through NAMB and the IMB.', url: 'https://www.namb.net/', url2: 'https://www.imb.org/' },
+  { key: 'kfl', name: 'Kansans for Life', what: 'Baby Bottle Project', when: 'Once a year, around Mother’s Day', url: 'https://kfl.org/baby-bottle-project/', site: 'kfl.org',
+    body: 'Once a year we hand out empty baby bottles to anyone who will take one. Families take them home, fill them with spare change, cash, or a check, and bring them back to church. Every gift goes to the Kansans for Life Baby Bottle Project for their pro-life work across Kansas. It is a simple way for every one of us, young and old, to stand for the life of every child, because every life is a gift from God (Psalm 139:13–14).' },
+  { key: 'casas', name: 'Casas Por Cristo', what: 'Mexico Mission Trip', when: 'Every November', url: 'https://casasporcristo.org/', site: 'casasporcristo.org',
+    body: 'Every November a team from Central travels to Juárez, Mexico, with Casas Por Cristo to build a home for a family in need. In a few days of hard work, side by side, our team raises a small, sturdy house and hands the family the keys in Jesus’ name. It is the gospel lived out with hammers and hands, and the trip changes the people who go as much as the families who receive a home.' },
+  { key: 'occ', name: 'Operation Christmas Child', what: 'Samaritan’s Purse', when: 'Every fall, during National Collection Week in November', url: 'https://www.samaritanspurse.org/what-we-do/operation-christmas-child/', site: 'samaritanspurse.org',
+    body: 'Each fall our church packs shoebox gifts with Operation Christmas Child: toys, school supplies, and hygiene items, with a note and a prayer tucked inside. Samaritan’s Purse carries the boxes to children who need them most, in more than 170 countries, many in places where the gospel is hard to reach. Local churches give the boxes and share the good news of Jesus, and many of the children go on to The Greatest Journey, a 12-lesson course in following Christ.' },
+  { key: 'namb', name: 'North American Mission Board', what: 'Missions across North America', when: 'All year, through our giving', url: 'https://www.namb.net/', site: 'namb.net',
+    body: 'As a Southern Baptist church, Central gives together with churches across the country through the Cooperative Program. Part of that giving supports the North American Mission Board, which plants new churches and sends missionaries across the United States and Canada, and cares for people after disasters and in crisis through Send Relief. Each spring the Annie Armstrong Easter Offering goes straight to NAMB missionaries.' },
+  { key: 'imb', name: 'International Mission Board', what: 'Missions among the nations', when: 'All year, through our giving', url: 'https://www.imb.org/', site: 'imb.org',
+    body: 'The same giving helps send International Mission Board missionaries to the nations, especially to peoples who have never heard the name of Jesus. Every December the Lottie Moon Christmas Offering goes entirely to support missionaries on the field. When you give at Central, you have a part in the gospel reaching the ends of the earth (Acts 1:8).' },
 ];
 
 // Staff photos: put a square photo at public/img/staff/<key>.jpg (e.g. orr.jpg) and it shows automatically.
@@ -97,15 +105,11 @@ const PARTNERS = [
 // from each organization's own website by site/partner-logos.js (same keys); `mark` shows until one arrives.
 const FAMILY = [
   { key: 'scasb', level: 'Locally', name: 'South Central Association of Southern Baptists', mark: 'South Central Association', url: 'https://scasbks.com/',
-    body: 'Southern Baptist churches and church plants across Butler, Cowley, Sumner, and Harper counties, reaching people and raising up disciples and leaders together.' },
+    body: 'Close to home, we belong to the South Central Association: Southern Baptist churches and church plants across Butler, Cowley, Sumner, and Harper counties who pray, plant churches, and raise up leaders together.' },
   { key: 'churchforward', level: 'Kansas & Nebraska', name: 'Church Forward', mark: 'Church Forward', url: 'https://www.kncsb.org/',
-    body: 'The Kansas-Nebraska Convention of Southern Baptists, helping churches across both states start, grow, and reach their communities.' },
+    body: 'Across our two states, we cooperate through Church Forward, the Kansas-Nebraska Convention of Southern Baptists, helping churches start, grow, and reach their communities.' },
   { key: 'sbc', level: 'Nationally', name: 'Southern Baptist Convention', mark: 'SBC', url: 'https://www.sbc.net/',
-    body: 'A fellowship of tens of thousands of churches whose giving supports missionaries across North America and around the world.' },
-  { key: 'namb', level: 'North America', name: 'North American Mission Board', mark: 'NAMB', url: 'https://www.namb.net/',
-    body: 'Plants churches and sends missionaries across the United States and Canada. The Annie Armstrong Easter Offering supports their work.' },
-  { key: 'imb', level: 'Around the world', name: 'International Mission Board', mark: 'IMB', url: 'https://www.imb.org/',
-    body: 'Sends and supports Southern Baptist missionaries among the nations, especially peoples who have yet to hear the gospel. The Lottie Moon Christmas Offering supports their work.' },
+    body: 'We are a cooperating church of the Southern Baptist Convention, a fellowship of tens of thousands of churches whose shared giving through the Cooperative Program sends missionaries across North America and around the world.' },
   { key: 'bp', level: 'News', name: 'Baptist Press', mark: 'Baptist Press', url: 'https://www.baptistpress.com/',
     body: 'The news service of the Southern Baptist Convention: stories of missions, churches, and Southern Baptist life from around the world.' },
 ];

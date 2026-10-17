@@ -494,7 +494,7 @@ body.menu-open { overflow: hidden; }
 /* About: our Baptist family + what we believe */
 /* Ministries: our Southern Baptist family, with logos */
 .fam-lead { margin-top: 0; max-width: 430px; }
-.fam { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 52px; }
+.fam { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; margin-top: 52px; }
 .fam-card { padding: 18px 18px 28px; display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: var(--ink); }
 .fam-card > :not(.fam-logo) { margin-left: 12px; margin-right: 12px; }
 .fam-logo { height: 148px; margin-bottom: 14px; padding: 26px 30px; border-radius: 20px; background: #fff; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; overflow: hidden; }
@@ -506,6 +506,19 @@ body.menu-open { overflow: hidden; }
 .fam-card p:not(.tag) { color: var(--muted); line-height: 1.7; flex: 1; }
 .fam-card .u { margin-top: 4px; font-weight: 600; color: var(--green); display: inline-flex; gap: 6px; align-items: center; }
 @media (max-width: 640px) { .fam { grid-template-columns: 1fr; margin-top: 36px; } .fam-logo { height: 128px; } }
+/* Ministries: missions & outreach, one paragraph each under the partner's logo and name */
+.out-list { display: grid; gap: 22px; margin-top: 52px; }
+.out-row { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 36px; align-items: center; padding: 22px 36px 22px 22px; }
+.out-mark { display: block; text-decoration: none; }
+.out-mark .fam-logo { margin-bottom: 0; height: 170px; }
+.out-text { display: grid; gap: 10px; }
+.out-text h3 { font-family: var(--disp); font-weight: 800; letter-spacing: -0.015em; font-size: 28px; line-height: 1.1; }
+.out-text h3 span { display: block; margin-top: 6px; font-family: inherit; font-weight: 600; font-size: 16px; letter-spacing: 0; color: var(--muted); }
+.out-text p:not(.tag) { color: var(--muted); line-height: 1.75; max-width: 68ch; }
+.out-text .u { justify-self: start; font-weight: 600; color: var(--green); display: inline-flex; gap: 6px; align-items: center; }
+.out-go { margin-top: 28px; }
+@media (max-width: 760px) { .out-row { grid-template-columns: 1fr; gap: 18px; padding: 18px 18px 26px; } .out-text { padding: 0 8px; } .out-mark .fam-logo { height: 136px; } .out-text h3 { font-size: 25px; } }
+
 .assoc { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-top: 34px; }
 .assoc-card { padding: 30px; display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: var(--ink); transition: transform .2s ease, box-shadow .2s ease; }
 .assoc-card:hover { transform: translateY(-3px); }
