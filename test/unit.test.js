@@ -200,3 +200,33 @@ test('homepage banner follows the church calendar (Central time)', () => {
   assert.strictEqual(seasonFor({}, { SITE_SEASON: 'wheat' }, new Date('2026-12-10T18:00:00Z')), 'wheat'); // pinned
   assert.strictEqual(seasonFor({ season: 'bogus' }, {}, new Date('2026-12-10T18:00:00Z')), 'christmas'); // unset = calendar
 });
+
+test('partner logos: homepage discovery prefers the header logo, and tiles suit the artwork', () => {
+  const PL = require('../src/site/partner-logos');
+  const page = `<meta property="og:image" content="/photo.jpg"><link rel="apple-touch-icon" href="/touch.png">
+    <header><img class="custom-logo" src="data:image/gif;base64,R0lG" data-src="/wp-content/uploads/logo.svg"></header>
+    <img src="/hero.jpg" alt="Hero"><img srcset="/logo-1x.png 1x, /logo-2x.png 2x" alt="Our logo">`;
+  assert.deepStrictEqual(PL.findLogos(page, 'https://www.example.org/'),
+    ['https://www.example.org/wp-content/uploads/logo.svg', 'https://www.example.org/logo-2x.png', 'https://www.example.org/touch.png']);
+  const px = (pixels) => Buffer.from(pixels.flat());
+  const clear = [0, 0, 0, 0];
+  assert.strictEqual(PL.toneOf(px([[255, 255, 255, 255], [250, 250, 250, 255], clear, clear]), 4).tone, 'light'); // white artwork: dark tile
+  assert.strictEqual(PL.toneOf(px([[20, 40, 90, 255], [20, 40, 90, 255], clear, clear]), 4).tone, 'dark'); // navy artwork: white tile
+  assert.strictEqual(PL.toneOf(px(Array(30).fill([240, 236, 220, 255])), 4).tone, 'solid'); // its own background
+  const CT = require('../src/site/content');
+  assert.ok(Object.keys(PL.SOURCES).every((k) => CT.FAMILY.some((f) => f.key === k) || CT.OUTREACH.some((o) => o.key === k)));
+  assert.ok([...CT.FAMILY, ...CT.OUTREACH].every((x) => PL.SOURCES[x.key]), 'every partner has a logo source');
+});
+
+test('Ministries page lists every partner, with a logo or its name until the logo arrives', () => {
+  const V = require('../src/site/views');
+  const C = require('../src/site/content');
+  const logos = (key) => (key === 'namb' ? { v: 'abc123', tone: 'light', bg: null, width: 320, height: 62 } : null);
+  const out = String(V.ministries({ base: '/site', logos }).body);
+  for (const f of [...C.FAMILY, ...C.OUTREACH]) assert.ok(out.includes(`href="${f.url}"`), f.name);
+  assert.ok(out.includes('<span class="fam-logo on-dark wide"><img src="/site/partner-logos/namb.png?v=abc123"'));
+  assert.ok(out.includes('<span class="fam-logo fam-word" aria-hidden="true">International Mission Board</span>'));
+  assert.strictEqual((out.match(/class="card fam-card"/g) || []).length, C.FAMILY.length);
+  assert.strictEqual((out.match(/class="card out-row"/g) || []).length, C.OUTREACH.length);
+  for (const o of C.OUTREACH) assert.ok(out.includes(`<h3>${o.name}<span>`), o.name);
+});
