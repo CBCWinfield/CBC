@@ -4,6 +4,14 @@ const Privacy = require('../lib/privacy');
 const P = require('./parts');
 const t = require('../lib/time');
 const { describeDays } = require('../settings');
+const cats = require('../lib/cats');
+
+// Each of a book's categories, linked to that shelf in the catalog.
+function subjectLinks(book) {
+  const paths = cats.pathsOf(book);
+  if (!paths.length) return null;
+  return html`${paths.map((p, i) => { const sub = cats.rest(p); return html`${i ? html`<br>` : ''}<a href="/catalog?category=${encodeURIComponent(cats.top(p))}${sub ? `&subcategory=${encodeURIComponent(sub)}` : ''}">${p}</a>`; })}`;
+}
 
 const hours = (s) => `${describeDays(s.pickup_days)}, ${t.fmtHm(s.pickup_start)}–${t.fmtHm(s.pickup_end)}`;
 
@@ -100,7 +108,7 @@ function catalog({ user, q, category, subcategory, audience, format, available, 
 
 function bookPage({ book, user, s, myActive, canCheckout, reason, csrf }) {
   const details = [
-    ['Author', book.author], ['Series', book.series], ['Subject', [book.category, book.subcategory].filter(Boolean).join(' › ')], ['For', book.audience], ['Format', book.format],
+    ['Author', book.author], ['Series', book.series], [cats.pathsOf(book).length > 1 ? 'Subjects' : 'Subject', subjectLinks(book)], ['For', book.audience], ['Format', book.format],
     ...Object.entries(book.details || {}).filter(([k]) => k !== 'Artist' || book.author !== book.details.Artist),
     ['Publisher', book.publisher], ['Published', book.published_year], ['Pages', book.pages], ['ISBN', book.isbn], ['Library no.', book.call_number],
   ].filter(([, v]) => v);

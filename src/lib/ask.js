@@ -1,4 +1,7 @@
 'use strict';
+const cats = require('./cats');
+// A book is in a subject when any of its categories is.
+const inSubject = (b, subject) => cats.pathsOf(b).some((p) => cats.top(p) === subject);
 // The "Ask" assistant. Fully self-contained: no AI service, no network calls.
 // It reads a plain-language question, works out what the person is after
 // (a topic, an author, a category, an audience, availability, or a library
@@ -201,7 +204,7 @@ function prepareBook(b) {
   const fields = {
     title: words([b.title, b.subtitle].filter(Boolean).join(' ')),
     author: words(b.author),
-    category: words([b.category, b.subcategory].filter(Boolean).join(' ')),
+    category: words(cats.pathsOf(b).join(' ').replace(/›/g, ' ')),
     tags: words(b.tags),
     series: words(b.series),
     number: words(b.call_number),
@@ -284,8 +287,8 @@ function detect(question, books, s) {
   }
 
   // Category named directly ("devotionals", "church history").
-  const cats = [...new Set(books.map((b) => b.category).filter(Boolean))];
-  for (const c of cats.sort((a, b) => b.length - a.length)) {
+  const subjects = [...new Set(books.flatMap((b) => cats.pathsOf(b).map(cats.top)).filter(Boolean))];
+  for (const c of subjects.sort((a, b) => b.length - a.length)) {
     const cn = normalize(c);
     const cw = cn.split(' ').filter((w) => w.length > 2 && w !== 'and');
     if (n.includes(` ${cn} `) || (cw.length && cw.every((w) => n.includes(` ${w} `) || n.includes(` ${w}s `) || n.includes(` ${stem(w)} `)))) {
@@ -361,7 +364,7 @@ function askOnce(question, books, settings, { ignoreAudience = false } = {}) {
           total += s;
         }
         if (phrase.length > 3 && p.titleNorm.includes(phrase)) total += 8;
-        if (filters.category && p.b.category === filters.category) total += 4;
+        if (filters.category && inSubject(p.b, filters.category)) total += 4;
         return { p, score: matched >= need ? total : 0 };
       }).filter((x) => x.score > 0);
       // Keep only reasonably strong matches, so a stray word in a description doesn't crowd the list.
@@ -375,7 +378,7 @@ function askOnce(question, books, settings, { ignoreAudience = false } = {}) {
     if (!scored.length && all > 1) scored = pass(false, 1);
   } else {
     scored = prepared
-      .filter((p) => !filters.category || p.b.category === filters.category)
+      .filter((p) => !filters.category || inSubject(p.b, filters.category))
       .map((p) => ({ p, score: 1 + (filters.audience && p.b.audience === filters.audience ? 1 : 0) }));
     // "Something for teens": prefer books marked for that group when there are any.
     if (filters.audience) {
@@ -386,7 +389,7 @@ function askOnce(question, books, settings, { ignoreAudience = false } = {}) {
 
   if (filters.category && terms.length) {
     // If they named a category, keep only that category when it has results.
-    const inCat = scored.filter((x) => x.p.b.category === filters.category);
+    const inCat = scored.filter((x) => inSubject(x.p.b, filters.category));
     if (inCat.length) scored = inCat;
   }
 

@@ -441,6 +441,45 @@ fieldset.card legend + * { clear: both; }
 .short-desc { font-size: 1.15rem; font-style: italic; color: var(--ink-soft); margin: 4px 0 0; }
 [data-show-for][hidden] { display: none; }
 
+/* Categories box: Suggest, the chosen list, the librarian's sign-off */
+.cat-suggest { justify-content: center; }
+.cat-status { margin: 6px 0 0; min-height: 0; }
+.cat-status:empty { display: none; }
+.cat-chosen { margin: 12px 0 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: #FAFBF9; }
+.cat-chosen-h { margin: 0 0 6px; font-weight: 700; font-size: 0.92rem; }
+.cat-chosen-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cat-chosen-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: start; padding: 6px 8px; background: var(--surface); border: 1px solid #E3E9E5; border-radius: 6px; font-size: 0.93rem; line-height: 1.35; }
+.cat-chosen-list li.is-suggested { border-color: var(--gilt); box-shadow: inset 3px 0 0 var(--gilt); }
+.cat-name { overflow-wrap: anywhere; }
+.cat-name .muted { font-weight: 400; }
+.cat-row-actions { display: inline-flex; align-items: center; gap: 4px; }
+.cat-row-actions .linklike { color: var(--green); text-decoration: underline; font-size: 0.8rem; padding: 2px 0; }
+.cat-x { width: 28px; height: 28px; border: 0; border-radius: 999px; background: none; color: var(--ink-soft); font-size: 1.15rem; line-height: 1; cursor: pointer; }
+.cat-x:hover, .cat-x:focus-visible { background: var(--danger-bg); color: var(--danger); }
+.cat-why { grid-column: 1 / -1; display: block; font-size: 0.8rem; line-height: 1.35; }
+.badge-main { background: var(--green); color: #fff; font-size: 0.7rem; padding: 1px 7px; }
+.badge-suggest { background: #F1F8E6; color: #3D5F12; font-size: 0.7rem; padding: 1px 7px; border: 1px solid var(--gilt-light); }
+.cat-also { margin-top: 10px; }
+.cat-also p { margin: 0 0 4px; }
+.cat-also ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cat-also li { display: flex; gap: 8px; align-items: center; justify-content: space-between; font-size: 0.9rem; }
+.cat-also li > span { min-width: 0; overflow-wrap: anywhere; }
+.wp-side .cat-also .btn { width: auto; flex: none; }
+.cat-signoff { margin-top: 10px; padding: 8px 10px; border-radius: 6px; background: var(--warn-bg); border: 1px solid #EBD7A6; }
+.cat-signoff.is-ok { background: var(--ok-bg); border-color: #B9D8C2; }
+.cat-signoff .check { align-items: flex-start; }
+.cat-signoff input { width: 19px; height: 19px; margin-top: 2px; }
+.cat-signoff-note { margin: 10px 0 0; }
+.cat-tree-h { margin: 0 0 6px; }
+/* the book list */
+.cell-cats { list-style: none; margin: 0; padding: 0; font-size: 0.9rem; line-height: 1.35; }
+.cell-cats li + li { margin-top: 2px; }
+.cell-cats + .badge { margin-top: 4px; font-size: 0.72rem; }
+.table td.cell-signoff { white-space: nowrap; text-align: right; }
+.review-bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; padding: 10px 14px; margin: 0 0 12px;
+  background: var(--warn-bg); border: 1px solid #EBD7A6; border-radius: 8px; }
+.review-bar p { margin: 0; max-width: 60ch; }
+
 /* ---------- Footer ---------- */
 .site-foot { border-top: 3px solid var(--gilt); background: var(--black); color: #D9E2D6; }
 .site-foot .wrap { padding: 28px 20px; }
