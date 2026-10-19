@@ -8,6 +8,7 @@ const C = require('./content');
 const wheat = require('./wheat');
 
 const { CHURCH } = C;
+// The Prayer Wall button is how members sign in: it opens their dashboard (the wall, Give, Inbox, My family, Library).
 const appUrl = (p) => `${CHURCH.app}${p}`;
 const csrfField = (csrf) => html`<input type="hidden" name="_csrf" value="${csrf}">`;
 const when = (iso) => { const d = new Date(iso); return iso && !Number.isNaN(d.getTime()) ? t.fmtDateYear(d) : ''; };
@@ -150,8 +151,8 @@ function layout({ title, desc, page, body, base = '', head, season = 'wheat', st
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png?v=2">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=26">
-<script src="/js/site.js?v=6" defer></script>
+<link rel="stylesheet" href="/css/site.css?v=28">
+<script src="/js/site.js?v=7" defer></script>
 ${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? raw('<script src="/js/story.js?v=2" defer></script>') : ''}
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
 </head>
@@ -167,9 +168,11 @@ ${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? ra
       </details>` : html`<a class="navlink" href="${link(m.href)}"${m.ext ? raw(' target="_blank" rel="noopener"') : cur(m.href)}>${m.label}</a>`))}
     </div>
     <div class="nav-cta">
+      <a class="btn btn-ghost btn-sm" href="${appUrl('/checkin/home')}">Prayer Wall</a>
       <a class="btn btn-ghost btn-sm" href="${href('/give')}">Give</a>
       <a class="btn btn-gold btn-sm" href="${href('/visit')}">Plan a visit</a>
     </div>
+    <a class="nav-prayer" href="${appUrl('/checkin/home')}">Prayer<span class="nav-prayer-wall">&nbsp;Wall</span></a>
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu"><span class="menu-lines" aria-hidden="true"></span><span class="visually-hidden">Menu</span></button>
   </nav>
   <div class="hero-in" id="top">
@@ -190,7 +193,7 @@ ${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? ra
       <div class="menu-sub"><a href="${href(m.href)}">${m.label === 'Resources' ? 'Events' : `All ${m.label.toLowerCase()}`}</a>${m.groups.map((g) => html`<p class="menu-sub-title">${g.title}</p>${g.links.map(([u, l, ext]) => html`<a href="${link(u)}"${ext ? raw(' target="_blank" rel="noopener"') : ''}>${l}</a>`)}`)}</div>
     </details>` : html`<a class="menu-big" href="${link(m.href)}"${m.ext ? raw(' target="_blank" rel="noopener"') : cur(m.href)}>${m.label}</a>`))}
     <a class="menu-big" href="${href('/give')}"${cur('/give')}>Give</a>
-    <div class="menu-cta"><a class="btn btn-gold" href="${href('/visit')}">Plan a visit</a><a class="btn btn-ghost" href="${href('/give')}">Give</a></div>
+    <div class="menu-cta"><a class="btn btn-gold" href="${href('/visit')}">Plan a visit</a><a class="btn btn-ghost" href="${appUrl('/checkin/home')}">Prayer Wall</a><a class="btn btn-ghost" href="${href('/give')}">Give</a></div>
   </nav>
 </div>
 <main id="main">

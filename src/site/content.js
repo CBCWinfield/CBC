@@ -14,6 +14,7 @@ const CHURCH = {
   youtubeLive: 'https://www.youtube.com/@cbcwinfield/streams',
   facebook: 'https://www.facebook.com/cbcwinfield/',
   give: 'https://secure.myvanco.com/YGQD/home',
+  site: process.env.SITE_URL || 'https://cbcwinfield.org',
   shop: 'https://cbc-shop.fourthwall.com/en-usd',
   app: process.env.APP_URL || 'https://admin.cbcwinfield.org',
   founded: 1951,

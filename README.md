@@ -130,6 +130,8 @@ Check-in lives in the same Render service as the library, at `/checkin`, and ins
 
 **Group messages (co-admins):** pick groups (whole team, volunteers, leaders, admins, parents, everyone, or people serving on a date) and/or individuals, start from a ready-made message (e.g. "Team meeting at 5:30 PM, click to confirm") or save your own, and send. Each person gets it in their Inbox with confirm/decline buttons; responses are tallied, with a one-tap reminder for those who haven't answered.
 
+**Member dashboard (/checkin/home):** the **Prayer Wall** button in the church website's header (and phone menu) is how members sign in. Signing in, there or with no other destination, lands on the dashboard: a row of options (Prayer Wall, Give through Vanco, Inbox, My family, Library, Watch, and Check in for the team) with the Prayer Wall open underneath. Library staff still go to the librarian's Today page.
+
 **Prayer Wall:** anyone with an account can post a request (optionally anonymous or team-only), tap 🙏 "I'm praying" (with a running count), comment, and mark it answered with a praise report.
 
 **Check-out:** "Check out everyone" releases kids and their parents. Releasing a family's last child at pickup checks their parents out too. Anyone still checked in 6 hours after the service started (Sunday School 9:30, Children's Church 10:45, Wednesday 6:00 PM, or the first check-in for other events) is checked out automatically.
