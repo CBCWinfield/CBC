@@ -10,7 +10,7 @@ const DEFAULTS = {
   welcome_message: 'Borrow Christian books, Bibles, devotionals and family reading at no cost. Our library consists of over 3000 offerings. All of which have been lovingly, meticulously, and diligently selected for its quality moral content. You will not find immoral books in our library. We thank God for the opportunity to offer the public such a rich selection of Christian work. Apply for a free library account, reserve books online, and pick them up during library hours.',
   library_address: '904 Wheat Rd, Winfield, KS 67156',
   contact_phone: '(620) 221-2980',
-  contact_email: 'centralbaptistchurchcalendar@gmail.com',
+  contact_email: 'info@cbcwinfield.com',
   checkout_days: 14,
   max_books: 3,
   max_extensions: 1,

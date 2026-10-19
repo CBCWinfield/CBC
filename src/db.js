@@ -735,6 +735,12 @@ const MIGRATIONS = [
     version: 19,
     sql: 'CREATE TABLE IF NOT EXISTS category_backfill (book_id int PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE, kind text, applied_at timestamptz NOT NULL DEFAULT now());',
   },
+  {
+    // The church's email is now info@cbcwinfield.com (the saved Library setting, if it still had the old address).
+    version: 20,
+    sql: `UPDATE settings SET value = to_jsonb('info@cbcwinfield.com'::text)
+      WHERE key = 'contact_email' AND lower(value #>> '{}') = 'centralbaptistchurchcalendar@gmail.com';`,
+  },
 ];
 
 async function migrate() {

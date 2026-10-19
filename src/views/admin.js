@@ -501,6 +501,7 @@ function applicationsPage({ csrf, pending, recent, s }) {
 function patronsPage({ rows, q, status, counts, csrf, user }) {
   const tabs = [['', 'All'], ['approved', 'Approved'], ['pending', 'Waiting'], ['paused', 'Paused'], ['denied', 'Denied']];
   return html`
+  ${user && user.role === 'librarian' ? html`<p class="quick"><a class="btn btn-quiet btn-small" href="/admin/patrons/old-numbers">Card numbers from the old library</a></p>` : ''}
   ${user && user.role === 'librarian' ? html`<details class="card add-patron"><summary><strong>Add a patron</strong> <span class="small muted">No application needed. They get an email with their library code and a link to set their password.</span></summary>
     <form method="post" action="/admin/patrons/new" class="row">
       <input type="hidden" name="_csrf" value="${csrf}">
@@ -552,6 +553,8 @@ function patronPage({ user, patron, items, csrf, tempPassword, now }) {
         <div class="row"><div class="field"><label for="pp-first">First name</label><input id="pp-first" name="first_name" value="${patron.first_name}" required></div>
         <div class="field"><label for="pp-last">Last name</label><input id="pp-last" name="last_name" value="${patron.last_name}" required></div></div>
         <div class="field"><label for="pp-email">Email</label><input id="pp-email" name="email" type="email" value="${patron.email}" required></div>
+        ${patron.library_code ? html`<div class="field"><label for="pp-code">Library code</label><input id="pp-code" name="library_code" value="${patron.library_code}" inputmode="numeric">
+          <p class="hint">Change it to keep the card number they had in the old library. Codes are CBC- and a number.</p></div>` : ''}
         <div class="field"><label for="pp-phone">Phone</label><input id="pp-phone" name="phone" value="${patron.phone || ''}"></div>
         <div class="field"><label for="pp-address">Address</label><input id="pp-address" name="address" value="${patron.address || ''}"></div>
         <div class="row"><div class="field"><label for="pp-city">City</label><input id="pp-city" name="city" value="${patron.city || ''}"></div>
@@ -660,4 +663,35 @@ function settingsPage({ csrf, s, mailOn, pushOn }) {
   </section>`;
 }
 
-module.exports = { shell, home, checkoutsPage, deskCheckout, booksPage, bookForm, importPage, applicationsPage, patronsPage, patronPage, staffPage, settingsPage };
+// Matching the old library's card numbers to the accounts here: paste, check, then use them.
+function oldNumbersPage({ csrf, text = '', rows = null }) {
+  const good = rows ? rows.filter((r) => r.user && !r.problem && !r.same) : [];
+  return html`
+  <p class="crumb"><a href="/admin/patrons">Patrons</a></p>
+  <div class="card">
+    <p>Members of the old library can keep the card number they had. Paste one person per line: their old number and their email (or their name). For example:</p>
+    <pre class="small">1023, ruth@example.com
+1031, Daniel Higdon
+1040, Smith, Carol</pre>
+    <p class="small muted">A spreadsheet works too: copy the two columns and paste them here. Their code becomes CBC- and that number (1023 becomes CBC-1023). Nothing changes until you press “Use these numbers”.</p>
+    <form method="post" action="/admin/patrons/old-numbers" class="stack">${P.csrfField(csrf)}
+      <div class="field"><label for="on-list">The old card numbers</label><textarea id="on-list" name="list" rows="10" required>${text}</textarea></div>
+      <button class="btn" type="submit">Check the list</button>
+    </form>
+  </div>
+  ${rows ? html`<section class="admin-section"><h2>What would change</h2>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>From your list</th><th>Account here</th><th>Now</th><th>Becomes</th></tr></thead>
+      <tbody>${rows.map((r) => html`<tr>
+        <td class="small">${r.line}</td>
+        <td>${r.user ? html`<a href="/admin/patrons/${r.user.id}">${fullName(r.user)}</a><br><span class="small muted">${r.user.email}</span>` : html`<span class="muted">No match</span>`}</td>
+        <td>${r.user ? r.user.library_code || html`<span class="muted">none yet</span>` : ''}</td>
+        <td>${r.problem ? html`<span class="badge badge-warn">${r.problem}</span>` : r.same ? html`<span class="muted">${r.code} (already)</span>` : html`<strong>${r.code}</strong>`}</td>
+      </tr>`)}</tbody></table></div>
+    ${good.length ? html`<form method="post" action="/admin/patrons/old-numbers" class="quick">${P.csrfField(csrf)}<input type="hidden" name="apply" value="1"><textarea name="list" hidden>${text}</textarea>
+      <button class="btn" type="submit">Use these numbers (${good.length})</button><span class="small muted">Lines with a problem are left as they are.</span></form>`
+      : html`<p class="muted">Nothing to change yet.</p>`}
+  </section>` : ''}`;
+}
+
+module.exports = { oldNumbersPage, shell, home, checkoutsPage, deskCheckout, booksPage, bookForm, importPage, applicationsPage, patronsPage, patronPage, staffPage, settingsPage };

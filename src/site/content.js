@@ -8,7 +8,7 @@ const CHURCH = {
   cityLine: 'Winfield, KS 67156',
   phone: '(620) 221-2980',
   phoneHref: 'tel:+16202212980',
-  email: process.env.SITE_EMAIL || 'centralbaptistchurchcalendar@gmail.com',
+  email: process.env.SITE_EMAIL || 'info@cbcwinfield.com',
   maps: 'https://www.google.com/maps/search/?api=1&query=Central+Baptist+Church+904+Wheat+Rd+Winfield+KS+67156',
   youtube: 'https://www.youtube.com/@cbcwinfield',
   youtubeLive: 'https://www.youtube.com/@cbcwinfield/streams',

@@ -624,6 +624,52 @@ module.exports = (app) => {
     await page(req, res, 'patrons', null, A.patronPage({ user: req.user, patron, items, csrf: res.locals.csrf, now: new Date(), ...extra }));
   }
 
+  // ---- Card numbers from the old library: match a pasted list to accounts here, check it, then use them ----
+  async function matchOldNumbers(text) {
+    const rows = [];
+    const seen = new Map();
+    for (const [i, raw] of String(text || '').split(/\r?\n/).entries()) {
+      const line = raw.trim(); if (!line) continue;
+      const cells = line.split(/\t|,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map((x) => x.replace(/^"|"$/g, '').trim()).filter(Boolean);
+      const numCell = cells.find((x) => /^(?:#|no\.?\s*|cbc-?\s*)?\d{1,7}$/i.test(x));
+      if (!numCell) { if (i === 0) continue; rows.push({ line, problem: 'No card number on this line.' }); continue; } // a heading line is skipped
+      const code = normalCode(numCell);
+      const rest = cells.filter((x) => x !== numCell);
+      const email = rest.find((x) => x.includes('@'));
+      const name = rest.filter((x) => !x.includes('@')).join(' ').replace(/\s+/g, ' ').trim();
+      let u = email ? await users.byEmail(email) : null;
+      if (!u && name) {
+        // "First Last" or "Last, First" (a comma inside one cell) or the two names in two cells
+        const flip = name.includes(',') ? name.split(',').map((x) => x.trim()).reverse().join(' ') : name;
+        const found = await db.many(`SELECT * FROM users WHERE lower(first_name || ' ' || last_name) = lower($1) OR lower(last_name || ' ' || first_name) = lower($1)`, [flip]);
+        if (found.length === 1) u = found[0];
+        else if (found.length > 1) { rows.push({ line, code, problem: `${found.length} accounts are named ${flip}. Add the email to this line.` }); continue; }
+      }
+      if (!u) { rows.push({ line, code, problem: 'No account here matches. They can apply (or you can add them) first.' }); continue; }
+      const holder = await db.one('SELECT id, first_name, last_name FROM users WHERE library_code = $1 AND id <> $2', [code, u.id]);
+      if (holder) { rows.push({ line, code, user: u, problem: `${code} already belongs to ${holder.first_name} ${holder.last_name}.` }); continue; }
+      if (seen.has(code)) { rows.push({ line, code, user: u, problem: `${code} is on another line too.` }); continue; }
+      if (seen.has('u' + u.id)) { rows.push({ line, code, user: u, problem: `${u.first_name} ${u.last_name} is on another line too.` }); continue; }
+      seen.set(code, 1); seen.set('u' + u.id, 1);
+      rows.push({ line, code, user: u, same: u.library_code === code });
+    }
+    return rows;
+  }
+  app.get('/admin/patrons/old-numbers', requireLibrarian, async (req, res) => {
+    await page(req, res, 'patrons', 'Card numbers from the old library', A.oldNumbersPage({ csrf: res.locals.csrf }));
+  });
+  app.post('/admin/patrons/old-numbers', requireLibrarian, async (req, res) => {
+    const text = String(req.body.list || '').slice(0, 100000);
+    const rows = await matchOldNumbers(text);
+    if (req.body.apply === '1') {
+      const good = rows.filter((r) => r.user && !r.problem && !r.same);
+      await db.tx(async (c) => { for (const r of good) await c.query('UPDATE users SET library_code = $2 WHERE id = $1', [r.user.id, r.code]); });
+      security.flash(req, 'ok', good.length ? `Gave ${good.length} ${good.length === 1 ? 'person their' : 'people their'} old library card number.` : 'Nothing to change.');
+      return res.redirect('/admin/patrons');
+    }
+    await page(req, res, 'patrons', 'Card numbers from the old library', A.oldNumbersPage({ csrf: res.locals.csrf, text, rows }));
+  });
+
   app.get('/admin/patrons/:id', requireStaff, async (req, res) => patronView(req, res, intParam(req.params.id)));
 
   app.post('/admin/patrons/:id', requireLibrarian, async (req, res) => {
@@ -640,9 +686,19 @@ module.exports = (app) => {
       security.flash(req, 'error', 'Another account already uses that email.');
       return res.redirect(`/admin/patrons/${id}`);
     }
+    // The library code can be changed by hand, e.g. to the card number someone had in the old library.
+    const before = await db.one('SELECT library_code FROM users WHERE id = $1', [id]);
+    let code = before ? before.library_code : null;
+    if (req.body.library_code !== undefined && clean(req.body.library_code, 40)) {
+      const want = normalCode(req.body.library_code);
+      if (!want) { security.flash(req, 'error', 'A library code needs a number, like 1004 or CBC-1004.'); return res.redirect(`/admin/patrons/${id}`); }
+      const holder = await db.one('SELECT id, first_name, last_name FROM users WHERE library_code = $1 AND id <> $2', [want, id]);
+      if (holder) { security.flash(req, 'error', `${want} already belongs to ${holder.first_name} ${holder.last_name}.`); return res.redirect(`/admin/patrons/${id}`); }
+      code = want;
+    }
     const rest = ['phone', 'address', 'city', 'state', 'zip'].map((k) => clean(req.body[k], 120) || null);
-    await db.query('UPDATE users SET first_name=$2, last_name=$3, email=$4, phone=$5, address=$6, city=$7, state=$8, zip=$9 WHERE id=$1', [id, first, last, email, ...rest]);
-    security.flash(req, 'ok', 'Details saved.');
+    await db.query('UPDATE users SET first_name=$2, last_name=$3, email=$4, phone=$5, address=$6, city=$7, state=$8, zip=$9, library_code=$10 WHERE id=$1', [id, first, last, email, ...rest, code]);
+    security.flash(req, 'ok', before && code !== before.library_code ? `Details saved. ${first}'s library code is now ${code}; let them know.` : 'Details saved.');
     res.redirect(`/admin/patrons/${id}`);
   });
 

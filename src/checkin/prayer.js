@@ -473,7 +473,7 @@ function routes(app, { render, needLogin, currentEvent }) {
 }
 
 // ---------------------------------------------------------------- automations
-const FOOT = 'Central Baptist Church<br>904 Wheat Rd, Winfield, KS 67156<br>(620) 221-2980 · centralbaptistchurchcalendar@gmail.com';
+const FOOT = 'Central Baptist Church<br>904 Wheat Rd, Winfield, KS 67156<br>(620) 221-2980 · info@cbcwinfield.com';
 const settingsLink = () => `<span style="color:#55635C;font-size:13px">Change these reminders anytime in <a href="${esc(url('/checkin/settings'))}">your settings</a>.</span>`;
 const quote = (p) => `<span style="display:block;border-left:3px solid #8CC63F;padding:6px 0 6px 12px;margin:4px 0">
   <strong>${esc(p.anonymous ? 'Anonymous' : p.author || 'Someone')}</strong> <span style="color:#55635C">· ${Number(p.praying) || 0} praying</span><br>

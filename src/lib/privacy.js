@@ -4,7 +4,7 @@
 // /privacy and /terms.
 const { html } = require('./html');
 
-const CHURCH = { name: 'Central Baptist Church', address: '904 Wheat Rd, Winfield, KS 67156', phone: '(620) 221-2980', email: 'centralbaptistchurchcalendar@gmail.com' };
+const CHURCH = { name: 'Central Baptist Church', address: '904 Wheat Rd, Winfield, KS 67156', phone: '(620) 221-2980', email: 'info@cbcwinfield.com' };
 const UPDATED = 'October 6, 2026';
 
 const SUMMARY = [
