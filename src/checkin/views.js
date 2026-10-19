@@ -52,7 +52,7 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=Montserrat:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="/css/style.css?v=9">
-<link rel="stylesheet" href="/css/checkin.css?v=16">
+<link rel="stylesheet" href="/css/checkin.css?v=18">
 <script src="/js/app.js?v=9" defer></script>
 <script src="/js/checkin.js?v=8" defer></script>
 </head>
@@ -76,7 +76,7 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
           ${more.map(([href, label, key]) => html`<a href="${href}"${tab === key ? raw(' aria-current="page"') : ''}>${label}</a>`)}
           <form method="post" action="/logout">${csrfField(csrf)}<button class="linklike" type="submit">Log out</button></form>
         </div>
-      </details>` : html`<a class="ci-login" href="/login?next=/checkin">Log in</a>`}
+      </details>` : html`<a class="ci-login" href="/login?next=/checkin/home">Log in</a>`}
     </nav>
   </div>
   ${tabs.length || event ? html`<div class="ci-subnav${event ? ' has-event' : ''}"><div class="ci-subnav-inner">

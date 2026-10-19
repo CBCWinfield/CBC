@@ -209,7 +209,7 @@ module.exports = (app) => {
 
   // ---- Log in / out ----
   app.get('/login', async (req, res) => {
-    if (req.user) return res.redirect(safeNext(req.query.next) || '/my');
+    if (req.user) return res.redirect(safeNext(req.query.next) || (req.user.role !== 'patron' ? '/admin' : '/checkin/home'));
     res.render(V.loginPage({ csrf: res.locals.csrf, next: safeNext(req.query.next) || '' }), { title: 'Log in', current: 'login' });
   });
 
@@ -223,7 +223,8 @@ module.exports = (app) => {
     await req.regenerateSession();
     req.session.userId = user.id;
     await db.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
-    const dest = safeNext(req.body.next) || (user.role !== 'patron' ? '/admin' : '/my');
+    // members land on their dashboard (the Prayer Wall and the things they use most); library staff on the librarian's Today page
+    const dest = safeNext(req.body.next) || (user.role !== 'patron' ? '/admin' : '/checkin/home');
     res.redirect(dest);
   });
 

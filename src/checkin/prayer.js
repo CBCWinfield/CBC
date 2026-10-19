@@ -192,7 +192,42 @@ const VERSES = [
   ['Call to me and I will answer you, and will tell you great and hidden things that you have not known.', 'Jeremiah 33:3'],
 ];
 
-function wallPage({ csrf, user, prayers, comments, openId, filter, seenBefore, st, due, newN }) {
+// ---------------------------------------------------------------- the member dashboard
+// Signing in lands here: a few things members use most, with the Prayer Wall open underneath.
+const DASH_ICONS = {
+  give: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+  inbox: '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="m4 7 8 6 8-6"/>',
+  family: '<circle cx="8.5" cy="8" r="2.6"/><circle cx="16" cy="9.5" r="2.1"/><path d="M3.8 19c.4-3.4 2.3-5.4 4.7-5.4s4.3 2 4.7 5.4M13.4 15.2c.8-.9 1.7-1.3 2.6-1.3 2 0 3.6 1.7 3.9 5.1"/>',
+  library: '<path d="M4 5.5c2.8-.8 5.5-.4 8 1.4 2.5-1.8 5.2-2.2 8-1.4V18c-2.8-.8-5.5-.4-8 1.4-2.5-1.8-5.2-2.2-8-1.4z"/><path d="M12 6.9v12.5"/>',
+  watch: '<circle cx="12" cy="12" r="8.5"/><path d="m10.2 8.8 5 3.2-5 3.2z"/>',
+  station: '<path d="m5 12.5 4.2 4.2L19 7"/>',
+};
+const dashIcon = (k) => (k === 'prayer' ? raw('<span class="dash-emoji" aria-hidden="true">🙏</span>')
+  : raw(`<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${DASH_ICONS[k]}</svg>`));
+function greeting() {
+  const h = Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: 'America/Chicago' }).format(new Date()));
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+}
+function memberDash({ user, unread = 0, newN = 0 }) {
+  const { CHURCH } = require('../site/content');
+  const tiles = [
+    { k: 'prayer', href: '/checkin/prayer', label: 'Prayer Wall', sub: newN ? `${newN} new` : 'Share and pray', current: true },
+    { k: 'give', href: CHURCH.give, label: 'Give', sub: 'Online with Vanco', ext: true, gold: true },
+    { k: 'inbox', href: '/checkin/inbox', label: 'Inbox', sub: unread ? `${unread} unread` : 'Messages' },
+    { k: 'family', href: '/checkin/family', label: 'My family', sub: 'Check-in and forms' },
+    { k: 'library', href: '/my', label: 'Library', sub: 'Books and holds' },
+    { k: 'watch', href: `${CHURCH.site}/sermons`, label: 'Watch', sub: 'Sermons and live', ext: true },
+  ];
+  if (D.can(user, 'volunteer')) tiles.splice(3, 0, { k: 'station', href: '/checkin', label: 'Check in', sub: 'The check-in station' });
+  return html`<nav class="dash" aria-label="Member dashboard">
+    <p class="dash-hello">${greeting()}, <strong>${user.first_name}</strong></p>
+    <ul class="dash-tiles">${tiles.map((x) => html`<li><a class="dash-tile dash-${x.k}${x.gold ? ' is-gold' : ''}" href="${x.href}"${x.current ? raw(' aria-current="page"') : ''}${x.ext ? raw(' target="_blank" rel="noopener"') : ''}>
+      <span class="dash-ic">${dashIcon(x.k)}</span><span class="dash-label">${x.label}${x.ext ? html`<span class="dash-ext" aria-hidden="true">↗</span>` : ''}</span><span class="dash-sub">${x.sub}</span>${x.ext ? html`<span class="visually-hidden"> (opens a new tab)</span>` : ''}
+    </a></li>`)}</ul>
+  </nav>`;
+}
+
+function wallPage({ csrf, user, prayers, comments, openId, filter, seenBefore, st, due, newN, dash = '' }) {
   const [verse, ref] = VERSES[Math.floor(Date.now() / (7 * DAY)) % VERSES.length]; // a new verse each week
   const tabs = [['', 'All'], ['new', 'New', newN], ['praying', 'I’m praying'], ['mine', 'Mine'], ['answered', 'Answered']];
   const isNew = (p) => p.user_id !== user.id && p.status === 'open' && seenBefore && new Date(p.created_at) > seenBefore;
@@ -205,6 +240,7 @@ function wallPage({ csrf, user, prayers, comments, openId, filter, seenBefore, s
   }[filter];
   return html`
   <div class="pw">
+    ${dash}
     <header class="pw-hero">
       <div class="pw-hero-glow" aria-hidden="true"></div>
       <p class="pw-eyebrow">Central Baptist Church</p>
@@ -302,11 +338,13 @@ function routes(app, { render, needLogin, currentEvent }) {
 
   const gate = (req, res) => {
     if (req.user) return false;
-    render(req, res, gatePage({ csrf: res.locals.csrf, next: req.originalUrl && req.originalUrl.startsWith('/checkin/prayer') ? req.originalUrl : '/checkin/prayer' }), { title: 'Prayer Wall', tab: 'prayer' });
+    const back = req.originalUrl && /^\/checkin\/(prayer|home)/.test(req.originalUrl) ? req.originalUrl : '/checkin/home';
+    render(req, res, gatePage({ csrf: res.locals.csrf, next: back }), { title: 'Prayer Wall', tab: 'prayer' });
     return true;
   };
 
-  app.get('/checkin/prayer', async (req, res) => {
+  // The member dashboard (/checkin/home) is the Prayer Wall with the member options above it.
+  const wall = async (req, res) => {
     if (gate(req, res)) return;
     await withEvent(req);
     if (waiting(req, res)) return;
@@ -318,8 +356,11 @@ function routes(app, { render, needLogin, currentEvent }) {
     const [comments, st, due] = await Promise.all([commentsFor(prayers.map((p) => p.id)), stats(req.user), dueCheckins(req.user.id)]);
     await db.query('UPDATE users SET prayer_seen_at = now() WHERE id = $1', [req.user.id]);
     req.ciPrayerNew = 0;
-    render(req, res, wallPage({ csrf: res.locals.csrf, user: req.user, prayers, comments, openId: Number(req.query.open) || 0, filter, seenBefore, st, due, newN }), { title: 'Prayer Wall', tab: 'prayer' });
-  });
+    const dash = memberDash({ user: req.user, unread: req.ciUnread || 0, newN });
+    render(req, res, wallPage({ csrf: res.locals.csrf, user: req.user, prayers, comments, openId: Number(req.query.open) || 0, filter, seenBefore, st, due, newN, dash }), { title: req.path === '/checkin/home' ? 'Home' : 'Prayer Wall', tab: 'prayer' });
+  };
+  app.get('/checkin/home', wall);
+  app.get('/checkin/prayer', wall);
 
   app.get('/checkin/prayer/:id', async (req, res) => {
     if (gate(req, res)) return;

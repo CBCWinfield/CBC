@@ -14,7 +14,7 @@
     if (close) close.addEventListener('click', function () { set(false); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !menu.hidden) set(false); });
     menu.addEventListener('click', function (e) { if (e.target.closest('a')) { menu.hidden = true; document.body.classList.remove('menu-open'); } });
-    window.addEventListener('resize', function () { if (window.innerWidth > 960 && !menu.hidden) set(false); });
+    window.addEventListener('resize', function () { if (window.innerWidth > 1240 && !menu.hidden) set(false); });
   }
   // Only one desktop dropdown open at a time; Escape closes it.
   document.querySelectorAll('.navdrop').forEach(function (d) {
