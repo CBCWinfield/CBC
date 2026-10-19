@@ -1,4 +1,5 @@
 'use strict';
+const Share = require('../share');
 // Screens for Central Check-In.
 const { html, raw, selected, checked } = require('../lib/html');
 const t = require('../lib/time');
@@ -14,7 +15,7 @@ const fmtDateKey = (k) => t.fmtLong(t.zoned(...k.split('-').map(Number), 12));
 const dateKeyOf = (d) => (d instanceof Date ? t.dateKey(d) : String(d).slice(0, 10));
 
 // ---------------------------------------------------------------- layout
-function layout({ title, user, csrf, flash = [], body, tab, event, bare = false, unread = 0, prayerNew = 0, pendingMembers = 0 }) {
+function layout({ title, user, csrf, flash = [], body, tab, event, bare = false, unread = 0, prayerNew = 0, pendingMembers = 0, shareBase = '', sharePath = '' }) {
   const staff = D.rank(user) > 0;
   const tabs = staff ? [
     ['/checkin', 'Check in', 'station', '✓'],
@@ -40,6 +41,9 @@ function layout({ title, user, csrf, flash = [], body, tab, event, bare = false,
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${title ? `${title} | Central Check-In` : 'Central Check-In'}</title>
 <meta name="csrf-token" content="${csrf || ''}">
+${Share.tags(tab === 'prayer'
+    ? { title: 'Prayer Wall | Central Baptist Church', description: 'Share a request, pray for one another, and see who’s praying for you. For the members of Central Baptist Church in Winfield, Kansas.', siteName: 'Central Baptist Church', base: shareBase, url: shareBase ? `${shareBase}/checkin/prayer` : '', pic: Share.picture('prayer') }
+    : { title: title ? `${title} | Central Baptist Church` : 'Central Baptist Church', description: 'Check-in, the Prayer Wall, messages, and family forms for Central Baptist Church in Winfield, Kansas.', siteName: 'Central Baptist Church', base: shareBase, url: shareBase && sharePath ? shareBase + sharePath : '', pic: Share.picture('home') })}
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Central">

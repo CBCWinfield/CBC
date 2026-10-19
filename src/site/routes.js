@@ -17,15 +17,13 @@ const SITE_HOSTS = (process.env.SITE_HOSTS || 'cbcwinfield.org,www.cbcwinfield.o
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const baseFor = (req) => (SITE_HOSTS.includes(String(req.headers.host || '').split(':')[0].toLowerCase()) ? '' : '/site');
 
-// The picture a page shows when its link is shared or previewed (scripts/share-image.js draws them).
-const SHARE = {
-  sermons: { title: 'Sermons from Central Baptist Church', image: '/img/share/sermons.png?v=1', alt: 'Sunday’s message, any day of the week: watch past sermons from Central Baptist Church in Winfield, Kansas.' },
-};
-
-function show(req, res, page, view, { title, desc, status = 200, season, storyStyle, share } = {}) {
+// Each page's picture when its link is shared or previewed (src/share.js); pages not listed use the homepage's.
+const SHARE_FOR = { '/ride': 'ride', '/partners': 'partners' };
+function show(req, res, page, view, { title, desc, status = 200, season, storyStyle, share, shareTitle } = {}) {
+  const here = req.path.replace(/^\/site/, '') || '/';
   res.status(status);
   res.setHeader('Cache-Control', 'no-cache');
-  res.send(V.layout({ title, desc, page, body: view.body, head: view.head, base: baseFor(req), season: season || seasonFor(req.query), storyStyle: storyStyle || styleFor(req.query), share, path: req.path.replace(/^\/site/, '') || '/' }).toString());
+  res.send(V.layout({ title, desc, page, body: view.body, head: view.head, base: baseFor(req), season: season || seasonFor(req.query), storyStyle: storyStyle || styleFor(req.query), share: share || SHARE_FOR[here] || page, shareTitle, path: here }).toString());
 }
 
 async function saveInquiry(kind, v, { to } = {}) {
@@ -58,13 +56,13 @@ module.exports = (app) => {
   page('/visit', 'visit', (req, res) => V.visit({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1' }), { title: 'Plan your visit', desc: 'Service times, directions, and what to expect for your kids on your first Sunday at Central Baptist Church in Winfield, Kansas.' });
   page('/about', 'about', (req) => V.about({ base: baseFor(req) }), { title: 'About', desc: 'Central Baptist Church is a Southern Baptist congregation in Winfield, Kansas, celebrating 75 years of God’s faithfulness.' });
   page('/ministries', 'ministries', (req) => V.ministries({ base: baseFor(req), logos: logos.info }), { title: 'Ministries', desc: 'Central Kids, Central Teens, adult Bible studies, and missions at Central Baptist Church in Winfield, Kansas.' });
-  page('/sermons', 'sermons', async () => V.sermons({ videos: await yt.recent() }), { title: 'Sermons', desc: 'Watch past sermons from Central Baptist Church in Winfield, Kansas, any day of the week.', share: SHARE.sermons });
+  page('/sermons', 'sermons', async () => V.sermons({ videos: await yt.recent() }), { title: 'Sermons', desc: 'Watch past sermons from Central Baptist Church in Winfield, Kansas, any day of the week.', shareTitle: 'Sermons from Central Baptist Church' });
   page('/events', 'events', async (req) => { const A = require('../announce'); const [reel, slides] = await Promise.all([A.latestReel(), A.list()]); return V.events({ base: baseFor(req), reel, slides, longDate: A.longDate, keyOf: A.keyOf }); }, { title: 'Events & announcements', desc: 'This week’s announcements and upcoming events at Central Baptist Church in Winfield, Kansas.' });
-  page('/staff', 'staff', () => V.staff(), { title: 'Staff & leaders' });
+  page('/staff', 'staff', () => V.staff(), { title: 'Staff & leaders', desc: 'Meet the pastors, staff, and deacons of Central Baptist Church in Winfield, Kansas.' });
   page('/give', 'give', (req) => V.give({ base: baseFor(req) }), { title: 'Give', desc: 'Give online to Central Baptist Church in Winfield, Kansas, through our secure giving partner Vanco.' });
-  page('/connect', 'connect', (req, res) => V.connect({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1', topic: clean(req.query.topic, 120) }), { title: 'Connect' });
-  page('/serve', 'serve', (req, res) => V.serve({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1' }), { title: 'Serve' });
-  page('/partners', 'partners', () => V.partners(), { title: 'Our partners' });
+  page('/connect', 'connect', (req, res) => V.connect({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1', topic: clean(req.query.topic, 120) }), { title: 'Connect', desc: 'A question about Sunday, a prayer request, or a first visit: call (620) 221-2980 or send Central Baptist Church a note.' });
+  page('/serve', 'serve', (req, res) => V.serve({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1' }), { title: 'Serve', desc: 'Find your place to serve at Central Baptist Church: kids, teens, the bus ministry, worship, hospitality, and more.' });
+  page('/partners', 'partners', () => V.partners(), { title: 'Our partners', desc: 'Central Baptist Church cooperates with Southern Baptists across Kansas, the nation, and the world.' });
   // Partner logos on the Ministries page, copied from each organization's website (see partner-logos.js).
   app.get('/site/partner-logos/:file', async (req, res) => {
     const f = logos.file(String(req.params.file).replace(/\.(png|svg)$/, ''));

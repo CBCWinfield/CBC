@@ -1,4 +1,5 @@
 'use strict';
+const Share = require('../share');
 const db = require('../db');
 const security = require('../lib/security');
 const { HttpError } = require('../lib/http');
@@ -71,7 +72,19 @@ module.exports = (app) => {
       : block && block.reason;
     res.render(V.bookPage({ book, user: req.user, s: req.settings, myActive: block && block.mine, canCheckout: !block, reason, csrf: res.locals.csrf }), {
       title: book.title, current: 'catalog', description: book.description ? book.description.slice(0, 160) : undefined,
+      shareTitle: `${book.title}${book.author ? ` by ${book.author}` : ''} | CBC Library`, sharePic: Share.bookPicture(book),
     });
+  });
+
+  // The picture a book's link shows when it's shared: its cover on the library's background (src/share.js).
+  app.get('/share/book/:file', async (req, res) => {
+    const id = intParam(String(req.params.file).replace(/\.jpg$/, ''));
+    const book = id && await db.one('SELECT id, title, author, updated_at, active, cover_image FROM books WHERE id = $1', [id]);
+    const img = book && book.active && book.cover_image ? await Share.bookImage(book, book.cover_image).catch((e) => { console.error('share picture:', e.message); return null; }) : null;
+    if (!img) return res.redirect(Share.picture('library').image);
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=604800');
+    res.send(img);
   });
 
   app.get('/covers/:id', async (req, res) => {
