@@ -124,7 +124,7 @@ const MENU = [
 // Page wrapper: the green banner (nav, heading, swaying wheat), the page, and the footer.
 // On the homepage the banner follows the church calendar (see season.js): falling leaves, snow, the Christmas
 // story told in pictures (with snow), the crucifixion and resurrection (over the wheat), or the wheat.
-function layout({ title, desc, page, body, base = '', head, season = 'wheat', storyStyle = 'window' }) {
+function layout({ title, desc, page, body, base = '', head, season = 'wheat', storyStyle = 'window', share, path: here }) {
   const story0 = page === 'story';
   const s = page === 'home' || story0 ? season : 'wheat';
   const sky = s === 'fall' ? 'fall' : s === 'winter' || s === 'christmas' ? 'winter' : null;
@@ -143,9 +143,18 @@ function layout({ title, desc, page, body, base = '', head, season = 'wheat', st
 <title>${title ? `${title} | Central Baptist Church` : 'Central Baptist Church | Winfield, Kansas'}</title>
 <meta name="description" content="${desc || `Central Baptist Church is a Southern Baptist church family on Wheat Road in Winfield, Kansas, for ${years()} years. Sundays at 9:30 and 10:45 AM, Wednesdays at 6:00 PM.`}">
 <meta name="theme-color" content="#132F1F">
-<meta property="og:title" content="${title || 'Central Baptist Church'}">
+<meta property="og:title" content="${(share && share.title) || title || 'Central Baptist Church'}">
 <meta property="og:description" content="${desc || `A church family on Wheat Road in Winfield, Kansas, for ${years()} years.`}">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Central Baptist Church">
+${here ? html`<meta property="og:url" content="${CHURCH.site}${here === '/' ? '' : here}">` : ''}
+${share ? html`<meta property="og:image" content="${CHURCH.site}${share.image}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="${share.alt}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${CHURCH.site}${share.image}">` : ''}
 <link rel="icon" href="/favicon.ico?v=2" sizes="any">
 <link rel="icon" href="/img/favicon-32.png?v=2" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png?v=2">

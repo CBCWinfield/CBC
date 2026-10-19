@@ -158,6 +158,7 @@ Check-in lives in the same Render service as the library, at `/checkin`, and ins
 - `src/lib/woo.js`: import/export of the old WooCommerce library format
 - `src/covers.js`: background cover finder (old site photos, then Open Library search; resized with `sharp` when installed)
 - `src/site/partner-logos.js`: logos for the Southern Baptist partners at the bottom of the Ministries page, copied from each organization's website (the file listed there, or the logo on their homepage if it moves), trimmed with `sharp`, served at `/partner-logos/<key>.png`, refreshed daily. The partners and their wording are `FAMILY` in `src/site/content.js`. Set `DISABLE_PARTNER_LOGOS=1` to turn the fetching off (each card then shows the organization's name).
+- Share pictures (what a link shows when it's shared or previewed on Facebook, in Messages or email): `public/img/share/`, drawn by `scripts/share-image.js` from the site's own fonts, wheat and cross (`NODE_PATH=$(npm root -g) node scripts/share-image.js`, needs Playwright). A page uses one with `share` in `src/site/routes.js`. After changing one, bump its `?v=` and use Facebook's Sharing Debugger (Scrape Again) so Facebook picks it up.
 - `src/db.js`: schema migrations (add new ones to the end of `MIGRATIONS`)
 - Tests: `npm test` (unit). `test/e2e.js` walks through every flow against a running server.
 
