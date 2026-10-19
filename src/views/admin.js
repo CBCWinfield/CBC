@@ -4,6 +4,7 @@ const P = require('./parts');
 const t = require('../lib/time');
 const { fullName } = require('../models');
 const { DAY_NAMES } = require('../settings');
+const cats = require('../lib/cats');
 
 const isLib = (u) => u.role === 'librarian';
 
@@ -79,7 +80,7 @@ function confirmTasks(rows, csrf, s) {
   </section>`;
 }
 
-function home({ user, csrf, todays, overdue, pending, counts, s, now, confirm = [] }) {
+function home({ user, csrf, todays, overdue, pending, counts, s, now, confirm = [], catReview = 0 }) {
   return html`
   <p class="muted">${t.fmtLong(now)}</p>
   ${confirm.length ? confirmTasks(confirm, csrf, s) : ''}
@@ -87,6 +88,7 @@ function home({ user, csrf, todays, overdue, pending, counts, s, now, confirm = 
     <a class="btn" href="/admin/books/new">Add a book</a>
     <a class="btn btn-quiet" href="/admin/checkouts/new">Check out at the desk</a>
     ${isLib(user) && pending ? html`<a class="btn btn-quiet" href="/admin/applications">${pending} application${pending > 1 ? 's' : ''} to review</a>` : ''}
+    ${isLib(user) && catReview ? html`<a class="btn btn-quiet" href="/admin/books?show=review">${catReview} book${catReview > 1 ? 's' : ''}: categories to sign off</a>` : ''}
   </div>
   <section class="admin-section">
     <h2>Today's pickups</h2>
@@ -161,7 +163,15 @@ function sortHead(label, key, sort, sortBase) {
   return html`<th aria-sort="${!active ? 'none' : sort.endsWith('_desc') ? 'descending' : 'ascending'}"><a class="sort-link${active ? ' is-active' : ''}" href="${sortBase}${sep}sort=${next}">${label}${arrow}</a></th>`;
 }
 
-function booksPage({ rows, q, total, page, pages, base, categories, category, coverStatus, csrf, noCover, sort = 'title', sortBase = '/admin/books?', sorts = [] }) {
+function bookCats(b) {
+  const paths = cats.pathsOf(b);
+  if (!paths.length) return html`<span class="muted">Uncategorized</span>`;
+  return html`<ul class="cell-cats">${paths.map((p) => html`<li>${catName(p)}</li>`)}</ul>${b.categories_ok_at ? '' : html`<span class="badge badge-warn">Not signed off</span>`}`;
+}
+
+function booksPage({ rows, q, total, page, pages, base, categories, category, coverStatus, csrf, noCover, show = '', toReview = 0, user, back = '/admin/books', sort = 'title', sortBase = '/admin/books?', sorts = [] }) {
+  const lib = user && user.role === 'librarian';
+  const signable = rows.filter((b) => !b.categories_ok_at && cats.pathsOf(b).length);
   return html`
   <div class="quick">
     <a class="btn" href="/admin/books/new">Add a book</a>
@@ -173,18 +183,31 @@ function booksPage({ rows, q, total, page, pages, base, categories, category, co
     <div class="field grow suggest-wrap"><label for="ab-q">Search title, writer, SKU or ISBN</label><input id="ab-q" type="search" name="q" value="${q || ''}" autocomplete="off" data-suggest="admin" placeholder="Start typing…"></div>
     <div class="field"><label for="ab-cat">Category</label><select id="ab-cat" name="category"><option value="">All categories</option>${categories.map((c) => html`<option${selected(c.category, category)}>${c.category}</option>`)}</select></div>
     <div class="field"><label for="ab-sort">Sort by</label><select id="ab-sort" name="sort" data-autosubmit>${sorts.map(([k, label]) => html`<option value="${k}"${selected(k, sort)}>${label}</option>`)}</select></div>
+    <div class="field"><label for="ab-show">Show</label><select id="ab-show" name="show" data-autosubmit>
+      <option value="">All books</option>
+      <option value="review"${selected('review', show)}>Categories to sign off${toReview ? ` (${toReview})` : ''}</option>
+      <option value="uncategorized"${selected('uncategorized', show)}>No category yet</option></select></div>
     <label class="check"><input type="checkbox" name="nocover" value="1"${checked(noCover)}> No cover yet</label>
     <button class="btn btn-quiet" type="submit">Search</button>
   </form>
+  ${show === 'review' ? html`<div class="review-bar">
+    <p>${lib ? 'Check each book’s categories. Sign off when they’re right, or open the book to add or remove some.' : 'These books’ categories are waiting for the librarian to sign off.'}</p>
+    ${lib && signable.length ? html`<form method="post" action="/admin/books/categories/confirm" class="inline" data-confirm="Sign off on the categories of all ${signable.length} books shown?">${P.csrfField(csrf)}
+      ${signable.map((b) => html`<input type="hidden" name="ids[]" value="${b.id}">`)}<input type="hidden" name="back" value="${back}">
+      <button class="btn btn-small" type="submit">✓ Sign off on all ${signable.length} shown</button></form>` : ''}
+  </div>` : ''}
   <p class="muted small">${total} title${total === 1 ? '' : 's'}</p>
   ${rows.length ? html`<div class="table-wrap"><table class="table books-table">
-    <thead><tr>${sortHead('Title', 'title', sort, sortBase)}${sortHead('SKU', 'sku', sort, sortBase)}${sortHead('Stock', 'stock', sort, sortBase)}${sortHead('Writer', 'writer', sort, sortBase)}${sortHead('Categories', 'category', sort, sortBase)}</tr></thead>
+    <thead><tr>${sortHead('Title', 'title', sort, sortBase)}${sortHead('SKU', 'sku', sort, sortBase)}${sortHead('Stock', 'stock', sort, sortBase)}${sortHead('Writer', 'writer', sort, sortBase)}${sortHead('Categories', 'category', sort, sortBase)}${show === 'review' ? html`<th><span class="visually-hidden">Sign off</span></th>` : ''}</tr></thead>
     <tbody>${rows.map((b) => html`<tr${b.active ? '' : raw(' class="inactive"')}>
       <td class="with-cover">${P.cover(b, 'xs')}<span><a href="/admin/books/${b.id}/edit">${b.title}</a>${b.active ? '' : html` <span class="badge badge-muted">Hidden</span>`}<br><span class="small muted">${b.format || ''}</span></span></td>
       <td>${b.call_number || html`<span class="muted">–</span>`}</td>
       <td>${b.available > 0 ? html`<span class="avail avail-yes">In stock (${b.available})</span>` : html`<span class="avail avail-no">Checked out</span>`}</td>
       <td>${b.author || ''}</td>
-      <td>${[b.category, b.subcategory].filter(Boolean).join(' › ') || html`<span class="muted">Uncategorized</span>`}</td>
+      <td>${bookCats(b)}</td>
+      ${show === 'review' ? html`<td class="cell-signoff">${cats.pathsOf(b).length
+        ? (lib ? html`<form method="post" action="/admin/books/categories/confirm" class="inline">${P.csrfField(csrf)}<input type="hidden" name="id" value="${b.id}"><input type="hidden" name="back" value="${back}"><button class="btn btn-small" type="submit">✓ Sign off</button></form>` : '')
+        : html`<a class="btn btn-quiet btn-small" href="/admin/books/${b.id}/edit?suggest=1#cat-box">Suggest categories</a>`}</td>` : ''}
     </tr>`)}</tbody></table></div>`
     : html`<div class="empty"><p>${q ? 'No books match that search.' : 'The catalog is empty.'}</p><p><a class="btn" href="/admin/books/new">Add the first book</a></p></div>`}
   ${P.pager({ page, pages, base })}`;
@@ -221,23 +244,39 @@ function categoryTree(paths) {
   return root;
 }
 
-function treeList(node, current, depth = 0) {
+function treeList(node, chosen, depth = 0) {
   const kids = [...node.children.values()].sort((a, b) => a.name.localeCompare(b.name));
   if (!kids.length) return '';
   return html`<ul${depth ? '' : raw(' class="cat-tree"')}>${kids.map((k) => html`<li>
-    <label class="check"><input type="radio" name="category_path" value="${k.path}"${checked(current === k.path)}> <span>${k.name}</span> <span class="muted small">${k.n}</span></label>
-    ${treeList(k, current, depth + 1)}
+    <label class="check"><input type="checkbox" name="category_paths[]" value="${k.path}"${checked(chosen.has(k.path.toLowerCase()))}> <span>${k.name}</span> <span class="muted small">${k.n}</span></label>
+    ${treeList(k, chosen, depth + 1)}
   </li>`)}</ul>`;
 }
 
-function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = [], isNew }) {
+// One chosen category: its parents quietly, its own name in bold.
+const catName = (p) => { const parts = p.split(cats.SEP); const last = parts.pop(); return html`${parts.length ? html`<span class="muted">${parts.join(cats.SEP)}${cats.SEP}</span>` : ''}<b>${last}</b>`; };
+function chosenList(paths) {
+  return html`<ul class="cat-chosen-list" id="cat-chosen-list">${paths.map((p, i) => html`<li data-path="${p}">
+    <span class="cat-name">${catName(p)}${i === 0 ? html` <span class="badge badge-main">Main</span>` : ''}</span>
+    <span class="cat-row-actions">${i ? html`<button type="button" class="linklike small" data-cat-main="${p}">Make main</button>` : ''}<button type="button" class="cat-x" data-cat-remove="${p}" aria-label="Remove ${p}">×</button></span>
+  </li>`)}</ul>`;
+}
+function signedOffNote(book) {
+  if (!book.categories_ok_at) return 'Not signed off yet.';
+  const by = book.categories_ok_name || (book.categories_ok_by ? 'the librarian' : 'the old library');
+  return `Signed off by ${by} on ${t.fmtDate(book.categories_ok_at)}.`;
+}
+
+function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = [], isNew, user }) {
   const formats = book.format && !FORMATS.includes(book.format) ? [...FORMATS, book.format] : FORMATS;
   const details = book.details || {};
-  const currentPath = [book.category, book.subcategory].filter(Boolean).join(' › ');
-  const paths = categoryPaths.some((p) => [p.category, p.subcategory].filter(Boolean).join(' › ') === currentPath) || !book.category
-    ? categoryPaths
-    : [...categoryPaths, { category: book.category, subcategory: book.subcategory, n: 0 }];
+  const current = cats.pathsOf(book);
+  const chosenSet = new Set(current.map((p) => p.toLowerCase()));
+  const inUse = new Set(categoryPaths.map((p) => [p.category, p.subcategory].filter(Boolean).join(cats.SEP).toLowerCase()));
+  const paths = [...categoryPaths, ...current.filter((p) => !inUse.has(p.toLowerCase())).map((p) => ({ category: cats.top(p), subcategory: cats.rest(p), n: 0 }))];
   const tree = categoryTree(paths);
+  const lib = user && user.role === 'librarian';
+  const okNow = !!book.categories_ok_at && !errors.title;
   const allPaths = [];
   (function walk(n) { for (const k of n.children.values()) { allPaths.push(k.path); walk(k); } })(tree);
   allPaths.sort();
@@ -328,13 +367,28 @@ function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = 
         </div>
       </section>
 
-      <section class="box">
+      <section class="box cat-box" id="cat-box" data-book-id="${book.id || ''}" data-ok="${okNow ? '1' : ''}">
         <h2 class="box-head">Categories</h2>
         <div class="box-body">
+          <input type="hidden" name="category_form" value="1">
+          <input type="hidden" name="category_main" id="cat-main" value="${current[0] || ''}">
+          <button type="button" class="btn btn-quiet cat-suggest" id="cat-suggest"><span aria-hidden="true">✨</span> Suggest categories</button>
+          <p class="small muted cat-status" id="cat-status" role="status">${current.length ? '' : 'Fills in categories from books like this one in the library. You check them before saving.'}</p>
+          <div class="cat-chosen">
+            <p class="cat-chosen-h">Chosen for this book <span class="muted small" id="cat-count">${current.length || ''}</span></p>
+            ${chosenList(current)}
+            <p class="muted small" id="cat-none"${current.length ? raw(' hidden') : ''}>None yet. Press <em>Suggest categories</em>, or tick them in the list below.</p>
+            <div class="cat-also" id="cat-also" hidden><p class="small"><strong>Also possible</strong></p><ul id="cat-also-list"></ul></div>
+            ${lib ? html`<div class="cat-signoff${okNow ? ' is-ok' : ''}" id="cat-signoff">
+              <input type="hidden" name="categories_confirm_form" value="1">
+              <label class="check"><input type="checkbox" name="categories_confirm" value="1" id="cat-ok"${checked(okNow)}${current.length ? '' : raw(' disabled')}>
+                <span><strong>These categories are right</strong><br><span class="small muted" id="cat-ok-note">${signedOffNote(book)}</span></span></label>
+            </div>` : html`<p class="small muted cat-signoff-note" id="cat-ok-note">${signedOffNote(book)} The librarian signs off on categories.</p>`}
+          </div>
+          <p class="cat-tree-h small"><strong>Add or remove</strong></p>
           <input type="search" class="cat-filter" id="cat-filter" placeholder="Search categories" aria-label="Search categories">
           <div class="cat-scroll" id="cat-scroll">
-            <label class="check"><input type="radio" name="category_path" value=""${checked(!currentPath)}> <span>Uncategorized</span></label>
-            ${treeList(tree, currentPath)}
+            ${treeList(tree, chosenSet)}
           </div>
           <details class="add-cat"${errors.category ? raw(' open') : ''}>
             <summary>+ Add new category</summary>
@@ -342,7 +396,7 @@ function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = 
               <div class="field"><label for="b-newcat">Name</label><input id="b-newcat" name="new_category_name"></div>
               <div class="field"><label for="b-newparent">Parent category</label>
                 <select id="b-newparent" name="new_category_parent"><option value="">— None (top level) —</option>${allPaths.map((p) => html`<option>${p}</option>`)}</select></div>
-              <p class="hint">The new category is used for this book when you save.</p>
+              <p class="hint">The new category is added to this book’s categories when you save.</p>
             </div>
           </details>
         </div>
@@ -393,7 +447,7 @@ function importPage({ csrf, result }) {
   <p>Add many books at once from a spreadsheet saved as <strong>CSV</strong> (in Excel or Google Sheets: File › Download › CSV).</p>
   <ul class="small">
     <li><strong>The old library system's export</strong> (the WooCommerce “product export” file) works as-is. Books are matched by their old ID, so importing the same file again updates them instead of adding duplicates. Cover photos are copied from the old site automatically.</li>
-    <li>For a simple list, <a href="/admin/books/template.csv" download>download the template</a>. Only <em>title</em> is required. Columns: title, subtitle, author, isbn, category, audience, format, description, tags, publisher, year, pages, copies, shelf.</li>
+    <li>For a simple list, <a href="/admin/books/template.csv" download>download the template</a>. Only <em>title</em> is required. Columns: title, subtitle, author, isbn, category (several separated by semicolons, like <em>Children's Books; Bible Stories</em>), audience, format, description, tags, publisher, year, pages, copies, shelf.</li>
   </ul>
   ${result ? html`<div class="card card-note" role="status">
     <h2>Import finished</h2>

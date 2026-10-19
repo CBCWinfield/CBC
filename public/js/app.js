@@ -182,12 +182,8 @@
             var pick = bookForm.querySelector('input[name="audience"][value="' + d.audience + '"]');
             if (pick) pick.checked = true;
           }
-          var catChosen = bookForm.querySelector('input[name="category_path"]:checked');
-          if (d.category && (!catChosen || !catChosen.value)) {
-            var match = Array.prototype.find.call(bookForm.querySelectorAll('input[name="category_path"]'), function (r) { return r.value.split(' › ').pop().toLowerCase() === d.category.toLowerCase(); });
-            if (match) match.checked = true;
-            else { field('new_category_name').value = d.category; bookForm.querySelector('.add-cat').open = true; }
-          }
+          // the subjects help the category suggestions; with none chosen yet, suggest them now
+          if (window.HTGCats) { window.HTGCats.subjects = d.subjects || []; if (!window.HTGCats.chosen().length) window.HTGCats.suggest(true); }
           if (d.isbn) field('isbn').value = d.isbn;
           if (d.cover_url && !coverData.value) {
             coverUrl.value = d.cover_url;
@@ -351,7 +347,7 @@
     sel.addEventListener('change', function () { if (sel.form) sel.form.submit(); });
   });
 
-  /* ---------- Book screen: category search, format-specific fields, trash button ---------- */
+  /* ---------- Book screen: categories (several), suggestions, the librarian's sign-off ---------- */
   var catFilter = document.getElementById('cat-filter');
   if (catFilter) {
     catFilter.addEventListener('input', function () {
@@ -362,10 +358,105 @@
         li.hidden = q && !anyInside && own.indexOf(q) < 0;
       });
     });
-    var chosen = document.querySelector('#cat-scroll input:checked');
-    var box = document.getElementById('cat-scroll');
-    if (chosen && chosen.value) box.scrollTop = chosen.closest('label').offsetTop - box.offsetTop - 80;
+    var firstChosen = document.querySelector('#cat-scroll input:checked');
+    var scrollBox = document.getElementById('cat-scroll');
+    if (firstChosen) scrollBox.scrollTop = firstChosen.closest('label').offsetTop - scrollBox.offsetTop - 80;
   }
+  var catBox = document.getElementById('cat-box');
+  if (catBox) (function () {
+    var SEP = ' › ';
+    var form = catBox.closest('form');
+    var list = document.getElementById('cat-chosen-list'), none = document.getElementById('cat-none'), count = document.getElementById('cat-count');
+    var mainIn = document.getElementById('cat-main'), status = document.getElementById('cat-status');
+    var also = document.getElementById('cat-also'), alsoList = document.getElementById('cat-also-list');
+    var okBox = document.getElementById('cat-ok'), okNote = document.getElementById('cat-ok-note'), signoff = document.getElementById('cat-signoff');
+    var btn = document.getElementById('cat-suggest');
+    var why = {}; // path -> { strength, reasons } from the last suggestion
+    var boxes = function () { return Array.prototype.slice.call(catBox.querySelectorAll('input[name="category_paths[]"]')); };
+    var boxFor = function (p) { var low = p.toLowerCase(); return boxes().filter(function (b) { return b.value.toLowerCase() === low; })[0]; };
+    // the order shown (the first is the main one): as saved, then in the order they're ticked
+    var order = Array.prototype.map.call(list.querySelectorAll('li[data-path]'), function (li) { return li.getAttribute('data-path'); });
+    var startKey = order.map(function (p) { return p.toLowerCase(); }).sort().join('|');
+    var startOk = okBox ? okBox.checked : false, startNote = okNote ? okNote.textContent : '';
+    var okKey = startOk ? startKey : null; // the categories the tick was given for
+    var chosen = function () { return order.slice(); };
+    function esc(t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+    function nameHtml(p) { var parts = p.split(SEP), last = parts.pop(); return (parts.length ? '<span class="muted">' + esc(parts.join(SEP) + SEP) + '</span>' : '') + '<b>' + esc(last) + '</b>'; }
+    function render() {
+      list.innerHTML = order.map(function (p, i) {
+        var w = why[p];
+        return '<li data-path="' + esc(p) + '"' + (w ? ' class="is-suggested"' : '') + '><span class="cat-name">' + nameHtml(p) + (i === 0 ? ' <span class="badge badge-main">Main</span>' : '') +
+          (w ? ' <span class="badge badge-suggest">' + (w.strength === 'strong' ? 'Suggested' : 'Suggested, check it') + '</span>' : '') + '</span>' +
+          '<span class="cat-row-actions">' + (i ? '<button type="button" class="linklike small" data-cat-main="' + esc(p) + '">Make main</button>' : '') +
+          '<button type="button" class="cat-x" data-cat-remove="' + esc(p) + '" aria-label="Remove ' + esc(p) + '">×</button></span>' +
+          (w && w.reasons.length ? '<span class="cat-why small muted">' + w.reasons.slice(0, 2).map(esc).join(' · ') + '</span>' : '') + '</li>';
+      }).join('');
+      none.hidden = order.length > 0;
+      count.textContent = order.length ? String(order.length) : '';
+      mainIn.value = order[0] || '';
+      // a change to the categories needs the librarian's sign-off again
+      var key = order.map(function (p) { return p.toLowerCase(); }).sort().join('|');
+      if (okBox) {
+        okBox.disabled = !order.length;
+        if (okBox.checked && key !== okKey) okBox.checked = false;
+        if (!order.length) okNote.textContent = 'Choose at least one category first.';
+        else if (key === startKey && okBox.checked === startOk) okNote.textContent = startNote;
+        else okNote.textContent = okBox.checked ? 'Signed off when you save.' : key === startKey ? startNote : 'Changed. Tick this when they’re right.';
+        signoff.classList.toggle('is-ok', okBox.checked);
+      } else if (okNote && key !== startKey) okNote.textContent = 'Changed. The librarian will sign off on these categories.';
+    }
+    function setChosen(p, on) {
+      var b = boxFor(p); if (b) b.checked = on;
+      var at = order.map(function (x) { return x.toLowerCase(); }).indexOf(p.toLowerCase());
+      if (on && at < 0) order.push(b ? b.value : p);
+      if (!on && at >= 0) { order.splice(at, 1); delete why[p]; }
+    }
+    catBox.addEventListener('change', function (e) {
+      if (e.target.name === 'category_paths[]') { setChosen(e.target.value, e.target.checked); render(); }
+      if (e.target === okBox) { okKey = okBox.checked ? order.map(function (p) { return p.toLowerCase(); }).sort().join('|') : null; render(); }
+    });
+    catBox.addEventListener('click', function (e) {
+      var rm = e.target.closest('[data-cat-remove]'), mk = e.target.closest('[data-cat-main]'), add = e.target.closest('[data-cat-add]');
+      if (rm) { setChosen(rm.getAttribute('data-cat-remove'), false); render(); }
+      if (mk) { var p = mk.getAttribute('data-cat-main'), i = order.indexOf(p); if (i > 0) { order.splice(i, 1); order.unshift(p); render(); } }
+      if (add) { var q = add.getAttribute('data-cat-add'); setChosen(q, true); why[q] = JSON.parse(add.getAttribute('data-why')); add.closest('li').remove(); if (!alsoList.children.length) also.hidden = true; render(); }
+    });
+    var val = function (n) { var f = form.querySelector('[name="' + n + '"]'); return f ? f.value : ''; };
+    function suggest(auto) {
+      btn.disabled = true; status.textContent = 'Looking at books like this one…';
+      var aud = form.querySelector('input[name="audience"]:checked');
+      var body = { id: catBox.getAttribute('data-book-id'), title: val('title'), subtitle: val('subtitle'), author: val('author'), series: val('series'), tags: val('tags'),
+        short_description: val('short_description'), description: val('description'), publisher: val('publisher'), format: val('format'), audience: aud ? aud.value : '', subjects: api.subjects || [] };
+      fetch('/admin/books/suggest-categories', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf, Accept: 'application/json' }, body: JSON.stringify(body) })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var list2 = d.suggestions || [], added = [], maybe = [];
+          list2.forEach(function (sg) {
+            var b = boxFor(sg.path); if (!b) return;
+            var on = order.some(function (x) { return x.toLowerCase() === sg.path.toLowerCase(); });
+            if (sg.strength === 'maybe') { if (!on) maybe.push(sg); return; }
+            why[b.value] = { strength: sg.strength, reasons: sg.reasons || [] };
+            if (!on) { setChosen(b.value, true); added.push(b.value); }
+          });
+          alsoList.innerHTML = maybe.map(function (sg) {
+            return '<li><span>' + nameHtml(sg.path) + (sg.reasons && sg.reasons.length ? '<span class="cat-why small muted">' + esc(sg.reasons[0]) + '</span>' : '') + '</span>' +
+              '<button type="button" class="btn btn-quiet btn-small" data-cat-add="' + esc(sg.path) + '" data-why="' + esc(JSON.stringify({ strength: 'maybe', reasons: sg.reasons || [] })) + '">+ Add</button></li>';
+          }).join('');
+          also.hidden = !maybe.length;
+          render();
+          status.textContent = d.note ? d.note
+            : added.length ? (auto ? 'Suggested from the ISBN details: ' : 'Added ') + added.length + ' suggested ' + (added.length === 1 ? 'category' : 'categories') + '. Check them below' + (okBox ? ', then tick “These categories are right”.' : '.')
+            : list2.length ? 'The suggestions are already chosen' + (maybe.length ? ', or listed under “Also possible”.' : '.') : 'No suggestions.';
+          var first = added[0] && boxFor(added[0]); if (first) first.closest('label').scrollIntoView({ block: 'nearest' });
+        })
+        .catch(function () { status.textContent = 'Suggestions didn’t load. You can choose from the list below.'; })
+        .then(function () { btn.disabled = false; });
+    }
+    btn.addEventListener('click', function () { suggest(false); });
+    var api = window.HTGCats = { suggest: suggest, chosen: chosen, subjects: [] };
+    // from the list of books to check: "Suggest categories" opens the book and asks right away
+    if (/[?&]suggest=1\b/.test(location.search) && !order.length) suggest(false);
+  })();
   var fmt = document.getElementById('b-format');
   if (fmt) {
     var showFor = function () {

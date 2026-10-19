@@ -715,6 +715,21 @@ const MIGRATIONS = [
       UPDATE users SET email_verified_at = COALESCE(approved_at, created_at, now()) WHERE email_verified_at IS NULL;
     `,
   },
+  {
+    // A book can sit in several categories. "categories" holds every one as a path ("Christian Fiction › Mystery");
+    // category/subcategory keep the first (main) one for sorting and older screens. The librarian signs off on a
+    // book's categories (categories_ok_at/by); the books already here came from the old library, so they count as checked.
+    version: 18,
+    sql: `
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS categories text[] NOT NULL DEFAULT '{}';
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS categories_ok_at timestamptz;
+      ALTER TABLE books ADD COLUMN IF NOT EXISTS categories_ok_by int REFERENCES users(id) ON DELETE SET NULL;
+      UPDATE books SET categories = ARRAY[category || CASE WHEN subcategory IS NOT NULL AND subcategory <> '' THEN ' › ' || subcategory ELSE '' END]
+        WHERE category IS NOT NULL AND category <> '' AND categories = '{}';
+      UPDATE books SET categories_ok_at = COALESCE(updated_at, created_at, now()) WHERE categories <> '{}' AND categories_ok_at IS NULL;
+      CREATE INDEX IF NOT EXISTS books_categories ON books USING gin (categories);
+    `,
+  },
 ];
 
 async function migrate() {

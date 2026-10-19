@@ -1,4 +1,5 @@
 'use strict';
+const cats = require('./cats');
 // Search-as-you-type suggestions: the best few books, writers and categories
 // for what's been typed so far. Runs in memory over a small cached index.
 
@@ -69,13 +70,16 @@ function suggest(rawQuery, books, { includeHidden = false, limit = 8 } = {}) {
   // Categories and sub-categories whose names match.
   const catCounts = new Map();
   for (const b of books) {
-    if (!b.category || (!includeHidden && b.active === false)) continue;
-    const parts = [b.category, ...(b.subcategory ? b.subcategory.split(' › ') : [])];
-    for (let i = 0; i < parts.length; i++) {
-      const words = norm(parts[i]).split(' ');
-      if (tokens.every((t) => words.some((w) => w.startsWith(t)))) {
-        const key = JSON.stringify([b.category, i ? parts.slice(1, 2)[0] : '']);
-        catCounts.set(key, (catCounts.get(key) || 0) + 1);
+    if (!includeHidden && b.active === false) continue;
+    const seen = new Set(); // a book counts once per category, even when two of its paths share it
+    for (const path of cats.pathsOf(b)) {
+      const parts = path.split(cats.SEP);
+      for (let i = 0; i < parts.length; i++) {
+        const words = norm(parts[i]).split(' ');
+        if (tokens.every((t) => words.some((w) => w.startsWith(t)))) {
+          const key = JSON.stringify([parts[0], i ? parts[1] : '']);
+          if (!seen.has(key)) { seen.add(key); catCounts.set(key, (catCounts.get(key) || 0) + 1); }
+        }
       }
     }
   }

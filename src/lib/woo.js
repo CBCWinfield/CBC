@@ -1,4 +1,5 @@
 'use strict';
+const cats = require('./cats');
 // Reads and writes the old library's WooCommerce product export, so the
 // existing catalog moves over as-is and can be exported back in the same shape.
 const { parseCsv } = require('./csv');
@@ -80,11 +81,11 @@ function rowToBook(cols, idx) {
     }
   }
   const paths = get('Categories').split(',').map((c) => tidy(c)).filter(Boolean);
-  // Use the most specific category path: "Christian Fiction > Historical Fiction > WW II".
-  const best = [...paths].sort((a, b) => b.split('>').length - a.split('>').length)[0] || '';
-  const parts = best.split('>').map((x) => x.trim()).filter(Boolean);
-  const category = parts[0] && parts[0] !== 'Uncategorized' ? parts[0] : null;
-  const subcategory = parts.length > 1 ? parts.slice(1).join(' › ') : null;
+  // Every category the book was in ("Christian Fiction > Love Inspired, Christian Fiction" → the specific one; a parent
+  // listed beside its child adds nothing). The main one is the most specific: "Christian Fiction > Historical Fiction > WW II".
+  const all = cats.leavesOnly(cats.cleanPaths(paths));
+  const categories = [...all].sort((a, b) => b.split(cats.SEP).length - a.split(cats.SEP).length);
+  const { category, subcategory } = cats.primary(categories);
   const leafTags = paths.flatMap((p) => p.split('>').slice(1).map((x) => x.trim().toLowerCase())).filter(Boolean);
   const tags = [...new Set([...leafTags, ...get('Tags').split(',').map((x) => tidy(x).toLowerCase()).filter(Boolean)])].join(', ');
 
@@ -107,6 +108,7 @@ function rowToBook(cols, idx) {
     author,
     category,
     subcategory,
+    categories,
     audience: audienceFor(paths, details),
     format: mapFormat(attrs.Format, paths),
     description: description || null,
@@ -148,7 +150,7 @@ function csvCell(v) {
 function toWooCsv(books, baseUrl) {
   const lines = [WOO_HEADER.join(',')];
   for (const b of books) {
-    const cat = [b.category, ...(b.subcategory ? b.subcategory.split('›').map((x) => x.trim()) : [])].filter(Boolean).join(' > ');
+    const cat = cats.pathsOf(b).map((p) => p.split(cats.SEP).join(' > ')).join(', ');
     const image = b.cover_source_url || (b.has_cover ? `${baseUrl}/covers/${b.id}` : '');
     const desc = (b.description || '').split(/\n{2,}/).map((p) => p.replace(/\n/g, '<br>')).join('\n\n');
     const row = {

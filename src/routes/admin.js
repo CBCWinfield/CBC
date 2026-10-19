@@ -13,11 +13,23 @@ const isbnLib = require('../lib/isbn');
 const covers = require('../covers');
 const woo = require('../lib/woo');
 const { parseCsvObjects } = require('../lib/csv');
+const cats = require('../lib/cats');
+const catSuggest = require('../lib/catsuggest');
 const t = require('../lib/time');
 const { requireStaff, requireLibrarian, intParam, clean } = require('./guards');
 const publicRoutes = require('./public');
 const { approve, normalCode } = publicRoutes;
-const refreshSearch = () => publicRoutes.clearSearchCache && publicRoutes.clearSearchCache();
+// The category suggester learns from the catalog; it's rebuilt after books change (and at most every 10 minutes).
+let suggestModel = { at: 0, model: null, building: null };
+async function catModel() {
+  if (suggestModel.model && Date.now() - suggestModel.at < 600000) return suggestModel.model;
+  if (!suggestModel.building) {
+    suggestModel.building = books.forSuggest().then((rows) => { suggestModel = { at: Date.now(), model: catSuggest.build(rows), building: null }; return suggestModel.model; },
+      (e) => { suggestModel.building = null; throw e; });
+  }
+  return suggestModel.building;
+}
+const refreshSearch = () => { suggestModel.at = 0; if (publicRoutes.clearSearchCache) publicRoutes.clearSearchCache(); };
 
 const PAGE = 50;
 const FORMATS = ['Book', 'Paperback', 'Hardback', 'Board Book', 'Large Print', 'Workbook', 'Audiobook', 'CD', 'DVD', 'Blu-ray', 'Pamphlet', 'Other'];
@@ -68,16 +80,23 @@ function bookValues(body) {
     subcategory: clean(body.subcategory, 200) || null,
     short_description: clean(body.short_description, 500) || null,
   };
-  // Category from the checklist ("Christian Fiction › Historical Fiction"), or a new one typed in.
+  // Categories: the checklist on the book screen (category_paths[], with category_form=1 so "none ticked" is clear),
+  // a new one typed in, or, from lists and older forms, one category (several allowed, separated by ";").
   const newName = clean(body.new_category_name, 80).replace(/[›>]/g, '-');
-  const path = newName
-    ? [clean(body.new_category_parent, 300), newName].filter(Boolean).join(' › ')
-    : body.category_path !== undefined ? clean(body.category_path, 300) : null;
-  if (path !== null) {
-    const parts = path.split('›').map((x) => x.trim()).filter(Boolean);
-    v.category = parts[0] || null;
-    v.subcategory = parts.length > 1 ? parts.slice(1).join(' › ') : null;
-  }
+  const typed = newName ? [clean(body.new_category_parent, 300), newName].filter(Boolean).join(' › ') : '';
+  const listed = [].concat(body.category_paths || [], body.category_path !== undefined ? body.category_path : []).map((x) => clean(x, 300));
+  let paths = null;
+  if (body.category_form === '1' || body.category_paths !== undefined || body.category_path !== undefined) paths = cats.cleanPaths([...listed, typed]);
+  else if (typed) paths = cats.cleanPaths([typed]);
+  else if (v.category) paths = cats.cleanPaths(v.category.split(/\s*;\s*/).map((c, i) => (i === 0 && v.subcategory ? `${c} › ${v.subcategory}` : c)));
+  if (paths) {
+    // the main one first: the one marked main on the screen, else the first in the list
+    const main = cats.cleanPath(clean(body.category_main, 300)).toLowerCase();
+    const at = main ? paths.findIndex((p) => p.toLowerCase() === main) : -1;
+    if (at > 0) paths.unshift(paths.splice(at, 1)[0]);
+    v.categories = paths;
+    Object.assign(v, cats.primary(paths));
+  } else v.categories = null;
   // Attributes kept as details (only the ones on the form; others from the old system are left alone).
   const DETAIL_FORM = { detail_illustrator: 'Illustrator', detail_reading_level: 'Reading Level', detail_read_by: 'Book read by', detail_rated: 'Rated', detail_running_time: 'Running Time' };
   if (Object.keys(DETAIL_FORM).some((k) => k in body)) {
@@ -87,6 +106,18 @@ function bookValues(body) {
   const errors = {};
   if (!v.title) errors.title = 'A title is required.';
   return { v, errors };
+}
+
+// The librarian's sign-off on a book's categories: 'now' (signed off by this person), 'keep' or 'clear'.
+// Changing the categories clears it, unless a librarian ticks "These categories are right" as they save.
+function signOff(req, v, existing) {
+  const lib = req.user && req.user.role === 'librarian';
+  const paths = v.categories || cats.pathsOf(existing);
+  if (!paths.length) return 'clear';
+  const changed = !existing || (v.categories && !cats.sameSet(v.categories, cats.pathsOf(existing)));
+  if (lib && req.body.categories_confirm_form === '1') return req.body.categories_confirm === '1' ? (changed || !existing.categories_ok_at ? 'now' : 'keep') : 'clear';
+  if (lib && req.body.categories_confirm === '1') return 'now'; // a list imported by the librarian
+  return changed ? 'clear' : 'keep';
 }
 
 function mergeDetails(existing, updates) {
@@ -125,7 +156,8 @@ module.exports = (app) => {
     ]);
     const pending = req.user.role === 'librarian' ? await pendingCount() : 0;
     const confirm = await checkouts.toConfirm();
-    await page(req, res, 'home', 'Today', A.home({ user: req.user, csrf: res.locals.csrf, todays, overdue, pending, counts, s: req.settings, now, confirm }));
+    const catReview = req.user.role === 'librarian' ? await books.toReview() : 0;
+    await page(req, res, 'home', 'Today', A.home({ user: req.user, csrf: res.locals.csrf, todays, overdue, pending, counts, s: req.settings, now, confirm, catReview }));
   });
 
   // ---------- Pickups & checkouts ----------
@@ -251,20 +283,50 @@ module.exports = (app) => {
     const q = clean(req.query.q, 200);
     const category = clean(req.query.category, 100);
     const noCover = req.query.nocover === '1';
+    const show = ['review', 'uncategorized'].includes(req.query.show) ? req.query.show : '';
     const pg = Math.max(1, parseInt(req.query.page, 10) || 1);
     const sort = SORTS[req.query.sort] ? req.query.sort : 'title';
-    const { rows, total } = await books.list({ q, category, noCover, includeInactive: true }, { limit: PAGE, offset: (pg - 1) * PAGE, sort });
-    const keep = { q, category, nocover: noCover ? '1' : '' };
+    const { rows, total } = await books.list({ q, category, noCover, includeInactive: true, review: show === 'review', uncategorized: show === 'uncategorized' },
+      { limit: PAGE, offset: (pg - 1) * PAGE, sort });
+    const keep = { q, category, nocover: noCover ? '1' : '', show };
     const params = new URLSearchParams(Object.entries({ ...keep, sort: sort === 'title' ? '' : sort }).filter(([, v]) => v));
     await page(req, res, 'books', 'Books', A.booksPage({
-      rows, q, category, noCover, total, page: pg, pages: Math.ceil(total / PAGE), base: `/admin/books?${params}`,
+      rows, q, category, noCover, show, toReview: await books.toReview(), user: req.user, back: req.originalUrl || req.url,
+      total, page: pg, pages: Math.ceil(total / PAGE), base: `/admin/books?${params}`,
       sort, sortBase: `/admin/books?${new URLSearchParams(Object.entries(keep).filter(([, v]) => v))}`, sorts: Object.entries(SORTS).map(([k, v]) => [k, v.label]),
       categories: await books.categories(), coverStatus: await covers.status(), csrf: res.locals.csrf,
     }));
   });
 
   app.get('/admin/books/new', requireStaff, async (req, res) => {
-    await page(req, res, 'books', 'Add a book', A.bookForm({ csrf: res.locals.csrf, book: { copies_total: 1 }, categoryPaths: await books.categoryPaths(), isNew: true }));
+    await page(req, res, 'books', 'Add a book', A.bookForm({ csrf: res.locals.csrf, user: req.user, book: { copies_total: 1 }, categoryPaths: await books.categoryPaths(), isNew: true }));
+  });
+
+  // Suggested categories for the book on the screen (from the library's own catalog; nothing leaves the server).
+  app.post('/admin/books/suggest-categories', requireStaff, security.rateLimit('catsuggest', { max: 120, windowMs: 600000 }), async (req, res) => {
+    const b = req.body || {};
+    const id = parseInt(b.id, 10) || null;
+    const saved = id ? await db.one('SELECT id, author, series, publisher, format, audience, categories FROM books WHERE id = $1', [id]) : null;
+    const book = {
+      title: clean(b.title, 300), subtitle: clean(b.subtitle, 300), author: clean(b.author, 300), series: clean(b.series, 200),
+      tags: clean(b.tags, 500), short_description: clean(b.short_description, 500), description: clean(b.description, 4000),
+      publisher: clean(b.publisher, 200), format: clean(b.format, 40), audience: AUDIENCES.includes(b.audience) ? b.audience : null,
+      subjects: (Array.isArray(b.subjects) ? b.subjects : []).slice(0, 30).map((x) => clean(x, 120)).filter(Boolean),
+    };
+    if (!book.title && !book.description && !book.author) return res.json({ suggestions: [], note: 'Type the title (and the writer, if you know it) first.' });
+    const model = await catModel();
+    const suggestions = catSuggest.suggest(model, book, { exclude: saved ? saved.id : null, saved });
+    res.json({ suggestions, basis: model ? model.N : 0, note: suggestions.length ? '' : 'Nothing in the catalog is close enough to suggest. Choose from the list below.' });
+  });
+
+  // The librarian signs off on a book's categories, from the list of books to check (one, or every one shown).
+  app.post('/admin/books/categories/confirm', requireLibrarian, async (req, res) => {
+    const ids = [].concat(req.body.ids || [], req.body.id || []).map((x) => parseInt(x, 10)).filter(Boolean).slice(0, 200);
+    const done = ids.length ? await db.many(`UPDATE books SET categories_ok_at = now(), categories_ok_by = $2
+      WHERE id = ANY($1::int[]) AND categories <> '{}' AND categories_ok_at IS NULL RETURNING id`, [ids, req.user.id]) : [];
+    security.flash(req, 'ok', done.length === 1 ? 'Signed off on that book’s categories.' : `Signed off on the categories of ${done.length} books.`);
+    const back = String(req.body.back || '');
+    res.redirect(back.startsWith('/admin/books') ? back : '/admin/books?show=review');
   });
 
   app.get('/admin/books/lookup', requireStaff, security.rateLimit('isbn', { max: 60, windowMs: 600000 }), async (req, res) => {
@@ -284,18 +346,21 @@ module.exports = (app) => {
     const { v, errors } = bookValues(req.body);
     if (Object.keys(errors).length) {
       res.status(422);
-      return page(req, res, 'books', 'Add a book', A.bookForm({ csrf: res.locals.csrf, book: v, errors, categoryPaths: await books.categoryPaths(), isNew: true }));
+      return page(req, res, 'books', 'Add a book', A.bookForm({ csrf: res.locals.csrf, user: req.user, book: v, errors, categoryPaths: await books.categoryPaths(), isNew: true }));
     }
     const cover = await coverFrom(req.body);
     const details = mergeDetails(null, v.detailUpdates);
+    const ok = signOff(req, v, null) === 'now';
     const row = await db.one(`INSERT INTO books (title, subtitle, author, isbn, category, audience, format, description, tags, publisher,
       published_year, pages, copies_total, shelf_location, call_number, series, subcategory, cover_image, cover_type, cover_status,
-      short_description, details, active)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING id`,
+      short_description, details, active, categories, categories_ok_at, categories_ok_by)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24::text[],
+        CASE WHEN $25::boolean THEN now() END, CASE WHEN $25::boolean THEN $26::int END) RETURNING id`,
     [v.title, v.subtitle, v.author, v.isbn, v.category, v.audience, v.format, v.description, v.tags, v.publisher,
       v.published_year, v.pages, v.copies_total, v.shelf_location, v.call_number, v.series, v.subcategory,
       cover ? cover.data : null, cover ? cover.type : null, cover ? 'done' : 'none',
-      v.short_description, details ? JSON.stringify(details) : null, req.body.active_present ? req.body.active === '1' : true]);
+      v.short_description, details ? JSON.stringify(details) : null, req.body.active_present ? req.body.active === '1' : true,
+      v.categories || [], ok, req.user.id]);
     refreshSearch();
     security.flash(req, 'ok', `Added “${v.title}”.`);
     res.redirect(req.body.and_new ? '/admin/books/new' : `/admin/books/${row.id}/edit`);
@@ -304,7 +369,7 @@ module.exports = (app) => {
   app.get('/admin/books/:id/edit', requireStaff, async (req, res) => {
     const book = await books.get(intParam(req.params.id));
     if (!book) throw new HttpError(404, 'That book wasn’t found.');
-    await page(req, res, 'books', 'Edit book', A.bookForm({ csrf: res.locals.csrf, book, categoryPaths: await books.categoryPaths(), history: await checkouts.forBook(book.id) }));
+    await page(req, res, 'books', 'Edit book', A.bookForm({ csrf: res.locals.csrf, user: req.user, book, categoryPaths: await books.categoryPaths(), history: await checkouts.forBook(book.id) }));
   });
 
   // From the book page: set or clear the book's badge (bestseller, award, classic...).
@@ -327,15 +392,19 @@ module.exports = (app) => {
     const { v, errors } = bookValues(req.body);
     if (Object.keys(errors).length) {
       res.status(422);
-      return page(req, res, 'books', 'Edit book', A.bookForm({ csrf: res.locals.csrf, book: { ...existing, ...v }, errors, categoryPaths: await books.categoryPaths() }));
+      return page(req, res, 'books', 'Edit book', A.bookForm({ csrf: res.locals.csrf, user: req.user, book: { ...existing, ...v }, errors, categoryPaths: await books.categoryPaths() }));
     }
     const details = mergeDetails(existing.details, v.detailUpdates);
+    const ok = signOff(req, v, existing);
+    if (!v.categories) { v.categories = cats.pathsOf(existing); Object.assign(v, cats.primary(v.categories)); }
     await db.query(`UPDATE books SET title=$2, subtitle=$3, author=$4, isbn=$5, category=$6, audience=$7, format=$8, description=$9, tags=$10,
       publisher=$11, published_year=$12, pages=$13, copies_total=$14, shelf_location=$15, active=$16, call_number=$17, series=$18, subcategory=$19,
-      short_description=$20, details=$21, updated_at=now() WHERE id=$1`,
+      short_description=$20, details=$21, categories=$22::text[],
+      categories_ok_at = CASE $23::text WHEN 'now' THEN now() WHEN 'clear' THEN NULL ELSE categories_ok_at END,
+      categories_ok_by = CASE $23::text WHEN 'now' THEN $24::int WHEN 'clear' THEN NULL ELSE categories_ok_by END, updated_at=now() WHERE id=$1`,
     [id, v.title, v.subtitle, v.author, v.isbn, v.category, v.audience, v.format, v.description, v.tags, v.publisher,
       v.published_year, v.pages, v.copies_total, v.shelf_location, req.body.active === '1', v.call_number, v.series, v.subcategory,
-      v.short_description, details ? JSON.stringify(details) : null]);
+      v.short_description, details ? JSON.stringify(details) : null, v.categories, ok, req.user.id]);
     if (req.body.notable_form === '1') {
       const kind = P.NOTABLE_KINDS.some(([k]) => k === req.body.notable_kind) ? req.body.notable_kind : null;
       await db.query('UPDATE books SET notable = $2, notable_kind = $3, notable_note = $4 WHERE id = $1', [id, !!kind, kind, kind ? clean(req.body.notable_note, 200) || null : null]);
@@ -378,7 +447,7 @@ module.exports = (app) => {
     res.send([
       'title,subtitle,author,isbn,category,audience,format,description,tags,publisher,year,pages,copies,shelf',
       '"Mere Christianity",,"C. S. Lewis",9780060652920,Apologetics,Adults,Book,"Lewis explains the core of Christian belief.","faith, reason",HarperOne,1952,227,2,A-4',
-      '"The Jesus Storybook Bible","Every Story Whispers His Name","Sally Lloyd-Jones",9780310708254,Children,Children,Book,,"bible stories, kids",Zonderkidz,2007,351,1,Children\'s corner',
+      '"The Jesus Storybook Bible","Every Story Whispers His Name","Sally Lloyd-Jones",9780310708254,"Children\'s Books; Bible Stories",Children,Book,,"bible stories, kids",Zonderkidz,2007,351,1,Children\'s corner',
     ].join('\r\n') + '\r\n');
   });
 
@@ -394,21 +463,23 @@ module.exports = (app) => {
       result.skipped.push(...skipped);
       const existing = new Set((await db.many('SELECT legacy_id FROM books WHERE legacy_id IS NOT NULL')).map((r) => r.legacy_id));
       const COLS = ['legacy_id', 'call_number', 'title', 'author', 'category', 'subcategory', 'audience', 'format', 'description', 'tags',
-        'publisher', 'published_year', 'pages', 'series', 'copies_total', 'active', 'details', 'cover_source_url', 'short_description'];
+        'publisher', 'published_year', 'pages', 'series', 'copies_total', 'active', 'details', 'cover_source_url', 'short_description', 'categories'];
       for (let i = 0; i < rows.length; i += 100) {
         const chunk = rows.slice(i, i + 100);
         const params = [];
         const values = chunk.map((b) => {
-          const ph = COLS.map((c) => { params.push(c === 'details' ? (b.details ? JSON.stringify(b.details) : null) : b[c]); return `$${params.length}`; });
-          return `(${ph.join(',')}, 'pending')`;
+          const ph = COLS.map((c) => { params.push(c === 'details' ? (b.details ? JSON.stringify(b.details) : null) : c === 'categories' ? b.categories || [] : b[c]); return `$${params.length}${c === 'categories' ? '::text[]' : ''}`; });
+          return `(${ph.join(',')}, 'pending', ${b.categories && b.categories.length ? 'now()' : 'NULL'})`;
         });
-        await db.query(`INSERT INTO books (${COLS.join(', ')}, cover_status) VALUES ${values.join(',\n')}
+        // The old library's categories were the librarian's own, so they count as signed off.
+        await db.query(`INSERT INTO books (${COLS.join(', ')}, cover_status, categories_ok_at) VALUES ${values.join(',\n')}
           ON CONFLICT (legacy_id) WHERE legacy_id IS NOT NULL DO UPDATE SET
             call_number = EXCLUDED.call_number, title = EXCLUDED.title, author = EXCLUDED.author, category = EXCLUDED.category,
             subcategory = EXCLUDED.subcategory, audience = EXCLUDED.audience, format = EXCLUDED.format, description = EXCLUDED.description,
             tags = EXCLUDED.tags, publisher = EXCLUDED.publisher, published_year = EXCLUDED.published_year, pages = EXCLUDED.pages,
             series = EXCLUDED.series, copies_total = EXCLUDED.copies_total, active = EXCLUDED.active, details = EXCLUDED.details,
             cover_source_url = EXCLUDED.cover_source_url, short_description = EXCLUDED.short_description,
+            categories = EXCLUDED.categories, categories_ok_at = EXCLUDED.categories_ok_at, categories_ok_by = NULL,
             cover_status = CASE WHEN books.cover_image IS NULL THEN 'pending' ELSE books.cover_status END,
             updated_at = now()`, params);
         for (const b of chunk) { if (existing.has(b.legacy_id)) result.updated++; else result.added++; }
@@ -429,11 +500,13 @@ module.exports = (app) => {
             : await db.one('SELECT id FROM books WHERE lower(title) = lower($1) AND lower(COALESCE(author, \'\')) = lower(COALESCE($2, \'\')) LIMIT 1', [v.title, v.author]);
           if (dup) { result.skipped.push({ row: i + 2, reason: `“${v.title}” is already in the catalog` }); continue; }
         }
+        // A list the librarian imports counts as signed off; one an assistant imports waits for the librarian.
+        const ok = req.user.role === 'librarian' && !!(v.categories && v.categories.length);
         await db.query(`INSERT INTO books (title, subtitle, author, isbn, category, audience, format, description, tags, publisher, published_year, pages,
-          copies_total, shelf_location, call_number, series, subcategory, cover_status)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'none')`,
+          copies_total, shelf_location, call_number, series, subcategory, cover_status, categories, categories_ok_at, categories_ok_by)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'none',$18::text[], CASE WHEN $19::boolean THEN now() END, CASE WHEN $19::boolean THEN $20::int END)`,
         [v.title, v.subtitle, v.author, v.isbn, v.category, v.audience, v.format, v.description, v.tags, v.publisher, v.published_year, v.pages,
-          v.copies_total, v.shelf_location, v.call_number, v.series, v.subcategory]);
+          v.copies_total, v.shelf_location, v.call_number, v.series, v.subcategory, v.categories || [], ok, req.user.id]);
         result.added++;
       }
       if (!rows.length) result.skipped.push({ row: 1, reason: 'no rows found. Make sure the first line has the column names.' });

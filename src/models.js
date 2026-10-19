@@ -5,6 +5,8 @@ const db = require('./db');
 const BOOK_COLS = `b.id, b.title, b.subtitle, b.author, b.isbn, b.category, b.audience, b.format, b.description,
   b.tags, b.publisher, b.published_year, b.pages, b.copies_total, b.shelf_location, b.active, b.notable, b.notable_note, b.notable_kind,
   b.short_description, b.legacy_id, b.call_number, b.series, b.subcategory, b.details, b.cover_status, b.cover_note, b.cover_source_url,
+  b.categories, b.categories_ok_at, b.categories_ok_by,
+  (SELECT trim(u.first_name || ' ' || u.last_name) FROM users u WHERE u.id = b.categories_ok_by) AS categories_ok_name,
   b.created_at, b.updated_at, (b.cover_image IS NOT NULL) AS has_cover,
   GREATEST(b.copies_total - COALESCE(a.n, 0), 0)::int AS available, COALESCE(a.n, 0)::int AS out_count`;
 const BOOK_FROM = `books b LEFT JOIN (
@@ -13,7 +15,11 @@ const BOOK_FROM = `books b LEFT JOIN (
 
 const ACTIVE = `status IN ('reserved','checked_out')`;
 
-function bookFilters({ q, category, subcategory, audience, format, available, notable, includeInactive, noCover } = {}) {
+// One of a book's category paths, split into its first part (the subject) and the rest.
+const PATH_TOP = "split_part(cp, ' › ', 1)";
+const PATH_REST = "CASE WHEN strpos(cp, ' › ') > 0 THEN substr(cp, strpos(cp, ' › ') + 3) END";
+
+function bookFilters({ q, category, subcategory, audience, format, available, notable, includeInactive, noCover, review, uncategorized } = {}) {
   const where = [];
   const params = [];
   if (!includeInactive) where.push('b.active');
@@ -21,10 +27,17 @@ function bookFilters({ q, category, subcategory, audience, format, available, no
     params.push(`%${q.trim()}%`);
     const i = params.length;
     where.push(`(b.title ILIKE $${i} OR b.subtitle ILIKE $${i} OR b.author ILIKE $${i} OR b.isbn ILIKE $${i} OR b.tags ILIKE $${i} OR b.category ILIKE $${i}
-      OR b.subcategory ILIKE $${i} OR b.series ILIKE $${i} OR b.call_number ILIKE $${i} OR b.description ILIKE $${i})`);
+      OR b.subcategory ILIKE $${i} OR array_to_string(b.categories, ' ') ILIKE $${i} OR b.series ILIKE $${i} OR b.call_number ILIKE $${i} OR b.description ILIKE $${i})`);
   }
-  if (category) { params.push(category); where.push(`b.category = $${params.length}`); }
-  if (subcategory) { params.push(subcategory); where.push(`(b.subcategory = $${params.length} OR b.subcategory LIKE $${params.length} || ' › %')`); }
+  // In a category when any of the book's categories is in it (or below it).
+  if (category || subcategory) {
+    const cond = [];
+    if (category) { params.push(category); cond.push(`${PATH_TOP} = $${params.length}`); }
+    if (subcategory) { params.push(subcategory); cond.push(`(${PATH_REST} = $${params.length} OR ${PATH_REST} LIKE $${params.length} || ' › %')`); }
+    where.push(`EXISTS (SELECT 1 FROM unnest(b.categories) AS c(cp) WHERE ${cond.join(' AND ')})`);
+  }
+  if (review) where.push('b.categories_ok_at IS NULL');
+  if (uncategorized) where.push("b.categories = '{}'");
   if (noCover) where.push('b.cover_image IS NULL');
   if (audience) { params.push(audience); where.push(`b.audience = $${params.length}`); }
   if (format) { params.push(format); where.push(`b.format = $${params.length}`); }
@@ -64,18 +77,26 @@ const books = {
   },
   all: () => db.many(`SELECT ${BOOK_COLS} FROM ${BOOK_FROM} WHERE b.active ORDER BY b.title`),
   // Small rows for search-as-you-type suggestions (includes hidden books, for staff).
-  searchIndex: () => db.many(`SELECT b.id, b.title, b.subtitle, b.author, b.call_number, b.series, b.category, b.subcategory, b.format,
+  searchIndex: () => db.many(`SELECT b.id, b.title, b.subtitle, b.author, b.call_number, b.series, b.category, b.subcategory, b.categories, b.format,
     b.active, b.updated_at, (b.cover_image IS NOT NULL) AS has_cover,
     GREATEST(b.copies_total - COALESCE(a.n, 0), 0)::int AS available FROM ${BOOK_FROM}`),
   recent: (n = 18) => db.many(`SELECT ${BOOK_COLS} FROM ${BOOK_FROM} WHERE b.active ORDER BY b.created_at DESC LIMIT ${Number(n)}`),
   get: (id) => db.one(`SELECT ${BOOK_COLS} FROM ${BOOK_FROM} WHERE b.id = $1`, [id]),
-  categories: () => db.many(`SELECT category, count(*)::int AS n FROM books WHERE active AND category IS NOT NULL AND category <> '' GROUP BY category ORDER BY category`),
+  // Subjects with how many books are in each (a book in two subjects counts in both).
+  categories: () => db.many(`SELECT ${PATH_TOP} AS category, count(DISTINCT b.id)::int AS n FROM books b CROSS JOIN LATERAL unnest(b.categories) AS c(cp)
+    WHERE b.active GROUP BY 1 ORDER BY 1`),
   // First level below a subject, e.g. "Historical Fiction" under "Christian Fiction".
-  subcategories: (category) => db.many(`SELECT split_part(subcategory, ' › ', 1) AS name, count(*)::int AS n FROM books
-    WHERE active AND category = $1 AND subcategory IS NOT NULL AND subcategory <> '' GROUP BY 1 ORDER BY 2 DESC, 1`, [category]),
+  subcategories: (category) => db.many(`SELECT split_part(${PATH_REST}, ' › ', 1) AS name, count(DISTINCT b.id)::int AS n
+    FROM books b CROSS JOIN LATERAL unnest(b.categories) AS c(cp)
+    WHERE b.active AND ${PATH_TOP} = $1 AND ${PATH_REST} IS NOT NULL GROUP BY 1 ORDER BY 2 DESC, 1`, [category]),
   // Every category path in use, for the category checklist on the book screen.
-  categoryPaths: () => db.many(`SELECT category, subcategory, count(*)::int AS n FROM books
-    WHERE category IS NOT NULL AND category <> '' GROUP BY category, subcategory ORDER BY category, subcategory NULLS FIRST`),
+  categoryPaths: () => db.many(`SELECT ${PATH_TOP} AS category, ${PATH_REST} AS subcategory, count(*)::int AS n
+    FROM books b CROSS JOIN LATERAL unnest(b.categories) AS c(cp) GROUP BY 1, 2 ORDER BY 1, 2 NULLS FIRST`),
+  // Books whose categories the librarian hasn't signed off on yet.
+  toReview: async () => (await db.one(`SELECT count(*)::int AS n FROM books WHERE categories_ok_at IS NULL`)).n,
+  // What the category suggester learns from: every book's categories and words.
+  forSuggest: () => db.many(`SELECT b.id, b.title, b.subtitle, b.author, b.series, b.tags, b.short_description, left(b.description, 1500) AS description,
+    b.publisher, b.format, b.audience, b.categories FROM books b WHERE b.categories <> '{}'`),
   formats: async () => (await db.many(`SELECT format, count(*)::int AS n FROM books WHERE active AND format IS NOT NULL GROUP BY format ORDER BY 2 DESC`)).map((r) => r.format),
   count: async () => (await db.one('SELECT count(*)::int AS n, COALESCE(sum(copies_total),0)::int AS copies FROM books WHERE active')),
 };

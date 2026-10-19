@@ -87,6 +87,8 @@ async function lookup(raw) {
     pages: d.number_of_pages || '',
     description,
     category: guessCategory(subjects),
+    // all of them, for the category suggestions on the book screen
+    subjects: subjects.filter((s) => !/accessible|protected|lending|in library|overdrive|nyt:|^\d/i.test(s)).slice(0, 30),
     audience: juvenile ? 'Children' : youth ? 'Youth' : '',
     tags: [...new Set(subjects.filter((s) => s.length < 30 && !/accessible|protected|lending|in library|overdrive/i.test(s)).map((s) => s.toLowerCase()))].slice(0, 6).join(', '),
     cover_url: d.cover ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : '',
