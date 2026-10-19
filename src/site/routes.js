@@ -17,10 +17,15 @@ const SITE_HOSTS = (process.env.SITE_HOSTS || 'cbcwinfield.org,www.cbcwinfield.o
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const baseFor = (req) => (SITE_HOSTS.includes(String(req.headers.host || '').split(':')[0].toLowerCase()) ? '' : '/site');
 
-function show(req, res, page, view, { title, desc, status = 200, season, storyStyle } = {}) {
+// The picture a page shows when its link is shared or previewed (scripts/share-image.js draws them).
+const SHARE = {
+  sermons: { title: 'Sermons from Central Baptist Church', image: '/img/share/sermons.png?v=1', alt: 'Sunday’s message, any day of the week: watch past sermons from Central Baptist Church in Winfield, Kansas.' },
+};
+
+function show(req, res, page, view, { title, desc, status = 200, season, storyStyle, share } = {}) {
   res.status(status);
   res.setHeader('Cache-Control', 'no-cache');
-  res.send(V.layout({ title, desc, page, body: view.body, head: view.head, base: baseFor(req), season: season || seasonFor(req.query), storyStyle: storyStyle || styleFor(req.query) }).toString());
+  res.send(V.layout({ title, desc, page, body: view.body, head: view.head, base: baseFor(req), season: season || seasonFor(req.query), storyStyle: storyStyle || styleFor(req.query), share, path: req.path.replace(/^\/site/, '') || '/' }).toString());
 }
 
 async function saveInquiry(kind, v, { to } = {}) {
@@ -53,7 +58,7 @@ module.exports = (app) => {
   page('/visit', 'visit', (req, res) => V.visit({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1' }), { title: 'Plan your visit', desc: 'Service times, directions, and what to expect for your kids on your first Sunday at Central Baptist Church in Winfield, Kansas.' });
   page('/about', 'about', (req) => V.about({ base: baseFor(req) }), { title: 'About', desc: 'Central Baptist Church is a Southern Baptist congregation in Winfield, Kansas, celebrating 75 years of God’s faithfulness.' });
   page('/ministries', 'ministries', (req) => V.ministries({ base: baseFor(req), logos: logos.info }), { title: 'Ministries', desc: 'Central Kids, Central Teens, adult Bible studies, and missions at Central Baptist Church in Winfield, Kansas.' });
-  page('/sermons', 'sermons', async () => V.sermons({ videos: await yt.recent() }), { title: 'Sermons', desc: 'Watch the latest sermons from Central Baptist Church in Winfield, Kansas.' });
+  page('/sermons', 'sermons', async () => V.sermons({ videos: await yt.recent() }), { title: 'Sermons', desc: 'Watch past sermons from Central Baptist Church in Winfield, Kansas, any day of the week.', share: SHARE.sermons });
   page('/events', 'events', async (req) => { const A = require('../announce'); const [reel, slides] = await Promise.all([A.latestReel(), A.list()]); return V.events({ base: baseFor(req), reel, slides, longDate: A.longDate, keyOf: A.keyOf }); }, { title: 'Events & announcements', desc: 'This week’s announcements and upcoming events at Central Baptist Church in Winfield, Kansas.' });
   page('/staff', 'staff', () => V.staff(), { title: 'Staff & leaders' });
   page('/give', 'give', (req) => V.give({ base: baseFor(req) }), { title: 'Give', desc: 'Give online to Central Baptist Church in Winfield, Kansas, through our secure giving partner Vanco.' });
@@ -79,7 +84,7 @@ module.exports = (app) => {
     }
   }
   // Old Wix addresses, so existing links and search results still land somewhere useful.
-  const OLD = { '/blank': '/about', '/blank-1': '/sermons', '/blank-2': '/give', '/blank-3': '/ministries', '/blank-4': '/connect', '/blank-4-1': '/connect', '/blank-5': '/staff', '/blank-6': '/serve', '/blank-7': null, '/event-list': '/events', '/home-1-1-1': '/', '/groups': '/connect', '/my-groups': '/connect' };
+  const OLD = { '/blank': '/about', '/blank-1': '/sermons', '/blank-2': '/give', '/blank-3': '/ministries', '/blank-4': '/connect', '/blank-4-1': '/connect', '/blank-5': '/staff', '/blank-6': '/serve', '/blank-7': null, '/event-list': '/events', '/home-1-1-1': '/', '/groups': '/connect', '/my-groups': '/connect', '/sermon': '/sermons' };
   for (const [from, to] of Object.entries(OLD)) {
     app.get(`/site${from}`, async (req, res) => res.redirect(to === null ? `${C.CHURCH.app}/checkin/prayer` : `${baseFor(req)}${to}` || '/'));
   }

@@ -263,3 +263,14 @@ test('categories: suggestions come from the catalog, with reasons', () => {
   assert.strictEqual(S.suggest(model, { title: 'The Toy Box', format: 'DVD' })[0].path, 'DVD');
   assert.deepStrictEqual(S.suggest(model, { title: 'zzqx' }), []);
 });
+
+test('the sermons page shows its own picture when shared or previewed', () => {
+  const V = require('../src/site/views');
+  const out = String(V.layout({ title: 'Sermons', desc: 'd', page: 'sermons', body: '', head: { title: 'x' }, path: '/sermons',
+    share: { title: 'Sermons from Central Baptist Church', image: '/img/share/sermons.png?v=1', alt: 'a' } }));
+  assert.ok(out.includes('<meta property="og:image" content="https://cbcwinfield.org/img/share/sermons.png?v=1">'));
+  assert.ok(out.includes('<meta property="og:url" content="https://cbcwinfield.org/sermons">'));
+  assert.ok(out.includes('<meta property="og:title" content="Sermons from Central Baptist Church">'));
+  assert.ok(out.includes('<meta name="twitter:card" content="summary_large_image">'));
+  assert.ok(fs.statSync(path.join(__dirname, '../public/img/share/sermons.png')).size > 50000);
+});
