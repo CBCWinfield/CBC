@@ -230,3 +230,36 @@ test('Ministries page lists every partner, with a logo or its name until the log
   assert.strictEqual((out.match(/class="card out-row"/g) || []).length, C.OUTREACH.length);
   for (const o of C.OUTREACH) assert.ok(out.includes(`<h3>${o.name}<span>`), o.name);
 });
+
+test('categories: the old library\'s import is rebuilt into every category from the tags it kept', () => {
+  const woo = require('../src/lib/woo');
+  const cats = require('../src/lib/cats');
+  const { rebuild, vocabulary } = require('../src/category-backfill');
+  const { books } = woo.parseWoo(fs.readFileSync(path.join(__dirname, 'fixtures/old-library-sample.csv'), 'utf8'));
+  // as the database held them before: only the main (most specific) category, plus the tags the import wrote
+  const rows = books.map((b, i) => ({ id: i + 1, legacy_id: b.legacy_id || String(i + 1), title: b.title, categories: b.categories.slice(0, 1), tags: b.tags }));
+  const voc = vocabulary(rows);
+  const exact = rows.filter((r) => cats.sameSet(rebuild(r, voc).paths, books[r.id - 1].categories)).length;
+  assert.ok(exact >= 39, `${exact} of 40 rebuilt exactly`);
+  const rek = rows.find((r) => r.title === 'Rekindled');
+  assert.deepStrictEqual(rebuild(rek, voc).paths, ['Christian Fiction › 1800\'s American West', 'Christian Fiction › Historical Fiction', 'Christian Fiction › Romance']);
+  // a free-form tag on one book never becomes a category
+  assert.deepStrictEqual(rebuild({ ...rek, tags: '1800\'s american west, widows' }, voc).paths, ['Christian Fiction › 1800\'s American West']);
+  // a shared name ("Mystery") counts only under the book's own subject
+  const sub = rebuild({ legacy_id: 'x', categories: ['Youth › Mystery'], tags: 'mystery' }, voc).paths;
+  assert.deepStrictEqual(sub, ['Youth › Mystery']);
+});
+
+test('categories: suggestions come from the catalog, with reasons', () => {
+  const woo = require('../src/lib/woo');
+  const S = require('../src/lib/catsuggest');
+  const { books } = woo.parseWoo(fs.readFileSync(path.join(__dirname, 'fixtures/old-library-sample.csv'), 'utf8'));
+  books.forEach((b, i) => (b.id = i + 1));
+  const model = S.build(books);
+  const r = S.suggest(model, { title: 'A New Novel', author: 'Tamera Alexander', format: 'Paperback' });
+  const paths = r.filter((x) => x.strength !== 'maybe').map((x) => x.path);
+  assert.ok(paths.includes('Christian Fiction › Historical Fiction') && paths.includes('Christian Fiction › Romance'), JSON.stringify(paths));
+  assert.ok(r[0].reasons.some((x) => /Same writer, Tamera Alexander/.test(x)));
+  assert.strictEqual(S.suggest(model, { title: 'The Toy Box', format: 'DVD' })[0].path, 'DVD');
+  assert.deepStrictEqual(S.suggest(model, { title: 'zzqx' }), []);
+});
