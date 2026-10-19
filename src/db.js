@@ -730,6 +730,11 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS books_categories ON books USING gin (categories);
     `,
   },
+  {
+    // Which books the one-time category backfill (src/category-backfill.js) has already looked at.
+    version: 19,
+    sql: 'CREATE TABLE IF NOT EXISTS category_backfill (book_id int PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE, kind text, applied_at timestamptz NOT NULL DEFAULT now());',
+  },
 ];
 
 async function migrate() {
