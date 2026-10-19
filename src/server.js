@@ -49,6 +49,8 @@ app.use(async (req, res, next) => {
       csrf: res.locals.csrf,
       flash: security.takeFlash(req),
       settings: req.settings,
+      shareBase: require('./share').origin(req),
+      sharePath: req.path,
       ...opts,
     }).toString());
   };

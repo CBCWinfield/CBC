@@ -46,7 +46,7 @@ const needRole = (role) => async (req, res, next) => {
 };
 
 function render(req, res, body, opts = {}) {
-  res.send(V.layout({ body, user: req.user, csrf: res.locals.csrf, flash: security.takeFlash(req), event: req.ciEvent, unread: req.ciUnread || 0, prayerNew: req.ciPrayerNew || 0, pendingMembers: req.ciPendingMembers || 0, ...opts }).toString());
+  res.send(V.layout({ body, shareBase: require('../share').origin(req), sharePath: req.path, user: req.user, csrf: res.locals.csrf, flash: security.takeFlash(req), event: req.ciEvent, unread: req.ciUnread || 0, prayerNew: req.ciPrayerNew || 0, pendingMembers: req.ciPendingMembers || 0, ...opts }).toString());
 }
 
 // Current event for this device (kept in the session, only valid today).

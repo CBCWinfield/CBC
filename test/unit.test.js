@@ -264,13 +264,27 @@ test('categories: suggestions come from the catalog, with reasons', () => {
   assert.deepStrictEqual(S.suggest(model, { title: 'zzqx' }), []);
 });
 
-test('the sermons page shows its own picture when shared or previewed', () => {
+test('every page shows its own picture when shared or previewed', async () => {
   const V = require('../src/site/views');
-  const out = String(V.layout({ title: 'Sermons', desc: 'd', page: 'sermons', body: '', head: { title: 'x' }, path: '/sermons',
-    share: { title: 'Sermons from Central Baptist Church', image: '/img/share/sermons.png?v=1', alt: 'a' } }));
-  assert.ok(out.includes('<meta property="og:image" content="https://cbcwinfield.org/img/share/sermons.png?v=1">'));
+  const Share = require('../src/share');
+  const page = (key, extra = {}) => String(V.layout({ title: 'T', desc: 'd', page: key, body: '', head: { title: 'x' }, path: `/${key}`, ...extra }));
+  const out = page('sermons', { shareTitle: 'Sermons from Central Baptist Church' });
+  assert.ok(out.includes(`<meta property="og:image" content="https://cbcwinfield.org/img/share/sermons.png?v=`));
   assert.ok(out.includes('<meta property="og:url" content="https://cbcwinfield.org/sermons">'));
   assert.ok(out.includes('<meta property="og:title" content="Sermons from Central Baptist Church">'));
   assert.ok(out.includes('<meta name="twitter:card" content="summary_large_image">'));
-  assert.ok(fs.statSync(path.join(__dirname, '../public/img/share/sermons.png')).size > 50000);
+  assert.ok(page('nope').includes('/img/share/home.png'), 'other pages use the homepage picture');
+  for (const k of Object.keys(Share.PICTURES)) assert.ok(fs.statSync(path.join(__dirname, `../public/img/share/${k}.png`)).size > 50000, k);
+  // a library book: its own picture when it has a cover, the library's when it doesn't
+  assert.match(Share.bookPicture({ id: 7, title: 'B', has_cover: false }).image, /library\.png/);
+  if (Share.hasSharp()) {
+    assert.match(Share.bookPicture({ id: 7, title: 'B', has_cover: true, updated_at: new Date(0) }).image, /^\/share\/book\/7\.jpg\?v=0$/);
+    const sharp = require('sharp');
+    const cover = await sharp({ create: { width: 400, height: 600, channels: 3, background: '#1f3a6b' } }).jpeg().toBuffer();
+    const img = await Share.bookImage({ id: 7, updated_at: new Date(0) }, cover);
+    const meta = await sharp(img).metadata();
+    assert.deepStrictEqual([meta.width, meta.height, meta.format], [1200, 630, 'jpeg']);
+  }
+  assert.strictEqual(Share.origin({ headers: { host: 'admin.cbcwinfield.org' } }), 'https://admin.cbcwinfield.org');
+  assert.strictEqual(Share.origin({ headers: { host: 'localhost:3100' } }), 'http://localhost:3100');
 });

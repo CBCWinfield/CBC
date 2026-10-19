@@ -1,4 +1,5 @@
 'use strict';
+const Share = require('../share');
 const { html, raw } = require('../lib/html');
 const { fullName } = require('../models');
 
@@ -34,7 +35,7 @@ function appSwitcher(user, current) {
   </details>`;
 }
 
-function layout({ title, user, csrf, flash = [], body, current, settings, wide = false, description }) {
+function layout({ title, user, csrf, flash = [], body, current, settings, wide = false, description, shareBase = '', sharePath = '', sharePic, shareTitle }) {
   const s = settings || {};
   return html`<!doctype html>
 <html lang="en">
@@ -44,6 +45,9 @@ function layout({ title, user, csrf, flash = [], body, current, settings, wide =
 <title>${title ? `${title} | ${s.short_name || 'CBC Library'}` : s.library_name}</title>
 <meta name="description" content="${description || s.welcome_message || ''}">
 <meta name="csrf-token" content="${csrf || ''}">
+${Share.tags({ title: shareTitle || (title ? `${title} | ${s.short_name || 'CBC Library'}` : s.library_name || 'CBC Library'),
+    description: String(description || s.welcome_message || '').slice(0, 220), siteName: s.library_name || 'CBC Library',
+    base: shareBase, url: shareBase && sharePath ? shareBase + sharePath : '', pic: sharePic || Share.picture('library') })}
 <meta name="theme-color" content="#000000">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/favicon.ico?v=2" sizes="any">
