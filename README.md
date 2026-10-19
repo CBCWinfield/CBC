@@ -132,6 +132,8 @@ Check-in lives in the same Render service as the library, at `/checkin`, and ins
 
 **Member dashboard (/checkin/home):** the **Prayer Wall** button in the church website's header (and phone menu) is how members sign in. Signing in, there or with no other destination, lands on the dashboard: a row of options (Prayer Wall, Give through Vanco, Inbox, My family, Library, Watch, and Check in for the team) with the Prayer Wall open underneath. Library staff still go to the librarian's Today page.
 
+**Card numbers from the old library:** Patrons → **Card numbers from the old library**. Paste one person per line, their old number and their email or name (two columns copied from a spreadsheet work). The page shows who matches and what each code would become, and changes nothing until **Use these numbers**. A librarian can also change one person's code on their patron page. New members' codes skip any number already given out.
+
 **Prayer Wall:** anyone with an account can post a request (optionally anonymous or team-only), tap 🙏 "I'm praying" (with a running count), comment, and mark it answered with a praise report.
 
 **Check-out:** "Check out everyone" releases kids and their parents. Releasing a family's last child at pickup checks their parents out too. Anyone still checked in 6 hours after the service started (Sunday School 9:30, Children's Church 10:45, Wednesday 6:00 PM, or the first check-in for other events) is checked out automatically.

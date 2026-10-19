@@ -113,9 +113,14 @@ const users = {
   staffIds: async (roles = ['librarian', 'assistant']) => (await db.many(
     `SELECT id FROM users WHERE role = ANY($1::text[]) AND status = 'approved'`, [roles],
   )).map((r) => r.id),
+  // The next library code, skipping any already given by hand (e.g. a card number kept from the old library).
   async nextCode() {
-    const r = await db.one("SELECT nextval('library_code_seq')::int AS n");
-    return `CBC-${r.n}`;
+    for (let i = 0; i < 5000; i++) {
+      const r = await db.one("SELECT nextval('library_code_seq')::int AS n");
+      const code = `CBC-${r.n}`;
+      if (!(await db.one('SELECT 1 AS taken FROM users WHERE library_code = $1', [code]))) return code;
+    }
+    throw new Error('No free library code was found.');
   },
   // Approve a membership application: gives them a library card number.
   async approve(user) {

@@ -13,7 +13,7 @@ const CHURCH = {
   name: 'Central Baptist Church',
   address: '904 Wheat Rd, Winfield, KS 67156',
   phone: '(620) 221-2980',
-  email: 'centralbaptistchurchcalendar@gmail.com',
+  email: 'info@cbcwinfield.com',
 };
 const FOOTER = `${CHURCH.name}<br>${CHURCH.address}<br>${CHURCH.phone} · ${CHURCH.email}`;
 const CONTACT_HTML = `<strong>${CHURCH.name}</strong><br>${CHURCH.address}<br>Phone: <a href="tel:+16202212980">${CHURCH.phone}</a><br>Email: <a href="mailto:${CHURCH.email}">${CHURCH.email}</a>`;
