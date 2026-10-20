@@ -97,6 +97,8 @@ async function bootstrap() {
   // Researched bestseller/award badges (runs in the background; only touches badge fields).
   require('./notable-seed').applyNotableSeed().catch((e) => console.error('Badge seeding failed:', e.message));
   require('./category-backfill').backfillCategories().catch((e) => console.error('Category backfill failed:', e.message));
+  // The old library's italics and bold in descriptions, read again from the old website (once; only touches descriptions).
+  require('./italics-restore').restoreItalics().catch((e) => console.error('Bringing back italics failed:', e.message));
 
   // First librarian account, from ADMIN_EMAIL / ADMIN_PASSWORD.
   const librarians = await db.one("SELECT count(*)::int AS n FROM users WHERE role = 'librarian'");

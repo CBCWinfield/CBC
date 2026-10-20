@@ -34,7 +34,7 @@ const refreshSearch = () => { suggestModel.at = 0; if (publicRoutes.clearSearchC
 const PAGE = 50;
 const FORMATS = ['Book', 'Paperback', 'Hardback', 'Board Book', 'Large Print', 'Workbook', 'Audiobook', 'CD', 'DVD', 'Blu-ray', 'Pamphlet', 'Other'];
 const AUD = require('../lib/audience');
-const rich = require('../lib/richtext');
+const italics = require('../italics-restore');
 
 async function pendingCount() {
   return (await db.one("SELECT count(*)::int AS n FROM users WHERE status = 'pending'")).n;
@@ -448,7 +448,7 @@ module.exports = (app) => {
   });
 
   app.get('/admin/books/import', requireStaff, async (req, res) => {
-    await page(req, res, 'books', 'Import books', A.importPage({ csrf: res.locals.csrf }));
+    await page(req, res, 'books', 'Import books', A.importPage({ csrf: res.locals.csrf, italics: await italics.state(db) }));
   });
 
   app.get('/admin/books/template.csv', requireStaff, async (req, res) => {
@@ -470,23 +470,8 @@ module.exports = (app) => {
       // The old export once more, only to bring back the italics and bold the first import dropped. A description is
       // changed only while it's still word for word what that import left, so nothing anyone has edited since is touched.
       result.format = 'formatting';
-      Object.assign(result, { restored: 0, edited: 0 });
       const { books: rows } = woo.parseWoo(text);
-      const now = new Map((await db.many('SELECT id, legacy_id, description, short_description FROM books WHERE legacy_id IS NOT NULL')).map((r) => [r.legacy_id, r]));
-      for (const b of rows) {
-        const cur = now.get(b.legacy_id);
-        if (!cur) continue;
-        const sets = {};
-        for (const k of ['description', 'short_description']) {
-          const want = b[k];
-          if (!want || !want.includes('*') || want === cur[k]) continue;
-          if (rich.plain(want) === cur[k]) sets[k] = want; else if (cur[k]) result.edited++;
-        }
-        if (!Object.keys(sets).length) continue;
-        await db.query('UPDATE books SET description = COALESCE($2, description), short_description = COALESCE($3, short_description), updated_at = now() WHERE id = $1',
-          [cur.id, sets.description || null, sets.short_description || null]);
-        result.restored++;
-      }
+      Object.assign(result, await italics.apply(db, rows.map((b) => ({ id: String(b.legacy_id || ''), title: b.title, description: b.description || '', short_description: b.short_description || '' }))));
       refreshSearch();
     } else if (woo.isWooExport(text)) {
       // The old library system's export: add new books, update ones imported before (matched by old ID).
@@ -545,7 +530,7 @@ module.exports = (app) => {
       }
       if (!rows.length) result.skipped.push({ row: 1, reason: 'no rows found. Make sure the first line has the column names.' });
     }
-    await page(req, res, 'books', 'Import books', A.importPage({ csrf: res.locals.csrf, result }));
+    await page(req, res, 'books', 'Import books', A.importPage({ csrf: res.locals.csrf, result, italics: await italics.state(db) }));
   });
 
   // Download the whole catalog in the old library system's format.
