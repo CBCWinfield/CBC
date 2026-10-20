@@ -5,6 +5,7 @@ const t = require('../lib/time');
 const { fullName } = require('../models');
 const { DAY_NAMES } = require('../settings');
 const cats = require('../lib/cats');
+const AUD = require('../lib/audience');
 
 const isLib = (u) => u.role === 'librarian';
 
@@ -267,6 +268,13 @@ function signedOffNote(book) {
   return `Signed off by ${by} on ${t.fmtDate(book.categories_ok_at)}.`;
 }
 
+// Italic and bold buttons over a description box (public/js/app.js does the work; lib/richtext.js shows it).
+const fmtBar = (id, hint) => html`<div class="fmt-bar" role="toolbar" aria-label="Formatting" aria-controls="${id}" data-fmt-for="${id}">
+  <button type="button" class="fmt-btn" data-fmt="i" title="Italic (Ctrl+I)" aria-label="Italic"><em>I</em></button>
+  <button type="button" class="fmt-btn" data-fmt="b" title="Bold (Ctrl+B)" aria-label="Bold"><strong>B</strong></button>
+  ${hint ? html`<span class="fmt-hint">Select a word, then press <em>I</em> for italics. Here it shows with stars, like *Pilgrim’s Progress*; on the book page it’s in italics.</span>` : ''}
+</div>`;
+
 function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = [], isNew, user }) {
   const formats = book.format && !FORMATS.includes(book.format) ? [...FORMATS, book.format] : FORMATS;
   const details = book.details || {};
@@ -282,6 +290,7 @@ function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = 
   allPaths.sort();
 
   const val = (name) => book[name] ?? '';
+  const audiences = AUD.of(book).length ? AUD.of(book) : ['Adults'];
   const f = (name, label, opts = {}) => html`<div class="field${opts.cls ? ' ' + opts.cls : ''}"${opts.showFor ? raw(` data-show-for="${opts.showFor}"`) : ''}>
     <label for="b-${name}">${label}</label>
     <input id="b-${name}" name="${name}" type="${opts.type || 'text'}" value="${opts.value ?? val(name)}"${opts.req ? raw(' required') : ''}${opts.min != null ? raw(` min="${opts.min}"`) : ''}${opts.inputmode ? raw(` inputmode="${opts.inputmode}"`) : ''}${opts.placeholder ? html` placeholder="${opts.placeholder}"` : ''}>
@@ -300,11 +309,13 @@ function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = 
 
       <div class="field">
         <label for="b-short">Short description</label>
-        <textarea id="b-short" name="short_description" rows="2" placeholder="One line shown under the title, e.g. A Tale of Forgiveness and Grace">${val('short_description')}</textarea>
+        ${fmtBar('b-short')}
+        <textarea id="b-short" name="short_description" rows="2" data-fmt placeholder="One line shown under the title, e.g. A Tale of Forgiveness and Grace">${val('short_description')}</textarea>
       </div>
       <div class="field">
         <label for="b-description">Description</label>
-        <textarea id="b-description" name="description" rows="9">${val('description')}</textarea>
+        ${fmtBar('b-description', true)}
+        <textarea id="b-description" name="description" rows="9" data-fmt>${val('description')}</textarea>
       </div>
 
       <section class="box">
@@ -404,8 +415,10 @@ function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = 
 
       <section class="box">
         <h2 class="box-head">Who it's for</h2>
-        <div class="box-body audience-choices">
-          ${['Everyone', 'Adults', 'Youth', 'Children'].map((a) => html`<label class="check"><input type="radio" name="audience" value="${a}"${checked((book.audience || 'Adults') === a)}> ${a === 'Youth' ? 'Teens (Central Teens)' : a === 'Children' ? 'Children (Central Kids)' : a}</label>`)}
+        <div class="box-body audience-choices" id="audience-choices">
+          <input type="hidden" name="audience_form" value="1">
+          ${AUD.ALL.map((a) => html`<label class="check"><input type="checkbox" name="audiences[]" value="${a}"${checked(audiences.includes(a))}> ${AUD.FORM_LABEL[a]}</label>`)}
+          <p class="hint">Tick each group it suits, like Adults and Teens. Everyone means all ages.</p>
         </div>
       </section>
 
@@ -451,7 +464,7 @@ function importPage({ csrf, result }) {
   </ul>
   ${result ? html`<div class="card card-note" role="status">
     <h2>Import finished</h2>
-    <p>${result.added.toLocaleString()} book${result.added === 1 ? '' : 's'} added${result.updated ? `, ${result.updated.toLocaleString()} updated` : ''}${result.skipped.length ? `, ${result.skipped.length} skipped` : ''}.</p>
+    ${result.format === 'formatting' ? html`<p>Brought back the italics and bold in ${result.restored.toLocaleString()} book${result.restored === 1 ? '' : 's'}’ descriptions. Nothing else was changed.${result.edited ? ` ${result.edited} description${result.edited === 1 ? ' was' : 's were'} edited here since the first import, so ${result.edited === 1 ? 'it was' : 'they were'} left as ${result.edited === 1 ? 'it is' : 'they are'}.` : ''}</p>` : html`<p>${result.added.toLocaleString()} book${result.added === 1 ? '' : 's'} added${result.updated ? `, ${result.updated.toLocaleString()} updated` : ''}${result.skipped.length ? `, ${result.skipped.length} skipped` : ''}.</p>`}
     ${result.coversQueued ? html`<p>Covers are being copied for ${result.coversQueued.toLocaleString()} books in the background. The Books page shows the progress. This takes roughly half an hour for a few thousand books.</p>` : ''}
     ${result.skipped.length ? html`<ul class="small">${result.skipped.slice(0, 50).map((x) => html`<li>Row ${x.row}: ${x.reason}</li>`)}</ul>` : ''}
     <p><a href="/admin/books">See the books</a></p>
@@ -461,6 +474,7 @@ function importPage({ csrf, result }) {
     <div class="field"><label for="csv-file">CSV file</label><input type="file" id="csv-file" accept=".csv,text/csv"><p class="hint" id="csv-info"></p></div>
     <div class="field" id="csv-paste"><label for="csv-text">Or paste the rows here</label><textarea id="csv-text" name="csv" rows="8" required placeholder="title,author,category,copies"></textarea></div>
     <label class="check"><input type="checkbox" name="skip_duplicates" value="1" checked> For simple lists, skip books already in the catalog (same ISBN, or same title and author)</label>
+    <label class="check"><input type="checkbox" name="formatting_only" value="1"> With the old library’s export: only bring back the italics and bold in descriptions (nothing else changes)</label>
     <button class="btn" type="submit">Import books</button>
   </form>`;
 }

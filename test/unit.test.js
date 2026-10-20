@@ -288,3 +288,89 @@ test('every page shows its own picture when shared or previewed', async () => {
   assert.strictEqual(Share.origin({ headers: { host: 'admin.cbcwinfield.org' } }), 'https://admin.cbcwinfield.org');
   assert.strictEqual(Share.origin({ headers: { host: 'localhost:3100' } }), 'http://localhost:3100');
 });
+
+// ---------- Librarian's requests: italics, several audiences, a better ISBN lookup ----------
+const rich = require('../src/lib/richtext');
+const AUD = require('../src/lib/audience');
+const isbnLib = require('../src/lib/isbn');
+
+test('descriptions: *italic* and **bold** show as such, safely', () => {
+  assert.strictEqual(String(rich.inline('Read *The Shack* & **pray**.')), 'Read <em>The Shack</em> &amp; <strong>pray</strong>.');
+  assert.strictEqual(String(rich.inline('*<script>*')), '<em>&lt;script&gt;</em>');
+  assert.strictEqual(String(rich.inline('5 * 3 * 2, and * a bullet')), '5 * 3 * 2, and * a bullet');
+  assert.strictEqual(String(rich.inline('***Both*** and **bold *inner* bold**')), '<strong><em>Both</em></strong> and <strong>bold <em>inner</em> bold</strong>');
+  assert.strictEqual(String(rich.inline('(*Title*), *Title*’s')), '(<em>Title</em>), <em>Title</em>’s');
+  assert.strictEqual(rich.plain('A *b* **c** ***d***'), 'A b c d');
+  assert.deepStrictEqual(rich.paragraphs('One *a*\nline two\n\nTwo').map(String), ['<p>One <em>a</em><br>line two</p>', '<p>Two</p>']);
+  assert.strictEqual(rich.fromHtml('<em>Blotch</em> he <i class="fa"></i>said <em><strong>Join</strong></em> <em>The Toy </em>re'), '*Blotch* he said ***Join*** *The Toy* re');
+  assert.strictEqual(rich.toHtml('*A* and **B**'), '<em>A</em> and <strong>B</strong>');
+});
+
+test('the old library import keeps italics, and plain() matches what it used to keep', () => {
+  const { cleanDescription } = require('../src/lib/woo');
+  if (!cleanDescription) return;
+  const out = cleanDescription('<p><em>Blotch</em> is a dragon.</p><p>He <strong>roars</strong>.</p>');
+  assert.strictEqual(out, '*Blotch* is a dragon.\n\nHe **roars**.');
+  assert.strictEqual(rich.plain(out), 'Blotch is a dragon.\n\nHe roars.');
+});
+
+test('audiences: several groups, Everyone alone, words people type', () => {
+  assert.deepStrictEqual(AUD.normalize(['Youth', 'Adults']), ['Adults', 'Youth']);
+  assert.deepStrictEqual(AUD.normalize('adults and teens'), ['Adults', 'Youth']);
+  assert.deepStrictEqual(AUD.normalize('Adults; Teens; Kids'), ['Everyone']);
+  assert.deepStrictEqual(AUD.normalize(['Everyone', 'Adults']), ['Everyone']);
+  assert.deepStrictEqual(AUD.normalize('young adult'), ['Youth']);
+  assert.deepStrictEqual(AUD.normalize('nonsense'), []);
+  assert.deepStrictEqual(AUD.of({ audience: 'Children', audiences: [] }), ['Children']);
+  assert.strictEqual(AUD.label(['Adults', 'Youth']), 'Adults, Teens');
+  assert.ok(AUD.suits({ audiences: ['Everyone'] }, 'Youth'));
+  assert.ok(!AUD.suits({ audiences: ['Adults'] }, 'Youth'));
+});
+
+test('ISBN lookup: Google Books and Open Library together, tidied', async () => {
+  const OL = {
+    'ISBN:9780764201035': { title: 'REKINDLED (Fountain Creek Chronicles, Book 1)', authors: [{ name: 'Alexander, Tamera' }], publishers: [{ name: 'Bethany House Publishers, a division of Baker' }],
+      publish_date: 'March 1, 2006', number_of_pages: 400, subjects: [{ name: 'Christian fiction' }, { name: 'Fiction, christian, romance' }, { name: 'Colorado, fiction' }, { name: 'Large type books' }], cover: { large: 'x' } },
+  };
+  const GB = { items: [{ id: 'abc', volumeInfo: { title: 'Rekindled', authors: ['Tamera Alexander'], publisher: 'Bethany House', publishedDate: '2006-03-01', pageCount: 416,
+    industryIdentifiers: [{ type: 'ISBN_13', identifier: '9780764201035' }], categories: ['Fiction / Christian / Historical'], imageLinks: { thumbnail: 'http://books.google.com/books/content?id=abc&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api' } } }] };
+  const FULL = { id: 'abc', volumeInfo: { title: 'Rekindled', description: '<p>In <i>Rekindled</i>, Kathryn&#39;s husband&nbsp;returns.</p><p><b>Book one</b></p>', categories: ['Fiction / Christian / Historical', 'Fiction / Romance / Western'] } };
+  const routes = (map) => async (url) => { for (const [k, v] of Object.entries(map)) if (url.includes(k)) return typeof v === 'function' ? v() : v; return null; };
+
+  let r = await isbnLib.lookup('978-0-7642-0103-5', { get: routes({ 'api/books': OL, 'isbn/9780764201035.json': {}, 'volumes?q=isbn': GB, 'volumes/abc': FULL }) });
+  assert.strictEqual(r.title, 'Rekindled');
+  assert.strictEqual(r.series, 'Fountain Creek Chronicles');
+  assert.strictEqual(r.author, 'Tamera Alexander');
+  assert.strictEqual(r.publisher, 'Bethany House');
+  assert.strictEqual(r.published_year, 2006);
+  assert.strictEqual(r.pages, 400, 'this edition’s pages, from Open Library');
+  assert.strictEqual(r.description, "In *Rekindled*, Kathryn's husband returns.\n\n**Book one**");
+  assert.deepStrictEqual(r.audiences, []);
+  assert.ok(r.subjects.includes('Historical') && r.subjects.includes('Christian fiction'));
+  assert.ok(!/large type|fiction, christian/.test(r.tags), r.tags);
+  assert.strictEqual(r.cover_url, 'https://covers.openlibrary.org/b/isbn/9780764201035-L.jpg');
+  assert.strictEqual(r.sources, 'Google Books and Open Library');
+
+  // Open Library hasn't heard of it: Google alone, with its cover; a children's book
+  r = await isbnLib.lookup('9780310708254', { get: routes({ 'volumes?q=isbn': { items: [{ id: 'k', volumeInfo: { title: 'The Jesus Storybook Bible', subtitle: 'Every Story Whispers His Name',
+    authors: ['Sally Lloyd-Jones'], publishedDate: '2007', pageCount: 351, categories: ['Juvenile Nonfiction / Religious / Christian / Bible Stories'],
+    industryIdentifiers: [{ type: 'ISBN_10', identifier: '0310708257' }], imageLinks: { thumbnail: 'http://books.google.com/books/content?id=k&img=1&zoom=1&edge=curl' } } }] } }) });
+  assert.strictEqual(r.title, 'The Jesus Storybook Bible');
+  assert.strictEqual(r.subtitle, 'Every Story Whispers His Name');
+  assert.deepStrictEqual(r.audiences, ['Children']);
+  assert.strictEqual(r.cover_url, 'https://books.google.com/books/content?id=k&img=1&zoom=1');
+  assert.strictEqual(r.sources, 'Google Books');
+
+  // Google is down: Open Library alone, its one-line title split
+  r = await isbnLib.lookup('9780310247456', { get: routes({ 'api/books': { 'ISBN:9780310247456': { title: 'BOUNDARIES: WHEN TO SAY YES, HOW TO SAY NO TO TAKE CONTROL OF YOUR LIFE', authors: [{ name: 'Henry Cloud' }, { name: 'John Townsend' }], subjects: [{ name: 'Young adult fiction' }] } },
+    'volumes?q=isbn': () => { throw new Error('quota'); } }) });
+  assert.strictEqual(r.title, 'Boundaries');
+  assert.strictEqual(r.subtitle, 'When to Say Yes, How to Say No to Take Control of Your Life');
+  assert.strictEqual(r.author, 'Henry Cloud, John Townsend');
+  assert.deepStrictEqual(r.audiences, ['Youth']);
+
+  // a Google result for a different book is ignored
+  r = await isbnLib.lookup('9780310247456', { get: routes({ 'volumes?q=isbn': { items: [{ id: 'z', volumeInfo: { title: 'Wrong', industryIdentifiers: [{ identifier: '9781111111111' }] } }, { id: 'y', volumeInfo: { title: 'Also wrong' } }] } }) });
+  assert.match(r.error, /No book was found/);
+  assert.match((await isbnLib.lookup('12345')).error, /doesn’t look right/);
+});

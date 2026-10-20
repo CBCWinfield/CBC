@@ -1,5 +1,6 @@
 'use strict';
 const cats = require('./cats');
+const richtext = require('./richtext');
 // Reads and writes the old library's WooCommerce product export, so the
 // existing catalog moves over as-is and can be exported back in the same shape.
 const { parseCsv } = require('./csv');
@@ -33,6 +34,7 @@ function cleanDescription(html) {
   let s = String(html || '');
   s = s.replace(/\\n/g, '\n').replace(/\\r/g, '');
   s = s.replace(/\[embedyt\][\s\S]*?\[\/embedyt\]/gi, '').replace(/\[\/?[a-z_][^\]]*\]/gi, '');
+  s = richtext.fromHtml(s); // <em>Blotch</em> → *Blotch*, shown in italics on the book page
   s = s.replace(/<\s*br\s*\/?>/gi, '\n').replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, '\n\n').replace(/<li[^>]*>/gi, '• ');
   s = s.replace(/<[^>]+>/g, '');
   s = decodeEntities(s);
@@ -152,7 +154,7 @@ function toWooCsv(books, baseUrl) {
   for (const b of books) {
     const cat = cats.pathsOf(b).map((p) => p.split(cats.SEP).join(' > ')).join(', ');
     const image = b.cover_source_url || (b.has_cover ? `${baseUrl}/covers/${b.id}` : '');
-    const desc = (b.description || '').split(/\n{2,}/).map((p) => p.replace(/\n/g, '<br>')).join('\n\n');
+    const desc = richtext.toHtml(b.description || '').split(/\n{2,}/).map((p) => p.replace(/\n/g, '<br>')).join('\n\n');
     const row = {
       ean_isbn13: b.legacy_id || `new-${b.id}`,
       Type: 'simple',
@@ -161,7 +163,7 @@ function toWooCsv(books, baseUrl) {
       Published: b.active ? 1 : -1,
       'Is featured?': 0,
       'Visibility in catalog': 'visible',
-      'Short description': b.short_description || '',
+      'Short description': richtext.toHtml(b.short_description || ''),
       description: desc,
       'Tax status': 'taxable',
       'In stock?': b.available > 0 ? 1 : 'backorder',
