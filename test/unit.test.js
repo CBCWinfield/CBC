@@ -374,3 +374,13 @@ test('ISBN lookup: Google Books and Open Library together, tidied', async () => 
   assert.match(r.error, /No book was found/);
   assert.match((await isbnLib.lookup('12345')).error, /doesn’t look right/);
 });
+
+test('carryMarks: the old site’s italics go into the text here, only when it says the same thing', () => {
+  const here = "A parable for today's children, Blotch helps kids...  It's \"fun\" -- really.\n\nPart two.";
+  const site = 'A parable for today’s children, *Blotch* helps kids… It’s “**fun**” – really. Part two.';
+  assert.strictEqual(rich.carryMarks(here, site), "A parable for today's children, *Blotch* helps kids...  It's \"**fun**\" -- really.\n\nPart two.");
+  assert.strictEqual(rich.carryMarks('Edited here', '*Different* here'), null);
+  assert.strictEqual(rich.carryMarks('Has *some* already', 'Has some *already*'), null);
+  assert.strictEqual(rich.carryMarks('No marks', 'No marks'), null);
+  assert.strictEqual(rich.carryMarks('5 * 3 = The Toy', '5 * 3 = *The Toy*'), '5 * 3 = *The Toy*');
+});

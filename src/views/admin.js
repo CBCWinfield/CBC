@@ -455,8 +455,12 @@ function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = 
   </form>`;
 }
 
-function importPage({ csrf, result }) {
+function importPage({ csrf, result, italics }) {
+  const it = italics || null;
+  const fromSite = it && it.source && /^https?:/.test(it.source) ? it.source.replace(/^https?:\/\//, '') : 'the old library export file';
   return html`
+  ${it && it.done_at ? html`<div class="card card-note" role="status"><p><strong>Italics from the old library:</strong> on ${t.fmtDate(new Date(it.done_at))}, the italics and bold the first import left out were brought back in ${Number(it.restored || 0).toLocaleString()} book${it.restored === 1 ? '' : 's'}’ descriptions, from ${fromSite}.${it.edited ? ` ${it.edited} description${it.edited === 1 ? ' had' : 's had'} been edited here since, so ${it.edited === 1 ? 'it was' : 'they were'} left as ${it.edited === 1 ? 'it is' : 'they are'}.` : ''}</p></div>`
+    : it && it.error ? html`<div class="card card-note" role="status"><p><strong>Italics from the old library:</strong> the library tried to read the old descriptions from ${fromSite} to bring back their italics, but couldn’t (${it.error}). It will try again later${it.tries >= 10 ? ' no more' : ''}. You can also upload the old export file below with “only bring back the italics and bold” ticked.</p></div>` : ''}
   <p>Add many books at once from a spreadsheet saved as <strong>CSV</strong> (in Excel or Google Sheets: File › Download › CSV).</p>
   <ul class="small">
     <li><strong>The old library system's export</strong> (the WooCommerce “product export” file) works as-is. Books are matched by their old ID, so importing the same file again updates them instead of adding duplicates. Cover photos are copied from the old site automatically.</li>
@@ -464,7 +468,7 @@ function importPage({ csrf, result }) {
   </ul>
   ${result ? html`<div class="card card-note" role="status">
     <h2>Import finished</h2>
-    ${result.format === 'formatting' ? html`<p>Brought back the italics and bold in ${result.restored.toLocaleString()} book${result.restored === 1 ? '' : 's'}’ descriptions. Nothing else was changed.${result.edited ? ` ${result.edited} description${result.edited === 1 ? ' was' : 's were'} edited here since the first import, so ${result.edited === 1 ? 'it was' : 'they were'} left as ${result.edited === 1 ? 'it is' : 'they are'}.` : ''}</p>` : html`<p>${result.added.toLocaleString()} book${result.added === 1 ? '' : 's'} added${result.updated ? `, ${result.updated.toLocaleString()} updated` : ''}${result.skipped.length ? `, ${result.skipped.length} skipped` : ''}.</p>`}
+    ${result.format === 'formatting' ? html`<p>Brought back the italics and bold in ${Number(result.restored || 0).toLocaleString()} book${result.restored === 1 ? '' : 's'}’ descriptions. Nothing else was changed.${result.edited ? ` ${result.edited} description${result.edited === 1 ? ' was' : 's were'} edited here since the first import, so ${result.edited === 1 ? 'it was' : 'they were'} left as ${result.edited === 1 ? 'it is' : 'they are'}.` : ''}</p>` : html`<p>${result.added.toLocaleString()} book${result.added === 1 ? '' : 's'} added${result.updated ? `, ${result.updated.toLocaleString()} updated` : ''}${result.skipped.length ? `, ${result.skipped.length} skipped` : ''}.</p>`}
     ${result.coversQueued ? html`<p>Covers are being copied for ${result.coversQueued.toLocaleString()} books in the background. The Books page shows the progress. This takes roughly half an hour for a few thousand books.</p>` : ''}
     ${result.skipped.length ? html`<ul class="small">${result.skipped.slice(0, 50).map((x) => html`<li>Row ${x.row}: ${x.reason}</li>`)}</ul>` : ''}
     <p><a href="/admin/books">See the books</a></p>
