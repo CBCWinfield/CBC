@@ -435,10 +435,28 @@ fieldset.card legend + * { clear: both; }
 .add-cat summary { cursor: pointer; color: var(--green); font-weight: 700; font-size: 0.95rem; }
 .add-cat .stack { margin-top: 10px; gap: 10px; }
 .audience-choices { display: grid; gap: 6px; }
+.audience-choices .hint { margin: 2px 0 0; }
+
+/* Italic and bold buttons over the description boxes, and the preview under them */
+.fmt-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fmt-btn { width: 36px; height: 32px; display: inline-grid; place-items: center; font: inherit; font-size: 1.05rem; line-height: 1; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; }
+.fmt-btn:hover { background: var(--sage); border-color: var(--green); }
+.fmt-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.fmt-btn em { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; }
+.fmt-hint { font-size: 0.86rem; color: var(--ink-soft); flex: 1 1 260px; }
+.fmt-preview { border: 1px dashed var(--line); border-radius: var(--radius); background: var(--surface); padding: 8px 12px; }
+.fmt-preview[hidden] { display: none; }
+.fmt-preview-label { display: block; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 4px; }
+.fmt-preview .description p { margin: 0 0 0.6em; }
+.fmt-preview .description p:last-child { margin-bottom: 0; }
+.fmt-preview .short-desc { font-size: 1rem; margin: 0; }
+#isbn-status:not(:empty) { margin-top: 6px; }
 .danger-box .box-head { color: var(--danger); }
 .wp-side .btn { width: 100%; }
 .wp-side .file-btn { width: auto; }
 .short-desc { font-size: 1.15rem; font-style: italic; color: var(--ink-soft); margin: 4px 0 0; }
+.short-desc em { font-style: normal; } /* a title inside the italic line stands out upright */
 [data-show-for][hidden] { display: none; }
 
 /* Categories box: Suggest, the chosen list, the librarian's sign-off */

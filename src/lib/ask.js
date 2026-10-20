@@ -1,5 +1,6 @@
 'use strict';
 const cats = require('./cats');
+const AUD = require('./audience');
 // A book is in a subject when any of its categories is.
 const inSubject = (b, subject) => cats.pathsOf(b).some((p) => cats.top(p) === subject);
 // The "Ask" assistant. Fully self-contained: no AI service, no network calls.
@@ -209,7 +210,7 @@ function prepareBook(b) {
     series: words(b.series),
     number: words(b.call_number),
     description: words([b.short_description, b.description].filter(Boolean).join(' ')),
-    audience: words(b.audience),
+    audience: words(AUD.of(b).map((a) => (a === 'Youth' ? 'youth teens' : a)).join(' ')),
     format: words(b.format),
   };
   const sets = {};
@@ -342,7 +343,7 @@ function askOnce(question, books, settings, { ignoreAudience = false } = {}) {
 
   let pool = active;
   if (filters.author) pool = pool.filter((b) => b.author === filters.author);
-  if (filters.audience) pool = pool.filter((b) => !b.audience || b.audience === filters.audience || b.audience === 'Everyone' || normalize(b.category).includes(normalize(filters.audience)));
+  if (filters.audience) pool = pool.filter((b) => !AUD.of(b).length || AUD.suits(b, filters.audience) || normalize(b.category).includes(normalize(filters.audience)));
   if (filters.format) pool = pool.filter((b) => formatMatches(filters.format, b.format));
 
   const prepared = pool.map(prepareBook);
@@ -379,7 +380,7 @@ function askOnce(question, books, settings, { ignoreAudience = false } = {}) {
   } else {
     scored = prepared
       .filter((p) => !filters.category || inSubject(p.b, filters.category))
-      .map((p) => ({ p, score: 1 + (filters.audience && p.b.audience === filters.audience ? 1 : 0) }));
+      .map((p) => ({ p, score: 1 + (filters.audience && AUD.of(p.b).includes(filters.audience) ? 1 : 0) }));
     // "Something for teens": prefer books marked for that group when there are any.
     if (filters.audience) {
       const exact = scored.filter((x) => x.score > 1 || normalize(x.p.b.category).includes(normalize(filters.audience).replace(/s$/, '')));

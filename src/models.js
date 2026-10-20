@@ -2,7 +2,7 @@
 // Shared queries for books, patrons and checkouts.
 const db = require('./db');
 
-const BOOK_COLS = `b.id, b.title, b.subtitle, b.author, b.isbn, b.category, b.audience, b.format, b.description,
+const BOOK_COLS = `b.id, b.title, b.subtitle, b.author, b.isbn, b.category, b.audience, b.audiences, b.format, b.description,
   b.tags, b.publisher, b.published_year, b.pages, b.copies_total, b.shelf_location, b.active, b.notable, b.notable_note, b.notable_kind,
   b.short_description, b.legacy_id, b.call_number, b.series, b.subcategory, b.details, b.cover_status, b.cover_note, b.cover_source_url,
   b.categories, b.categories_ok_at, b.categories_ok_by,
@@ -39,7 +39,7 @@ function bookFilters({ q, category, subcategory, audience, format, available, no
   if (review) where.push('b.categories_ok_at IS NULL');
   if (uncategorized) where.push("b.categories = '{}'");
   if (noCover) where.push('b.cover_image IS NULL');
-  if (audience) { params.push(audience); where.push(`b.audience = $${params.length}`); }
+  if (audience) { params.push(audience); where.push(`($${params.length} = ANY(b.audiences) OR (b.audiences = '{}' AND b.audience = $${params.length}))`); }
   if (format) { params.push(format); where.push(`b.format = $${params.length}`); }
   if (available) where.push('b.copies_total - COALESCE(a.n, 0) > 0');
   if (notable) where.push('b.notable');
@@ -96,7 +96,7 @@ const books = {
   toReview: async () => (await db.one(`SELECT count(*)::int AS n FROM books WHERE categories_ok_at IS NULL`)).n,
   // What the category suggester learns from: every book's categories and words.
   forSuggest: () => db.many(`SELECT b.id, b.title, b.subtitle, b.author, b.series, b.tags, b.short_description, left(b.description, 1500) AS description,
-    b.publisher, b.format, b.audience, b.categories FROM books b WHERE b.categories <> '{}'`),
+    b.publisher, b.format, b.audience, b.audiences, b.categories FROM books b WHERE b.categories <> '{}'`),
   formats: async () => (await db.many(`SELECT format, count(*)::int AS n FROM books WHERE active AND format IS NOT NULL GROUP BY format ORDER BY 2 DESC`)).map((r) => r.format),
   count: async () => (await db.one('SELECT count(*)::int AS n, COALESCE(sum(copies_total),0)::int AS copies FROM books WHERE active')),
 };

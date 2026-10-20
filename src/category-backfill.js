@@ -86,7 +86,7 @@ async function backfillCategories() {
       }
     } else {
       if (!model) model = catSuggest.build(await db.many(`SELECT b.id, b.title, b.subtitle, b.author, b.series, b.tags, b.short_description,
-        left(b.description, 1500) AS description, b.publisher, b.format, b.audience, b.categories FROM books b WHERE b.categories <> '{}'`));
+        left(b.description, 1500) AS description, b.publisher, b.format, b.audience, b.audiences, b.categories FROM books b WHERE b.categories <> '{}'`));
       const picks = catSuggest.suggest(model, b).filter((s) => s.strength !== 'maybe').map((s) => s.path).slice(0, 3);
       if (picks.length) {
         const main = cats.primary(picks);

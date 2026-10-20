@@ -741,6 +741,13 @@ const MIGRATIONS = [
     sql: `UPDATE settings SET value = to_jsonb('info@cbcwinfield.com'::text)
       WHERE key = 'contact_email' AND lower(value #>> '{}') = 'centralbaptistchurchcalendar@gmail.com';`,
   },
+  {
+    // A book can be for more than one group (adults and teens). books.audience keeps the first, for older code.
+    version: 21,
+    sql: `ALTER TABLE books ADD COLUMN IF NOT EXISTS audiences text[] NOT NULL DEFAULT '{}';
+      UPDATE books SET audiences = ARRAY[audience] WHERE audience IN ('Everyone','Adults','Youth','Children') AND audiences = '{}';
+      CREATE INDEX IF NOT EXISTS books_audiences_idx ON books USING gin (audiences);`,
+  },
 ];
 
 async function migrate() {

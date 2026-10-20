@@ -11,6 +11,7 @@ const { suggest } = require('../lib/suggest');
 const { SORTS } = require('../models');
 const { buildSlots, findSlot } = require('../lib/slots');
 const { requireUser, safeNext, intParam, clean } = require('./guards');
+const rich = require('../lib/richtext');
 
 const PAGE = 24;
 const CATALOG_SORTS = ['title', 'title_desc', 'writer', 'writer_desc', 'newest', 'published', 'available', 'sku'];
@@ -71,7 +72,7 @@ module.exports = (app) => {
       ? 'Log in or apply for a free library account to check out books.'
       : block && block.reason;
     res.render(V.bookPage({ book, user: req.user, s: req.settings, myActive: block && block.mine, canCheckout: !block, reason, csrf: res.locals.csrf }), {
-      title: book.title, current: 'catalog', description: book.description ? book.description.slice(0, 160) : undefined,
+      title: book.title, current: 'catalog', description: book.description ? rich.plain(book.description).slice(0, 160) : undefined,
       shareTitle: `${book.title}${book.author ? ` by ${book.author}` : ''} | CBC Library`, sharePic: Share.bookPicture(book),
     });
   });

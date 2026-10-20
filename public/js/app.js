@@ -153,6 +153,108 @@
     s2.textContent = 'This browser doesn’t support notifications. On iPhone, add this site to your Home Screen first, then open it from there.';
   }
 
+  /* ---------- Description boxes: italics and bold ----------
+     Kept as *italic* and **bold** (the same rules as src/lib/richtext.js, which shows them on the book page). */
+  var FMT_BOTH = /\*\*\*([^\s*](?:[^*]*?[^\s*])?)\*\*\*/g;
+  var FMT_BOLD = /\*\*([^\s*](?:(?:[^*]|\*(?!\*))*?[^\s*])?)\*\*/g;
+  var FMT_ITAL = /(^|[^\w*])\*([^\s*](?:[^*]*?[^\s*])?)\*(?![\w*])/g;
+  var ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  var fmtInline = function (s) {
+    return String(s).replace(/[&<>"']/g, function (c) { return ESC[c]; })
+      .replace(FMT_BOTH, '<strong><em>$1</em></strong>').replace(FMT_BOLD, '<strong>$1</strong>').replace(FMT_ITAL, '$1<em>$2</em>');
+  };
+  var fmtParagraphs = function (s) {
+    return String(s || '').split(/\n{2,}/).map(function (p) { return p.trim(); }).filter(Boolean)
+      .map(function (p) { return '<p>' + p.split('\n').map(fmtInline).join('<br>') + '</p>'; }).join('');
+  };
+  // Put text in place of from..to, keeping the browser's Undo when it can, then select selFrom..selTo.
+  var fmtReplace = function (ta, from, to, text, selFrom, selTo) {
+    ta.focus();
+    ta.setSelectionRange(from, to);
+    var ok = false;
+    try { ok = document.execCommand('insertText', false, text); } catch (e) { ok = false; }
+    if (!ok || ta.value.slice(from, from + text.length) !== text) ta.setRangeText(text, from, to, 'end');
+    ta.setSelectionRange(selFrom, selTo);
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  var stars = function (v, i, dir) { var n = 0; while (v.charAt(dir < 0 ? i - 1 - n : i + n) === '*') n++; return n; };
+  // I or B: wrap the selection (or the word at the cursor) in stars, or take them off if it already has them.
+  var fmtToggle = function (ta, kind) {
+    var v = ta.value, a = ta.selectionStart, b = ta.selectionEnd, n = kind === 'b' ? 2 : 1, mark = kind === 'b' ? '**' : '*';
+    if (a === b) {
+      while (a > 0 && /[^\s*]/.test(v.charAt(a - 1))) a--;
+      while (b < v.length && /[^\s*]/.test(v.charAt(b))) b++;
+    }
+    while (a < b && /[\s*]/.test(v.charAt(a))) a++;
+    while (b > a && /[\s*]/.test(v.charAt(b - 1))) b--;
+    if (a === b) { fmtReplace(ta, a, b, mark + mark, a + n, a + n); return; }
+    var k = Math.min(stars(v, a, -1), stars(v, b, 1));
+    var on = kind === 'b' ? k >= 2 : k === 1 || k === 3;
+    var inner = v.slice(a, b);
+    if (on) fmtReplace(ta, a - n, b + n, inner, a - n, b - n);
+    else fmtReplace(ta, a, b, mark + inner + mark, a + n, b + n);
+  };
+  // Pasted from a web page or a document: its italics and bold come along as stars.
+  var fmtFromHtml = function (h) {
+    var doc = new DOMParser().parseFromString(h, 'text/html');
+    var walk = function (node, it, bo) {
+      if (node.nodeType === 3) return node.nodeValue.replace(/[\s ]+/g, ' ');
+      if (node.nodeType !== 1) return '';
+      var tag = node.tagName, st = node.getAttribute('style') || '';
+      if (/^(SCRIPT|STYLE|HEAD|TITLE|META|LINK|TEMPLATE)$/.test(tag)) return '';
+      if (tag === 'BR') return '\n';
+      var i2 = it || /^(I|EM|CITE)$/.test(tag) || /font-style:\s*italic/i.test(st);
+      var b2 = bo || (/^(B|STRONG)$/.test(tag) && !/font-weight:\s*(normal|[1-5]00)\b/i.test(st)) || /font-weight:\s*(bold|[6-9]00)\b/i.test(st);
+      if (it && /font-style:\s*normal/i.test(st)) i2 = false;
+      var inner = '';
+      for (var c = node.firstChild; c; c = c.nextSibling) inner += walk(c, i2, b2);
+      var open = (b2 && !bo ? '**' : '') + (i2 && !it ? '*' : '');
+      if (open && inner.trim()) {
+        var close = (i2 && !it ? '*' : '') + (b2 && !bo ? '**' : '');
+        inner = /^\s*/.exec(inner)[0] + open + inner.trim() + close + /\s*$/.exec(inner)[0];
+      }
+      if (tag === 'LI') return '\n• ' + inner.trim() + '\n';
+      if (/^(P|DIV|H[1-6]|BLOCKQUOTE|UL|OL|TABLE|TR|SECTION|ARTICLE)$/.test(tag)) return '\n\n' + inner.trim() + '\n\n';
+      return inner;
+    };
+    return walk(doc.body, false, false).split('\n').map(function (l) { return l.replace(/[ \t]+/g, ' ').trim(); }).join('\n')
+      .replace(/\n{3,}/g, '\n\n').replace(/(• [^\n]*)\n\n(?=• )/g, '$1\n').trim();
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('textarea[data-fmt]'), function (ta) {
+    var bar = document.querySelector('[data-fmt-for="' + ta.id + '"]');
+    var pv = el('div', { class: 'fmt-preview', hidden: '' }, [el('span', { class: 'fmt-preview-label', text: 'How it will look on the book page' }), el('div', { class: ta.rows > 3 ? 'description' : 'short-desc' })]);
+    ta.parentNode.insertBefore(pv, ta.nextSibling);
+    var show = function () {
+      var h = ta.rows > 3 ? fmtParagraphs(ta.value) : fmtInline(ta.value.replace(/\s*\n+\s*/g, ' ').trim());
+      pv.hidden = !/<(em|strong)>/.test(h);
+      if (!pv.hidden) pv.lastChild.innerHTML = h;
+    };
+    ta.addEventListener('input', show);
+    show();
+    if (bar) bar.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-fmt]');
+      if (btn) { e.preventDefault(); fmtToggle(ta, btn.getAttribute('data-fmt')); }
+    });
+    // keep the selection when a button is pressed
+    if (bar) bar.addEventListener('mousedown', function (e) { if (e.target.closest('[data-fmt]')) e.preventDefault(); });
+    ta.addEventListener('keydown', function (e) {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+      var k = (e.key || '').toLowerCase();
+      if (k === 'i' || k === 'b') { e.preventDefault(); fmtToggle(ta, k); }
+    });
+    ta.addEventListener('paste', function (e) {
+      var cd = e.clipboardData, h = cd && cd.getData('text/html');
+      if (!h || !/<(i|em|b|strong|cite)\b|font-style:\s*italic|font-weight:\s*(bold|[6-9]00)/i.test(h)) return;
+      var text;
+      try { text = fmtFromHtml(h); } catch (err) { return; }
+      if (!text || !/\*/.test(text)) return;
+      if (ta.rows <= 3) text = text.replace(/\s*\n+\s*/g, ' ');
+      e.preventDefault();
+      var a = ta.selectionStart;
+      fmtReplace(ta, a, ta.selectionEnd, text, a + text.length, a + text.length);
+    });
+  });
+
   /* ---------- Book form: ISBN lookup and cover photos ---------- */
   var bookForm = document.getElementById('book-form');
   if (bookForm) {
@@ -163,6 +265,37 @@
     var coverUrl = document.getElementById('cover-url');
     var field = function (name) { return bookForm.querySelector('[name="' + name + '"]'); };
 
+    // Who it's for: several groups can be ticked; Everyone stands alone.
+    var audBox = document.getElementById('audience-choices');
+    var audTouched = false;
+    var audBoxes = function () { return audBox ? Array.prototype.slice.call(audBox.querySelectorAll('input[name="audiences[]"]')) : []; };
+    var audChosen = function () { return audBoxes().filter(function (b) { return b.checked; }).map(function (b) { return b.value; }); };
+    var audSet = function (list) { audBoxes().forEach(function (b) { b.checked = list.indexOf(b.value) >= 0; }); };
+    if (audBox) audBox.addEventListener('change', function (e) {
+      var t = e.target;
+      if (!t || t.name !== 'audiences[]') return;
+      audTouched = true;
+      var boxes = audBoxes();
+      if (t.checked && t.value === 'Everyone') boxes.forEach(function (b) { if (b !== t) b.checked = false; });
+      else if (t.checked) boxes.forEach(function (b) { if (b.value === 'Everyone') b.checked = false; });
+      if (!audChosen().length) audSet(['Everyone']);
+    });
+    window.HTGAudiences = audChosen;
+
+    // Fill in from ISBN: empty boxes, and boxes still holding what an earlier lookup put there, get the details found.
+    // A box someone typed in is kept, with a button to use what was found instead.
+    var FILL = ['title', 'subtitle', 'author', 'series', 'publisher', 'published_year', 'pages', 'description', 'tags'];
+    var NAMES = { title: 'title', subtitle: 'subtitle', author: 'writer', series: 'series', publisher: 'publisher', published_year: 'year', pages: 'pages', description: 'description', tags: 'tags' };
+    var lastFill = {};
+    var listWords = function (keys) {
+      var w = keys.map(function (k) { return NAMES[k]; });
+      return w.length < 2 ? w.join('') : w.slice(0, -1).join(', ') + ' and ' + w[w.length - 1];
+    };
+    var setField = function (k, v) {
+      var f = field(k);
+      f.value = v; lastFill[k] = v;
+      f.dispatchEvent(new Event('input', { bubbles: true }));
+    };
     lookupBtn.addEventListener('click', function () {
       var isbn = field('isbn').value.trim();
       if (!isbn) { isbnStatus.textContent = 'Type the ISBN first.'; field('isbn').focus(); return; }
@@ -172,16 +305,20 @@
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (d.error) { isbnStatus.textContent = d.error; return; }
-          var filled = [];
-          ['title', 'subtitle', 'author', 'publisher', 'published_year', 'pages', 'description', 'tags'].forEach(function (k) {
+          var filled = [], kept = [];
+          FILL.forEach(function (k) {
             var f = field(k);
-            if (f && d[k] && !f.value.trim()) { f.value = d[k]; filled.push(k); }
+            if (!f) return;
+            var found = d[k] == null ? '' : String(d[k]).trim();
+            var cur = f.value.trim();
+            var typed = cur && cur !== String(lastFill[k] || '').trim();
+            if (!found) { if (cur && !typed) setField(k, ''); return; } // from an earlier lookup, for another book
+            if (cur === found) { lastFill[k] = found; return; }
+            if (typed) { kept.push(k); return; }
+            setField(k, found); filled.push(k);
           });
-          var aud = bookForm.querySelector('input[name="audience"]:checked');
-          if (d.audience && (!aud || aud.value === 'Adults' || aud.value === 'Everyone')) {
-            var pick = bookForm.querySelector('input[name="audience"][value="' + d.audience + '"]');
-            if (pick) pick.checked = true;
-          }
+          var aud = audChosen();
+          if (d.audiences && d.audiences.length && !audTouched && (aud.length !== 1 || aud[0] === 'Adults' || aud[0] === 'Everyone')) audSet(d.audiences);
           // the subjects help the category suggestions; with none chosen yet, suggest them now
           if (window.HTGCats) { window.HTGCats.subjects = d.subjects || []; if (!window.HTGCats.chosen().length) window.HTGCats.suggest(true); }
           if (d.isbn) field('isbn').value = d.isbn;
@@ -192,9 +329,18 @@
             preview.innerHTML = '';
             preview.appendChild(img);
           }
-          var msg = filled.length ? 'Filled in what we found. Check it over before saving.' : 'Found the book, but your fields were already filled in.';
-          if (d.duplicate) msg += ' Note: “' + d.duplicate.title + '” with this ISBN is already in the catalog. You may just need to add a copy.';
-          isbnStatus.textContent = msg;
+          isbnStatus.textContent = '';
+          isbnStatus.appendChild(document.createTextNode((filled.length ? 'Filled in the ' + listWords(filled) + (d.title ? ' for “' + d.title + '”' : '') + '. Check it over before saving.'
+            : 'Found “' + (d.title || 'the book') + '”.') + (d.sources ? ' (From ' + d.sources + '.)' : '')));
+          if (kept.length) {
+            var keep = {};
+            kept.forEach(function (k) { keep[k] = String(d[k]).trim(); });
+            isbnStatus.appendChild(document.createTextNode(' You had already typed the ' + listWords(kept) + ', so ' + (kept.length > 1 ? 'those were' : 'that was') + ' left alone. '));
+            var use = el('button', { type: 'button', class: 'btn btn-quiet btn-small', text: 'Use what was found instead' });
+            use.addEventListener('click', function () { Object.keys(keep).forEach(function (k) { setField(k, keep[k]); }); use.remove(); });
+            isbnStatus.appendChild(use);
+          }
+          if (d.duplicate) isbnStatus.appendChild(document.createTextNode(' Note: “' + d.duplicate.title + '” with this ISBN is already in the catalog. You may just need to add a copy.'));
         })
         .catch(function () { isbnStatus.textContent = 'The lookup didn’t work. You can type the details in yourself.'; })
         .then(function () { lookupBtn.disabled = false; });
@@ -424,9 +570,8 @@
     var val = function (n) { var f = form.querySelector('[name="' + n + '"]'); return f ? f.value : ''; };
     function suggest(auto) {
       btn.disabled = true; status.textContent = 'Looking at books like this one…';
-      var aud = form.querySelector('input[name="audience"]:checked');
       var body = { id: catBox.getAttribute('data-book-id'), title: val('title'), subtitle: val('subtitle'), author: val('author'), series: val('series'), tags: val('tags'),
-        short_description: val('short_description'), description: val('description'), publisher: val('publisher'), format: val('format'), audience: aud ? aud.value : '', subjects: api.subjects || [] };
+        short_description: val('short_description'), description: val('description'), publisher: val('publisher'), format: val('format'), audiences: window.HTGAudiences ? window.HTGAudiences() : [], subjects: api.subjects || [] };
       fetch('/admin/books/suggest-categories', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf, Accept: 'application/json' }, body: JSON.stringify(body) })
         .then(function (r) { return r.json(); })
         .then(function (d) {

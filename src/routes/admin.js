@@ -33,7 +33,8 @@ const refreshSearch = () => { suggestModel.at = 0; if (publicRoutes.clearSearchC
 
 const PAGE = 50;
 const FORMATS = ['Book', 'Paperback', 'Hardback', 'Board Book', 'Large Print', 'Workbook', 'Audiobook', 'CD', 'DVD', 'Blu-ray', 'Pamphlet', 'Other'];
-const AUDIENCES = ['Everyone', 'Adults', 'Youth', 'Children'];
+const AUD = require('../lib/audience');
+const rich = require('../lib/richtext');
 
 async function pendingCount() {
   return (await db.one("SELECT count(*)::int AS n FROM users WHERE status = 'pending'")).n;
@@ -66,7 +67,7 @@ function bookValues(body) {
     author: clean(body.author, 300) || null,
     isbn: (clean(body.isbn, 20).replace(/[^0-9Xx]/g, '').toUpperCase()) || null,
     category: clean(body.category, 80) || null,
-    audience: AUDIENCES.includes(body.audience) ? body.audience : 'Adults',
+    audience: null, // below, from the groups
     format: clean(body.format, 40) || 'Book',
     description: clean(body.description, 8000) || null,
     tags: clean(body.tags, 500) || null,
@@ -80,6 +81,13 @@ function bookValues(body) {
     subcategory: clean(body.subcategory, 200) || null,
     short_description: clean(body.short_description, 500) || null,
   };
+  // Who it's for: the boxes on the book screen (audiences[], with audience_form=1 so none ticked is clear), or one
+  // value from a list ("Adults; Teens" gives both). Nothing given: unchanged on an edit, Adults for a new book.
+  if (body.audiences !== undefined || body.audience_form === '1') v.audiences = AUD.normalize(body.audiences);
+  else if (body.audience !== undefined && String(body.audience).trim()) v.audiences = AUD.normalize(body.audience);
+  else v.audiences = null;
+  if (v.audiences && !v.audiences.length) v.audiences = body.audience_form === '1' ? ['Everyone'] : null;
+  v.audience = v.audiences ? v.audiences[0] : 'Adults';
   // Categories: the checklist on the book screen (category_paths[], with category_form=1 so "none ticked" is clear),
   // a new one typed in, or, from lists and older forms, one category (several allowed, separated by ";").
   const newName = clean(body.new_category_name, 80).replace(/[›>]/g, '-');
@@ -310,7 +318,8 @@ module.exports = (app) => {
     const book = {
       title: clean(b.title, 300), subtitle: clean(b.subtitle, 300), author: clean(b.author, 300), series: clean(b.series, 200),
       tags: clean(b.tags, 500), short_description: clean(b.short_description, 500), description: clean(b.description, 4000),
-      publisher: clean(b.publisher, 200), format: clean(b.format, 40), audience: AUDIENCES.includes(b.audience) ? b.audience : null,
+      publisher: clean(b.publisher, 200), format: clean(b.format, 40), audience: AUD.primary(b.audiences !== undefined ? b.audiences : b.audience),
+      audiences: AUD.normalize(b.audiences !== undefined ? b.audiences : b.audience),
       subjects: (Array.isArray(b.subjects) ? b.subjects : []).slice(0, 30).map((x) => clean(x, 120)).filter(Boolean),
     };
     if (!book.title && !book.description && !book.author) return res.json({ suggestions: [], note: 'Type the title (and the writer, if you know it) first.' });
@@ -353,14 +362,14 @@ module.exports = (app) => {
     const ok = signOff(req, v, null) === 'now';
     const row = await db.one(`INSERT INTO books (title, subtitle, author, isbn, category, audience, format, description, tags, publisher,
       published_year, pages, copies_total, shelf_location, call_number, series, subcategory, cover_image, cover_type, cover_status,
-      short_description, details, active, categories, categories_ok_at, categories_ok_by)
+      short_description, details, active, categories, categories_ok_at, categories_ok_by, audiences)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24::text[],
-        CASE WHEN $25::boolean THEN now() END, CASE WHEN $25::boolean THEN $26::int END) RETURNING id`,
+        CASE WHEN $25::boolean THEN now() END, CASE WHEN $25::boolean THEN $26::int END, $27::text[]) RETURNING id`,
     [v.title, v.subtitle, v.author, v.isbn, v.category, v.audience, v.format, v.description, v.tags, v.publisher,
       v.published_year, v.pages, v.copies_total, v.shelf_location, v.call_number, v.series, v.subcategory,
       cover ? cover.data : null, cover ? cover.type : null, cover ? 'done' : 'none',
       v.short_description, details ? JSON.stringify(details) : null, req.body.active_present ? req.body.active === '1' : true,
-      v.categories || [], ok, req.user.id]);
+      v.categories || [], ok, req.user.id, v.audiences || ['Adults']]);
     refreshSearch();
     security.flash(req, 'ok', `Added “${v.title}”.`);
     res.redirect(req.body.and_new ? '/admin/books/new' : `/admin/books/${row.id}/edit`);
@@ -397,14 +406,15 @@ module.exports = (app) => {
     const details = mergeDetails(existing.details, v.detailUpdates);
     const ok = signOff(req, v, existing);
     if (!v.categories) { v.categories = cats.pathsOf(existing); Object.assign(v, cats.primary(v.categories)); }
+    if (!v.audiences) { v.audiences = AUD.of(existing); if (!v.audiences.length) v.audiences = ['Adults']; v.audience = v.audiences[0]; }
     await db.query(`UPDATE books SET title=$2, subtitle=$3, author=$4, isbn=$5, category=$6, audience=$7, format=$8, description=$9, tags=$10,
       publisher=$11, published_year=$12, pages=$13, copies_total=$14, shelf_location=$15, active=$16, call_number=$17, series=$18, subcategory=$19,
       short_description=$20, details=$21, categories=$22::text[],
       categories_ok_at = CASE $23::text WHEN 'now' THEN now() WHEN 'clear' THEN NULL ELSE categories_ok_at END,
-      categories_ok_by = CASE $23::text WHEN 'now' THEN $24::int WHEN 'clear' THEN NULL ELSE categories_ok_by END, updated_at=now() WHERE id=$1`,
+      categories_ok_by = CASE $23::text WHEN 'now' THEN $24::int WHEN 'clear' THEN NULL ELSE categories_ok_by END, audiences=$25::text[], updated_at=now() WHERE id=$1`,
     [id, v.title, v.subtitle, v.author, v.isbn, v.category, v.audience, v.format, v.description, v.tags, v.publisher,
       v.published_year, v.pages, v.copies_total, v.shelf_location, req.body.active === '1', v.call_number, v.series, v.subcategory,
-      v.short_description, details ? JSON.stringify(details) : null, v.categories, ok, req.user.id]);
+      v.short_description, details ? JSON.stringify(details) : null, v.categories, ok, req.user.id, v.audiences]);
     if (req.body.notable_form === '1') {
       const kind = P.NOTABLE_KINDS.some(([k]) => k === req.body.notable_kind) ? req.body.notable_kind : null;
       await db.query('UPDATE books SET notable = $2, notable_kind = $3, notable_note = $4 WHERE id = $1', [id, !!kind, kind, kind ? clean(req.body.notable_note, 200) || null : null]);
@@ -456,19 +466,42 @@ module.exports = (app) => {
     const skipDup = req.body.skip_duplicates === '1';
     const result = { added: 0, updated: 0, skipped: [], format: 'simple', coversQueued: 0 };
 
-    if (woo.isWooExport(text)) {
+    if (woo.isWooExport(text) && req.body.formatting_only === '1') {
+      // The old export once more, only to bring back the italics and bold the first import dropped. A description is
+      // changed only while it's still word for word what that import left, so nothing anyone has edited since is touched.
+      result.format = 'formatting';
+      Object.assign(result, { restored: 0, edited: 0 });
+      const { books: rows } = woo.parseWoo(text);
+      const now = new Map((await db.many('SELECT id, legacy_id, description, short_description FROM books WHERE legacy_id IS NOT NULL')).map((r) => [r.legacy_id, r]));
+      for (const b of rows) {
+        const cur = now.get(b.legacy_id);
+        if (!cur) continue;
+        const sets = {};
+        for (const k of ['description', 'short_description']) {
+          const want = b[k];
+          if (!want || !want.includes('*') || want === cur[k]) continue;
+          if (rich.plain(want) === cur[k]) sets[k] = want; else if (cur[k]) result.edited++;
+        }
+        if (!Object.keys(sets).length) continue;
+        await db.query('UPDATE books SET description = COALESCE($2, description), short_description = COALESCE($3, short_description), updated_at = now() WHERE id = $1',
+          [cur.id, sets.description || null, sets.short_description || null]);
+        result.restored++;
+      }
+      refreshSearch();
+    } else if (woo.isWooExport(text)) {
       // The old library system's export: add new books, update ones imported before (matched by old ID).
       result.format = 'old';
       const { books: rows, skipped } = woo.parseWoo(text);
       result.skipped.push(...skipped);
       const existing = new Set((await db.many('SELECT legacy_id FROM books WHERE legacy_id IS NOT NULL')).map((r) => r.legacy_id));
       const COLS = ['legacy_id', 'call_number', 'title', 'author', 'category', 'subcategory', 'audience', 'format', 'description', 'tags',
-        'publisher', 'published_year', 'pages', 'series', 'copies_total', 'active', 'details', 'cover_source_url', 'short_description', 'categories'];
+        'publisher', 'published_year', 'pages', 'series', 'copies_total', 'active', 'details', 'cover_source_url', 'short_description', 'categories', 'audiences'];
+      const ARRAYS = new Set(['categories', 'audiences']);
       for (let i = 0; i < rows.length; i += 100) {
         const chunk = rows.slice(i, i + 100);
         const params = [];
         const values = chunk.map((b) => {
-          const ph = COLS.map((c) => { params.push(c === 'details' ? (b.details ? JSON.stringify(b.details) : null) : c === 'categories' ? b.categories || [] : b[c]); return `$${params.length}${c === 'categories' ? '::text[]' : ''}`; });
+          const ph = COLS.map((c) => { params.push(c === 'details' ? (b.details ? JSON.stringify(b.details) : null) : c === 'categories' ? b.categories || [] : c === 'audiences' ? AUD.normalize(b.audience) : b[c]); return `$${params.length}${ARRAYS.has(c) ? '::text[]' : ''}`; });
           return `(${ph.join(',')}, 'pending', ${b.categories && b.categories.length ? 'now()' : 'NULL'})`;
         });
         // The old library's categories were the librarian's own, so they count as signed off.
@@ -479,7 +512,7 @@ module.exports = (app) => {
             tags = EXCLUDED.tags, publisher = EXCLUDED.publisher, published_year = EXCLUDED.published_year, pages = EXCLUDED.pages,
             series = EXCLUDED.series, copies_total = EXCLUDED.copies_total, active = EXCLUDED.active, details = EXCLUDED.details,
             cover_source_url = EXCLUDED.cover_source_url, short_description = EXCLUDED.short_description,
-            categories = EXCLUDED.categories, categories_ok_at = EXCLUDED.categories_ok_at, categories_ok_by = NULL,
+            categories = EXCLUDED.categories, categories_ok_at = EXCLUDED.categories_ok_at, categories_ok_by = NULL, audiences = EXCLUDED.audiences,
             cover_status = CASE WHEN books.cover_image IS NULL THEN 'pending' ELSE books.cover_status END,
             updated_at = now()`, params);
         for (const b of chunk) { if (existing.has(b.legacy_id)) result.updated++; else result.added++; }
@@ -493,7 +526,8 @@ module.exports = (app) => {
         const r = rows[i];
         const { v, errors } = bookValues({ ...r, published_year: r.year || r.published_year, copies_total: r.copies || r.copies_total || 1 });
         if (errors.title) { result.skipped.push({ row: i + 2, reason: 'no title' }); continue; }
-        if (r.audience && !AUDIENCES.includes(r.audience)) v.audience = /child|kid/i.test(r.audience) ? 'Children' : /teen|youth/i.test(r.audience) ? 'Youth' : /adult/i.test(r.audience) ? 'Adults' : 'Everyone';
+        if (r.audience && !v.audiences) { v.audiences = ['Everyone']; v.audience = 'Everyone'; } // a value we don't know
+        if (!v.audiences) v.audiences = ['Adults'];
         if (skipDup) {
           const dup = v.isbn
             ? await db.one('SELECT id FROM books WHERE isbn = $1 LIMIT 1', [v.isbn])
@@ -503,10 +537,10 @@ module.exports = (app) => {
         // A list the librarian imports counts as signed off; one an assistant imports waits for the librarian.
         const ok = req.user.role === 'librarian' && !!(v.categories && v.categories.length);
         await db.query(`INSERT INTO books (title, subtitle, author, isbn, category, audience, format, description, tags, publisher, published_year, pages,
-          copies_total, shelf_location, call_number, series, subcategory, cover_status, categories, categories_ok_at, categories_ok_by)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'none',$18::text[], CASE WHEN $19::boolean THEN now() END, CASE WHEN $19::boolean THEN $20::int END)`,
+          copies_total, shelf_location, call_number, series, subcategory, cover_status, categories, categories_ok_at, categories_ok_by, audiences)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'none',$18::text[], CASE WHEN $19::boolean THEN now() END, CASE WHEN $19::boolean THEN $20::int END, $21::text[])`,
         [v.title, v.subtitle, v.author, v.isbn, v.category, v.audience, v.format, v.description, v.tags, v.publisher, v.published_year, v.pages,
-          v.copies_total, v.shelf_location, v.call_number, v.series, v.subcategory, v.categories || [], ok, req.user.id]);
+          v.copies_total, v.shelf_location, v.call_number, v.series, v.subcategory, v.categories || [], ok, req.user.id, v.audiences]);
         result.added++;
       }
       if (!rows.length) result.skipped.push({ row: 1, reason: 'no rows found. Make sure the first line has the column names.' });

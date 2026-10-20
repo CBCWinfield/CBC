@@ -5,6 +5,8 @@ const P = require('./parts');
 const t = require('../lib/time');
 const { describeDays } = require('../settings');
 const cats = require('../lib/cats');
+const rich = require('../lib/richtext');
+const AUD = require('../lib/audience');
 
 // Each of a book's categories, linked to that shelf in the catalog.
 function subjectLinks(book) {
@@ -108,7 +110,7 @@ function catalog({ user, q, category, subcategory, audience, format, available, 
 
 function bookPage({ book, user, s, myActive, canCheckout, reason, csrf }) {
   const details = [
-    ['Author', book.author], ['Series', book.series], [cats.pathsOf(book).length > 1 ? 'Subjects' : 'Subject', subjectLinks(book)], ['For', book.audience], ['Format', book.format],
+    ['Author', book.author], ['Series', book.series], [cats.pathsOf(book).length > 1 ? 'Subjects' : 'Subject', subjectLinks(book)], ['For', AUD.label(AUD.of(book))], ['Format', book.format],
     ...Object.entries(book.details || {}).filter(([k]) => k !== 'Artist' || book.author !== book.details.Artist),
     ['Publisher', book.publisher], ['Published', book.published_year], ['Pages', book.pages], ['ISBN', book.isbn], ['Library no.', book.call_number],
   ].filter(([, v]) => v);
@@ -120,7 +122,7 @@ function bookPage({ book, user, s, myActive, canCheckout, reason, csrf }) {
       ${P.notableBadge(book, 'lg')}
       <h1>${book.title}</h1>
       ${book.subtitle ? html`<p class="subtitle">${book.subtitle}</p>` : ''}
-      ${book.short_description ? html`<p class="short-desc">${book.short_description}</p>` : ''}
+      ${book.short_description ? html`<p class="short-desc">${rich.inline(book.short_description)}</p>` : ''}
       ${book.author ? html`<p class="byline">by <a href="/catalog?q=${encodeURIComponent(book.author)}">${book.author}</a></p>` : ''}
       <div class="checkout-box">
         ${P.availability(book)}
@@ -128,7 +130,7 @@ function bookPage({ book, user, s, myActive, canCheckout, reason, csrf }) {
           : canCheckout ? html`<a class="btn" href="/books/${book.id}/checkout">Check out</a><p class="muted small">Choose a pickup time on the next step.</p>`
           : html`<p class="muted">${reason}</p>`}
       </div>
-      ${book.description ? html`<div class="description">${book.description.split(/\n{2,}/).map((p) => html`<p>${p}</p>`)}</div>` : ''}
+      ${book.description ? html`<div class="description">${rich.paragraphs(book.description)}</div>` : ''}
       <dl class="facts">${details.map(([k, v]) => html`<dt>${k}</dt><dd>${v}</dd>`)}</dl>
       ${user && user.role !== 'patron' && user.status === 'approved' ? html`<form method="post" action="/admin/books/${book.id}/notable" class="notable-toggle">${P.csrfField(csrf)}
         <label for="nk-${book.id}" class="small"><strong>${P.TROPHY} Badge</strong> <span class="muted">(staff only)</span></label>

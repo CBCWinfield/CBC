@@ -10,6 +10,7 @@
 //   [{ path, strength: 'strong' | 'likely' | 'maybe', score, reasons: [text] }], best first.
 
 const cats = require('./cats');
+const AUD = require('./audience');
 
 const STOP = new Set(('a an and are as at be been but by for from has have he her his how i in into is it its me my no not of on or our she so ' +
   'than that the their them then there these they this to too up us was we were what when where which who why will with you your book books ' +
@@ -60,7 +61,7 @@ function build(rows) {
       addCount(bySeries, seriesKey(b.series), p);
       addCount(byPublisher, norm(b.publisher), p);
       addCount(byFormat, b.format, p);
-      addCount(byAudience, b.audience, p);
+      for (const a of AUD.of(b)) addCount(byAudience, a, p);
     }
   }
   // per-book counts for authors and series (a book in two categories counts once in n)
@@ -69,7 +70,7 @@ function build(rows) {
   fixN(bySeries, (b) => [seriesKey(b.series)].filter(Boolean));
   fixN(byPublisher, (b) => [norm(b.publisher)].filter(Boolean));
   fixN(byFormat, (b) => [b.format].filter(Boolean));
-  fixN(byAudience, (b) => [b.audience].filter(Boolean));
+  fixN(byAudience, (b) => AUD.of(b));
 
   const N = docs.length;
   const idf = (t) => Math.log(1 + N / (1 + (df.get(t) || 0)));
@@ -153,8 +154,9 @@ function suggest(model, book, { exclude, saved } = {}) {
   const pm = book.publisher && model.byPublisher.get(norm(book.publisher));
   if (pm && pm.books >= 3) for (const [p, sh] of shares(pm, saved && norm(saved.publisher) === norm(book.publisher))) if (sh >= 0.5) add(p, 1.2 * sh, `${pct(sh)} of the library’s ${book.publisher} books are in “${leaf(p)}”`);
   // who it's for: only to lean toward children's or teens' shelves
-  const am = (book.audience === 'Children' || book.audience === 'Youth') && model.byAudience.get(book.audience);
-  if (am && am.books >= 5) for (const [p, sh] of shares(am, saved && saved.audience === book.audience)) if (sh >= 0.25) add(p, 0.6 * sh, null);
+  const groups = AUD.of(book), young = groups.includes('Adults') ? null : groups.includes('Children') ? 'Children' : groups.includes('Youth') ? 'Youth' : null;
+  const am = young && model.byAudience.get(young);
+  if (am && am.books >= 5) for (const [p, sh] of shares(am, saved && AUD.of(saved).includes(young))) if (sh >= 0.25) add(p, 0.6 * sh, null);
 
   // Group by subject, then the best specific shelf inside each.
   const tops = new Map();
