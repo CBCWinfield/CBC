@@ -90,6 +90,9 @@ function staffPhoto(key) {
 
 const NAV = [['/about', 'About'], ['/ministries', 'Ministries'], ['/sermons', 'Sermons'], ['/events', 'Events'], ['/staff', 'Staff'], ['/connect', 'Connect']];
 
+// The header's Library button on phones: an open book (the word shows beside it when there's room).
+const BOOK = raw('<svg class="nav-pill-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6.5C10.3 5.2 7.9 4.5 4 4.5v13c3.9 0 6.3.7 8 2 1.7-1.3 4.1-2 8-2v-13c-3.9 0-6.3.7-8 2z"/><path d="M12 6.5v13"/></svg>');
+
 // The main menu, with the same dropdowns the old site had. Links starting with "app:" go to the church app;
 // "ext" (another site) and "tab" (the church library and family check-in) open in a new tab.
 const MENU = [
@@ -154,7 +157,7 @@ ${Share.tags({
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png?v=2">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=28">
+<link rel="stylesheet" href="/css/site.css?v=29">
 <script src="/js/site.js?v=7" defer></script>
 ${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? raw('<script src="/js/story.js?v=2" defer></script>') : ''}
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
@@ -171,11 +174,13 @@ ${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? ra
       </details>` : html`<a class="navlink" href="${link(m.href)}"${m.ext ? raw(' target="_blank" rel="noopener"') : cur(m.href)}>${m.label}</a>`))}
     </div>
     <div class="nav-cta">
+      <a class="btn btn-ghost btn-sm" href="${appUrl('/')}">Library</a>
       <a class="btn btn-ghost btn-sm" href="${appUrl('/checkin/home')}">Prayer Wall</a>
       <a class="btn btn-ghost btn-sm" href="${href('/give')}">Give</a>
       <a class="btn btn-gold btn-sm" href="${href('/visit')}">Plan a visit</a>
     </div>
-    <a class="nav-prayer" href="${appUrl('/checkin/home')}">Prayer<span class="nav-prayer-wall">&nbsp;Wall</span></a>
+    <a class="nav-pill nav-library" href="${appUrl('/')}" aria-label="Library">${BOOK}<span class="nav-pill-word">Library</span></a>
+    <a class="nav-pill nav-prayer" href="${appUrl('/checkin/home')}">Prayer<span class="nav-prayer-wall">&nbsp;Wall</span></a>
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu"><span class="menu-lines" aria-hidden="true"></span><span class="visually-hidden">Menu</span></button>
   </nav>
   <div class="hero-in" id="top">
