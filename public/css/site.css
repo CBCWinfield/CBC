@@ -68,13 +68,17 @@ a.card:hover, .card-lift:hover { transform: translateY(-4px); box-shadow: 0 30px
 .navlink { color: #E8E2CF; text-decoration: none; font-weight: 500; font-size: 15px; padding: 10px 4px; }
 .navlink:hover, .navlink[aria-current="page"] { color: var(--gold); }
 .nav-cta { display: flex; align-items: center; gap: 10px; }
-/* on phones: the Prayer Wall stays in reach, next to the menu button */
-.nav-prayer { display: none; align-items: center; height: 44px; padding: 0 14px; margin-left: auto; margin-right: -12px; border-radius: 999px;
+/* four buttons (Library, Prayer Wall, Give, Plan a visit) beside the six links: a little tighter than other buttons */
+.nav { gap: 20px; } .navlinks { gap: 18px; } .nav-cta .btn-sm { padding: 0 16px; }
+@media (max-width: 1300px) { .brand img { width: 170px; } }
+/* on phones: the Library and the Prayer Wall stay in reach, next to the menu button */
+.nav-pill { display: none; align-items: center; justify-content: center; height: 44px; padding: 0 14px; border-radius: 999px;
   border: 1.5px solid rgba(245, 241, 230, .35); color: #F5F1E6; font-weight: 600; font-size: 15px; text-decoration: none; white-space: nowrap; }
-.nav-prayer:hover, .nav-prayer:focus-visible { border-color: var(--gold); color: var(--gold); }
-.brand, .menu-btn, .nav-prayer { flex: none; }
-@media (max-width: 380px) { .nav { gap: 12px; } .brand img { width: 128px; } .nav-prayer { padding: 0 12px; margin-right: -2px; font-size: 14px; } }
-@media (max-width: 345px) { .nav-prayer-wall { display: none; } }
+.nav-pill:hover, .nav-pill:focus-visible { border-color: var(--gold); color: var(--gold); }
+.nav-library { margin-left: auto; margin-right: -14px; }
+.nav-prayer { margin-right: -12px; }
+.nav-pill-ico { display: none; flex: none; }
+.brand, .menu-btn, .nav-pill { flex: none; }
 .menu-btn { display: none; width: 48px; height: 48px; border-radius: 14px; border: 1.5px solid rgba(245, 241, 230, .3); background: transparent; cursor: pointer; position: relative; }
 .menu-lines, .menu-lines::before, .menu-lines::after { position: absolute; left: 12px; width: 22px; height: 2px; border-radius: 2px; background: var(--cream); transition: transform .2s ease; }
 .menu-lines { top: 22px; } .menu-lines::before { content: ''; left: 0; top: -7px; } .menu-lines::after { content: ''; left: 0; top: 7px; }
@@ -402,11 +406,11 @@ body.menu-open { overflow: hidden; }
   .min-row.flip > :first-child { order: 0; }
   .aside-gold { position: static; }
 }
-/* the full menu needs about 1,230px (logo, six links, three buttons); narrower screens use the menu button */
+/* the full menu needs about 1,210px (logo, six links, four buttons); narrower screens use the menu button */
 @media (max-width: 1240px) {
   .navlinks, .nav-cta { display: none !important; }
   .menu-btn { display: block; }
-  .nav-prayer { display: inline-flex; }
+  .nav-pill { display: inline-flex; }
 }
 @media (max-width: 640px) {
   :root { --pad: 20px; }
@@ -576,3 +580,21 @@ body.menu-open { overflow: hidden; }
 .nursery-note { margin-top: 18px; color: var(--green); }
 .times-note { grid-column: 1 / -1; margin: -6px 0 0; color: var(--gold); font-size: 15px; letter-spacing: .02em; }
 .check-row { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; } .check-row input { width: auto; margin-top: 4px; }
+
+/* Phones: logo, Library (a book), Prayer Wall and the menu button on one line, down to 320px wide.
+   (Last in the file so it wins over the 640px rules.) */
+@media (max-width: 480px) {
+  .nav { gap: 8px; }
+  .brand img { width: 136px; }
+  .nav-library, .nav-prayer { margin-right: 0; }
+  .nav-library { width: 44px; padding: 0; }
+  .nav-library .nav-pill-ico { display: block; }
+  .nav-library .nav-pill-word { display: none; }
+  .nav-prayer { padding: 0 12px; font-size: 14px; }
+  .menu-btn { width: 44px; height: 44px; }
+  .menu-btn .menu-lines { left: 10px; top: 20px; }
+}
+@media (max-width: 388px) { .brand img { width: 122px; } }
+@media (max-width: 374px) { .brand img { width: 110px; } }
+@media (max-width: 362px) { .nav-prayer-wall { display: none; } }
+@media (max-width: 342px) { .nav { padding-left: 16px; padding-right: 16px; } .brand img { width: 104px; } }

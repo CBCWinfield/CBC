@@ -19,6 +19,9 @@ const form = (o) => ({ method: 'POST', headers: { 'Content-Type': 'application/x
   const links = r.body.match(/href="[^"]*\/checkin\/home"[^>]*>Prayer/g) || [];
   assert.ok(links.length >= 3, 'header button, phone pill and menu: ' + links.length);
   console.log('ok   the homepage has the Prayer Wall button');
+  assert.match(r.body, /<a class="btn btn-ghost btn-sm" href="[^"]*\/">Library<\/a>/, 'a Library button in the header');
+  assert.match(r.body, /<a class="nav-pill nav-library" href="[^"]*\/" aria-label="Library">/, 'and on phones');
+  console.log('ok   the header has a Library button');
 
   // signed out, the dashboard asks to sign in and comes back to it
   r = await go('/checkin/home');
