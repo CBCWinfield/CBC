@@ -19,9 +19,27 @@ const form = (o) => ({ method: 'POST', headers: { 'Content-Type': 'application/x
   const links = r.body.match(/href="[^"]*\/checkin\/home"[^>]*>Prayer/g) || [];
   assert.ok(links.length >= 3, 'header button, phone pill and menu: ' + links.length);
   console.log('ok   the homepage has the Prayer Wall button');
-  assert.match(r.body, /<a class="btn btn-ghost btn-sm" href="[^"]*\/">Library<\/a>/, 'a Library button in the header');
-  assert.match(r.body, /<a class="nav-pill nav-library" href="[^"]*\/" aria-label="Library">/, 'and on phones');
-  console.log('ok   the header has a Library button');
+  assert.match(r.body, /<a class="btn btn-ghost btn-sm" href="\/site\/library">Library<\/a>/, 'a Library button in the header');
+  assert.match(r.body, /<a class="nav-pill nav-library" href="\/site\/library" aria-label="Library">/, 'and on phones');
+  assert.doesNotMatch(r.body, /href="https:\/\/admin\.cbcwinfield\.org\/"/, 'no link goes to the old library address');
+  assert.strictEqual((r.body.match(/href="\/site\/library"/g) || []).length, 5, 'header button, phone button, menu, phone menu and footer');
+  console.log('ok   the header has a Library button, to /library');
+
+  // cbcwinfield.org/library opens the library, page and search included
+  // (fetch can't set the Host header, so a plain request, as a browser on cbcwinfield.org would send)
+  const raw = (p, host) => new Promise((ok, bad) => {
+    const u = new URL(BASE + p);
+    require('node:http').get({ hostname: u.hostname, port: u.port, path: u.pathname + u.search, headers: host ? { Host: host } : {} }, (res) => { res.resume(); ok({ status: res.statusCode, location: res.headers.location || null }); }).on('error', bad);
+  });
+  let x = await raw('/site/library');
+  assert.strictEqual(x.status, 302); assert.match(x.location, /^https?:\/\/[^/]+\/$/);
+  const app = x.location.replace(/\/$/, '');
+  assert.deepStrictEqual(await raw('/library', 'cbcwinfield.org'), { status: 302, location: `${app}/` });
+  assert.deepStrictEqual(await raw('/library/', 'www.cbcwinfield.org'), { status: 302, location: `${app}/` });
+  assert.deepStrictEqual(await raw('/library/books/12/checkout?from=site', 'cbcwinfield.org'), { status: 302, location: `${app}/books/12/checkout?from=site` });
+  assert.deepStrictEqual(await raw('/library/catalog?audience=Children&q=noah', 'cbcwinfield.org'), { status: 302, location: `${app}/catalog?audience=Children&q=noah` });
+  assert.strictEqual((await raw('/libraryx', 'cbcwinfield.org')).status, 404);
+  console.log('ok   cbcwinfield.org/library opens the library (and /library/... the same page there)');
 
   // signed out, the dashboard asks to sign in and comes back to it
   r = await go('/checkin/home');

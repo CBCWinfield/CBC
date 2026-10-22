@@ -95,6 +95,7 @@ const BOOK = raw('<svg class="nav-pill-ico" width="18" height="18" viewBox="0 0 
 
 // The main menu, with the same dropdowns the old site had. Links starting with "app:" go to the church app;
 // "ext" (another site) and "tab" (the church library and family check-in) open in a new tab.
+// The library's address is cbcwinfield.org/library (site/routes.js sends it on to the library itself).
 const MENU = [
   { label: 'About', href: '/about' },
   { label: 'Ministries', href: '/ministries', groups: [
@@ -109,7 +110,7 @@ const MENU = [
   ] },
   { label: 'Sermons', href: '/sermons' },
   { label: 'Resources', href: '/events', groups: [
-    { title: 'At Central', links: [['app:/', 'Church library', 'tab'], ['/events', 'Events'], ['shop', 'Church shop', 'ext'], ['app:/checkin/family', 'Family check-in', 'tab']] },
+    { title: 'At Central', links: [['/library', 'Church library', 'tab'], ['/events', 'Events'], ['shop', 'Church shop', 'ext'], ['app:/checkin/family', 'Family check-in', 'tab']] },
     { title: 'Southern Baptist partners', links: [
       ['https://www.kncsb.org/', 'Church Forward', 'ext'],
       ['https://www.sbc.net/', 'Southern Baptist Convention', 'ext'],
@@ -174,12 +175,12 @@ ${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? ra
       </details>` : html`<a class="navlink" href="${link(m.href)}"${m.ext ? raw(' target="_blank" rel="noopener"') : cur(m.href)}>${m.label}</a>`))}
     </div>
     <div class="nav-cta">
-      <a class="btn btn-ghost btn-sm" href="${appUrl('/')}">Library</a>
+      <a class="btn btn-ghost btn-sm" href="${href('/library')}">Library</a>
       <a class="btn btn-ghost btn-sm" href="${appUrl('/checkin/home')}">Prayer Wall</a>
       <a class="btn btn-ghost btn-sm" href="${href('/give')}">Give</a>
       <a class="btn btn-gold btn-sm" href="${href('/visit')}">Plan a visit</a>
     </div>
-    <a class="nav-pill nav-library" href="${appUrl('/')}" aria-label="Library">${BOOK}<span class="nav-pill-word">Library</span></a>
+    <a class="nav-pill nav-library" href="${href('/library')}" aria-label="Library">${BOOK}<span class="nav-pill-word">Library</span></a>
     <a class="nav-pill nav-prayer" href="${appUrl('/checkin/home')}">Prayer<span class="nav-prayer-wall">&nbsp;Wall</span></a>
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu"><span class="menu-lines" aria-hidden="true"></span><span class="visually-hidden">Menu</span></button>
   </nav>
@@ -226,7 +227,7 @@ ${body}
     <div>
       <h2>Explore</h2>
       <a href="${href('/sermons')}">Sermons</a><a href="${href('/give')}">Give</a><a href="${appUrl('/checkin/prayer')}">Prayer Wall</a>
-      <a href="${CHURCH.shop}" target="_blank" rel="noopener">Church Shop</a><a href="${appUrl('/')}" target="_blank" rel="noopener">Library</a>
+      <a href="${CHURCH.shop}" target="_blank" rel="noopener">Church Shop</a><a href="${href('/library')}" target="_blank" rel="noopener">Library</a>
       <a href="${CHURCH.youtube}" target="_blank" rel="noopener">YouTube</a><a href="${CHURCH.facebook}" target="_blank" rel="noopener">Facebook</a>
     </div>
   </div>

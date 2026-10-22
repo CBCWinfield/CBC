@@ -96,6 +96,16 @@ module.exports = (app) => {
   });
   app.get('/site/event-details/:slug', async (req, res) => res.redirect(`${baseFor(req)}/events`));
 
+  // cbcwinfield.org/library: the church library's own address. The library runs in the church app, so this sends
+  // the visitor there, page and search included (cbcwinfield.org/library/books/12 → the app's /books/12).
+  // A temporary redirect (302), so the library could later move here for real without browsers remembering this.
+  const toLibrary = async (req, res) => {
+    const rest = req.path.replace(/^\/site\/library/, '').replace(/\/{2,}/g, '/') || '/';
+    const q = String(req.url || '').split('?')[1];
+    res.redirect(`${C.CHURCH.app}${rest}${q ? `?${q}` : ''}`, 302);
+  };
+  for (const p of ['', '/:a', '/:a/:b', '/:a/:b/:c', '/:a/:b/:c/:d']) app.get(`/site/library${p}`, toLibrary);
+
   app.post('/site/connect', security.rateLimit('site-connect', { max: 10, windowMs: 3600000 }), async (req, res) => {
     const base = baseFor(req);
     if (req.body.website) return res.redirect(`${base}/connect?sent=1`); // bots fill the hidden field
