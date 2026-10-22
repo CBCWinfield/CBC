@@ -41,6 +41,39 @@ const form = (o) => ({ method: 'POST', headers: { 'Content-Type': 'application/x
   assert.strictEqual((await raw('/libraryx', 'cbcwinfield.org')).status, 404);
   console.log('ok   cbcwinfield.org/library opens the library (and /library/... the same page there)');
 
+  // shared, it looks like the library does: its picture, name and welcome line, under cbcwinfield.org/library
+  const page = (p, ua) => new Promise((ok, bad) => {
+    const u = new URL(BASE + p);
+    require('node:http').get({ hostname: u.hostname, port: u.port, path: u.pathname + u.search, headers: { Host: 'cbcwinfield.org', 'User-Agent': ua } }, (res) => {
+      let body = ''; res.on('data', (c) => { body += c; }); res.on('end', () => ok({ status: res.statusCode, location: res.headers.location || null, body }));
+    }).on('error', bad);
+  });
+  const FB = 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)';
+  const IMESSAGE = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/601.2.4 (KHTML, like Gecko) Version/9.0.1 Safari/601.2.4 facebookexternalhit/1.1 Facebot Twitterbot/1.0';
+  const lib = await go('/');
+  const libTitle = (/<meta property="og:title" content="([^"]+)"/.exec(lib.body) || [])[1];
+  const libImage = (/<meta property="og:image" content="([^"]+)"/.exec(lib.body) || [])[1];
+  for (const ua of [FB, IMESSAGE, 'Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)']) {
+    const pv = await page('/library', ua);
+    assert.strictEqual(pv.status, 200, ua);
+    assert.match(pv.body, /<meta property="og:url" content="https:\/\/cbcwinfield\.org\/library">/);
+    assert.strictEqual((/<meta property="og:title" content="([^"]+)"/.exec(pv.body) || [])[1], libTitle, 'the library’s own name');
+    assert.ok(libImage.endsWith((/<meta property="og:image" content="([^"]+)"/.exec(pv.body) || [])[1].replace(/^https?:\/\/[^/]+/, '')), 'the library’s own picture');
+    assert.match(pv.body, /<meta property="og:image" content="https:\/\/[^"]+\/img\/share\/library\.png\?v=\d+">/);
+    assert.match(pv.body, /<meta name="twitter:card" content="summary_large_image">/);
+    assert.match(pv.body, /<meta http-equiv="refresh" content="0; url=https?:\/\/[^"]+\/">/);
+  }
+  // a book: its own title and cover picture
+  const bookId = (/href="\/books\/(\d+)"/.exec((await go('/catalog')).body) || [])[1];
+  const bp = await page(`/library/books/${bookId}`, FB);
+  const bookPage = await go(`/books/${bookId}`);
+  assert.strictEqual((/<meta property="og:title" content="([^"]+)"/.exec(bp.body) || [])[1], (/<meta property="og:title" content="([^"]+)"/.exec(bookPage.body) || [])[1]);
+  assert.match(bp.body, new RegExp(`<meta property="og:url" content="https://cbcwinfield\\.org/library/books/${bookId}">`));
+  // people still go straight to the library
+  const person = await page('/library', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1');
+  assert.strictEqual(person.status, 302);
+  console.log('ok   a shared cbcwinfield.org/library link previews like the library (and a book like the book)');
+
   // signed out, the dashboard asks to sign in and comes back to it
   r = await go('/checkin/home');
   assert.match(r.body, /Join your church family in prayer/);
