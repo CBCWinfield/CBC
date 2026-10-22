@@ -3,7 +3,8 @@
 const db = require('../db');
 const security = require('../lib/security');
 const mailer = require('../lib/mailer');
-const { esc } = require('../lib/html');
+const { esc, html } = require('../lib/html');
+const Share = require('../share');
 const { pushTo } = require('../notify');
 const { users } = require('../models');
 const { clean } = require('../routes/guards');
@@ -99,10 +100,34 @@ module.exports = (app) => {
   // cbcwinfield.org/library: the church library's own address. The library runs in the church app, so this sends
   // the visitor there, page and search included (cbcwinfield.org/library/books/12 → the app's /books/12).
   // A temporary redirect (302), so the library could later move here for real without browsers remembering this.
+  // Link previews (Facebook, Messages, Slack...) instead get a page with the library's own preview (its picture,
+  // name and welcome line, or a book's cover and title) under this address, so a shared link shows cbcwinfield.org.
+  const PREVIEW_BOTS = /facebookexternalhit|facebot|twitterbot|slackbot|linkedinbot|whatsapp|telegrambot|discordbot|pinterest|redditbot|skypeuripreview|embedly|iframely|vkshare|mastodon|bluesky|cardyb|xing-contenttabreceiver|google-pagerenderer|microsoftpreview/i;
   const toLibrary = async (req, res) => {
     const rest = req.path.replace(/^\/site\/library/, '').replace(/\/{2,}/g, '/') || '/';
     const q = String(req.url || '').split('?')[1];
-    res.redirect(`${C.CHURCH.app}${rest}${q ? `?${q}` : ''}`, 302);
+    const target = `${C.CHURCH.app}${rest}${q ? `?${q}` : ''}`;
+    if (!PREVIEW_BOTS.test(String(req.headers['user-agent'] || ''))) return res.redirect(target, 302);
+    const s = req.settings || {};
+    const name = s.library_name || 'Central Baptist Church Public Christian Library';
+    let title = name, description = String(s.welcome_message || '').slice(0, 220), pic = Share.picture('library');
+    const id = (/^\/books\/(\d+)/.exec(rest) || [])[1];
+    const book = id ? await require('../models').books.get(Number(id)).catch(() => null) : null;
+    if (book && book.active) {
+      title = `${book.title}${book.author ? ` by ${book.author}` : ''} | ${s.short_name || 'CBC Library'}`;
+      description = (book.short_description || (book.description ? require('../lib/richtext').plain(book.description) : '') || description).slice(0, 220);
+      pic = Share.bookPicture(book);
+    }
+    const url = `${C.CHURCH.site}/library${rest === '/' ? '' : rest}`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.send(html`<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title}</title>
+<meta name="description" content="${description}">
+${Share.tags({ title, description, siteName: name, base: C.CHURCH.app, url, pic })}
+<meta http-equiv="refresh" content="0; url=${target}">
+</head><body><p><a href="${target}">${name}</a></p></body></html>`.toString());
   };
   for (const p of ['', '/:a', '/:a/:b', '/:a/:b/:c', '/:a/:b/:c/:d']) app.get(`/site/library${p}`, toLibrary);
 
