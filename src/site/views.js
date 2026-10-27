@@ -158,7 +158,7 @@ ${Share.tags({
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png?v=2">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=29">
+<link rel="stylesheet" href="/css/site.css?v=30">
 <script src="/js/site.js?v=7" defer></script>
 ${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? raw('<script src="/js/story.js?v=2" defer></script>') : ''}
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
@@ -304,7 +304,7 @@ function home({ latest, base }) {
 
   <section id="visit" class="wrap sec">
     <div class="sec-head">
-      <div><p class="eyebrow">Your first Sunday</p><h2 class="h-sec" style="max-width:14ch">We saved you a seat.</h2></div>
+      <div><p class="eyebrow">Your first Sunday</p><h2 class="h-sec mw-14ch">We saved you a seat.</h2></div>
       <a class="btn btn-dark" href="${base}/visit">Let us know you’re coming</a>
     </div>
     <div class="grid3">
@@ -316,7 +316,7 @@ function home({ latest, base }) {
 
   <section id="ministries" class="wrap sec">
     <p class="eyebrow">Ministries</p>
-    <h2 class="h-sec" style="max-width:18ch">Every age, growing in Christ together.</h2>
+    <h2 class="h-sec mw-18ch">Every age, growing in Christ together.</h2>
     <div class="grid3">
       <a class="card min-card" href="${base}/ministries#kids"><div class="min-art min-kids"><span>Kids</span></div><div class="min-body"><p class="tag">Nursery – 5th grade</p><p>A safe, fun place to learn about Jesus. Sundays at 9:30 and 10:45, and Wednesday nights.</p></div></a>
       <a class="card min-card" href="${base}/ministries#students"><div class="min-art min-teens"><span>Teens</span></div><div class="min-body"><p class="tag">Middle &amp; high school</p><p>Central Teens meets Wednesdays at 6:00 to dig into Scripture and build real friendships.</p></div></a>
@@ -424,7 +424,7 @@ function about({ base }) {
     body: html`<section class="wrap sec"><div class="two">
       <div class="prose">
         <p class="eyebrow">Who we are</p>
-        <h2 style="margin-top:14px">A Southern Baptist church family in Winfield, Kansas.</h2>
+        <h2 class="h-tight">A Southern Baptist church family in Winfield, Kansas.</h2>
         <p>We are a Southern Baptist congregation committed to sound doctrine and to a warm, welcoming place where people of every age can know Jesus and grow in Him.</p>
         <p>Our mission is simple: to make disciples of Jesus Christ here in Winfield and beyond, as a body of believers unified to worship God, to show Christ-like love for each other, and to serve our community and our world through the power of the Holy Spirit.</p>
         <div class="values">
@@ -434,12 +434,12 @@ function about({ base }) {
           <div class="card value"><h3>Mission</h3><p>From Winfield to Juárez and around the world, we go and give.</p></div>
         </div>
       </div>
-      <aside class="aside-gold"><p class="eyebrow" style="color:#10261A">1951 — ${new Date().getFullYear()}</p><p class="big">${years()}</p><p>years of God’s faithfulness on Wheat Road.</p><a class="btn btn-dark" href="${base}/visit">Come see for yourself</a></aside>
+      <aside class="aside-gold"><p class="eyebrow eyebrow-ink">1951 — ${new Date().getFullYear()}</p><p class="big">${years()}</p><p>years of God’s faithfulness on Wheat Road.</p><a class="btn btn-dark" href="${base}/visit">Come see for yourself</a></aside>
     </div></section>
     <section class="wrap sec-tight" id="family">
-      <div class="prose" style="max-width:760px">
+      <div class="prose prose-wide">
         <p class="eyebrow">Our Baptist family</p>
-        <h2 style="margin-top:14px">An independent church that <span class="serif">cooperates.</span></h2>
+        <h2 class="h-tight">An independent church that <span class="serif">cooperates.</span></h2>
         <p>Like every Southern Baptist church, Central is self-governing. Our members, under the lordship of Christ, call our pastor, set our budget, and make our own decisions. No denomination owns our building or directs our church.</p>
         <p>We also believe churches can do more together than apart. So we gladly cooperate with other Southern Baptist churches, close to home and around the world, to train leaders, plant churches, help in disasters, and send missionaries.</p>
       </div>
@@ -448,9 +448,9 @@ function about({ base }) {
       </div>
     </section>
     <section class="wrap sec sec-last" id="beliefs">
-      <div class="prose" style="max-width:760px">
+      <div class="prose prose-wide">
         <p class="eyebrow">What we believe</p>
-        <h2 style="margin-top:14px">The Cross is <span class="serif">Central.</span></h2>
+        <h2 class="h-tight">The Cross is <span class="serif">Central.</span></h2>
         <p>We believe in Jesus Christ, the eternal Son of God, who died on the cross of Calvary for our sins and rose again. Our church affirms <a href="https://bfm.sbc.net/bfm2000/" target="_blank" rel="noopener">The Baptist Faith and Message 2000</a>, the statement of faith shared by Southern Baptist churches. Here it is in brief.</p>
       </div>
       <div class="beliefs">
@@ -486,7 +486,7 @@ function ministries({ base, logos = () => null }) {
       <div class="min-logo">${art[m.key]}</div>
       <div class="prose">
         <p class="eyebrow">${m.ages}</p>
-        <h2 style="margin-top:14px">${m.name}</h2>
+        <h2 class="h-tight">${m.name}</h2>
         <p>${m.body}</p>
         <ul class="ticks">${m.times.map((x) => html`<li>${x}</li>`)}</ul>
         ${m.safe ? html`<p class="note">${m.safe}</p>` : ''}
@@ -495,12 +495,12 @@ function ministries({ base, logos = () => null }) {
       </div>
     </div></section>`)}
     <section class="wrap sec">
-      <div class="sec-head"><div><p class="eyebrow">Missions &amp; outreach</p><h2 class="h-sec" style="max-width:16ch">Serving beyond our walls.</h2></div><p class="lead fam-lead">Here is how Central takes part in each ministry we support, from a baby bottle on the kitchen counter to missionaries among the nations.</p></div>
+      <div class="sec-head"><div><p class="eyebrow">Missions &amp; outreach</p><h2 class="h-sec mw-16ch">Serving beyond our walls.</h2></div><p class="lead fam-lead">Here is how Central takes part in each ministry we support, from a baby bottle on the kitchen counter to missionaries among the nations.</p></div>
       <div class="out-list">${C.OUTREACH.map((o) => outreachRow(o, logos(o.key), base))}</div>
       <div class="btn-row out-go"><a class="btn btn-dark" href="${base}/serve">Find a place to serve</a></div>
     </section>
     <section class="wrap sec sec-last" id="partners">
-      <div class="sec-head"><div><p class="eyebrow">Our Southern Baptist family</p><h2 class="h-sec" style="max-width:15ch">The family we <span class="serif">belong to.</span></h2></div><p class="lead fam-lead">Central is a Southern Baptist church. We belong to these fellowships of churches, and we pray, give, and serve together through them.</p></div>
+      <div class="sec-head"><div><p class="eyebrow">Our Southern Baptist family</p><h2 class="h-sec mw-15ch">The family we <span class="serif">belong to.</span></h2></div><p class="lead fam-lead">Central is a Southern Baptist church. We belong to these fellowships of churches, and we pray, give, and serve together through them.</p></div>
       <div class="fam">${C.FAMILY.map((f) => familyCard(f, logos(f.key), base))}</div>
     </section>`,
   };
@@ -520,7 +520,7 @@ function sermons({ videos }) {
       <div class="player">${player(latest)}</div>
     </div></section>
     ${rest.length ? html`<section class="wrap sec sec-last"><p class="eyebrow">Recent messages</p><h2 class="h-sec">Catch up from anywhere.</h2>
-      <div class="grid3" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:36px 24px">${rest.map((v) => player(v, { small: true }))}</div></section>` : html`<div class="sec-last"></div>`}`,
+      <div class="grid3 grid-videos">${rest.map((v) => player(v, { small: true }))}</div></section>` : html`<div class="sec-last"></div>`}`,
   };
 }
 
@@ -543,8 +543,8 @@ function events({ base, reel, slides = [], longDate, keyOf }) {
     ${ev.length ? html`<section class="wrap sec-tight">${eventCard(ev[0], base, { detail: true })}</section>` : ''}
     ${ev.length > 1 ? html`<section class="wrap sec-tight event-list">${ev.slice(1).map((e) => eventCard(e, base, { detail: true }))}</section>` : ''}
     <section class="wrap sec sec-last"><div class="two">
-      <div><p class="eyebrow">Every week</p><h2 class="h-sec" style="margin-bottom:24px">Join us any week.</h2>${schedule()}</div>
-      <aside class="card form-card"><h2>Questions about an event?</h2><p>Call <a href="${CHURCH.phoneHref}">${CHURCH.phone}</a> or send us a note and we’ll get back to you.</p><p style="margin-top:22px"><a class="btn btn-dark" href="${base}/connect">Contact us</a></p></aside>
+      <div><p class="eyebrow">Every week</p><h2 class="h-sec h-sec-spaced">Join us any week.</h2>${schedule()}</div>
+      <aside class="card form-card"><h2>Questions about an event?</h2><p>Call <a href="${CHURCH.phoneHref}">${CHURCH.phone}</a> or send us a note and we’ll get back to you.</p><p class="form-card-action"><a class="btn btn-dark" href="${base}/connect">Contact us</a></p></aside>
     </div></section>`,
   };
 }
@@ -628,7 +628,7 @@ function ride({ csrf, base, sent, values = {}, error }) {
     head: { kicker: 'Bus ministry', title: html`Need a ride to <span class="serif">church?</span>`, lead: 'For decades our bus and van ministry has brought kids and students to church, and to the Lord Jesus. We’d love to pick you up.' },
     body: html`<section class="wrap sec-tight sec-last"><div class="two">
       <div class="prose">
-        <div class="card min-photo" style="margin-bottom:28px"><img src="/img/bus.webp" alt="The Central Baptist Church bus" width="1200" height="900"></div>
+        <div class="card min-photo min-photo-lead"><img src="/img/bus.webp" alt="The Central Baptist Church bus" width="1200" height="900"></div>
         <h2>How it works</h2>
         <ul class="ticks">
           <li><strong>${C.BUS.day}:</strong> the bus picks up ${C.BUS.pickup} and drops off ${C.BUS.dropoff}.</li>
@@ -644,7 +644,7 @@ function ride({ csrf, base, sent, values = {}, error }) {
           <label>Parent or guardian name<input name="name" required autocomplete="name" value="${values.name || ''}"></label>
           <div class="row2"><label>Phone<input name="phone" type="tel" required autocomplete="tel" value="${values.phone || ''}"></label>
           <label>Email<input name="email" type="email" required autocomplete="email" value="${values.email || ''}"></label></div>
-          <p class="small muted" style="margin:-4px 0 4px">We’ll also email you a short form about your kids (allergies, emergency contacts and permission) so we can care for them well.</p>
+          <p class="small muted form-note">We’ll also email you a short form about your kids (allergies, emergency contacts and permission) so we can care for them well.</p>
           <label>Pickup address<input name="address" required autocomplete="street-address" value="${values.address || ''}" placeholder="Street address"></label>
           <label>Town<input name="town" autocomplete="address-level2" value="${values.town || 'Winfield'}"></label>
           <label>Who needs a ride? <span class="opt">(names and ages)</span><textarea name="riders" rows="3" required placeholder="Emma, 9&#10;Noah, 13">${values.riders || ''}</textarea></label>

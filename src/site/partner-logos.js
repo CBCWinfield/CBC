@@ -1,8 +1,6 @@
 'use strict';
-// Partner logos for the bottom of the Ministries page. Each one is copied from the organization's own
-// website: the file listed below or, if that file has moved, the logo on their homepage. It is trimmed,
-// sized, and served from this site (/partner-logos/<key>.png), so visitors don't load images from other
-// sites. Logos refresh once a day; one that can't be fetched shows as the organization's name until it can.
+// Partner logos for the Ministries page, copied daily from each organization's website, trimmed, and served at
+// /partner-logos/<key>.png. A logo that can't be fetched shows as the organization's name.
 const crypto = require('crypto');
 
 let sharp = null;
@@ -172,4 +170,4 @@ function info(key) {
 }
 const file = (key) => cache.get(key) || null;
 
-module.exports = { SOURCES, start, refresh, info, file, findLogos, toneOf, normalize, _cache: cache };
+module.exports = { SOURCES, start, refresh, info, file, findLogos, toneOf, normalize };

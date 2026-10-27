@@ -848,4 +848,5 @@ a.ci-name-link:hover { text-decoration: underline; }
 .match-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
 .match-pick { display: flex; gap: 12px; align-items: flex-start; width: 100%; cursor: pointer; }
 .match-pick input { margin-top: 4px; }
+.match-new { margin-top: 10px; }
 form[hidden], .ci-form[hidden] { display: none !important; }

@@ -1,9 +1,6 @@
 'use strict';
-// Checks that sign-ups use a real, working email address and a real phone number.
-//   Email: proper format with a real ending (.com, .org, .net, .us, .edu ...), no throwaway inboxes, common typos caught
-//          ("gmial.com"), and the domain must actually accept mail (DNS MX lookup).
-//   Phone: a real 10-digit US number (area code and exchange can't start with 0 or 1, no 555-01xx movie numbers, no 111-1111).
-// If DNS can't be reached at all, the email isn't rejected for it (a network hiccup shouldn't block a family signing up).
+// Checks that sign-ups use a real email (format, known typos, no throwaway inboxes, MX record) and a real US phone number.
+// If DNS can't be reached, the email isn't rejected for it.
 const dns = require('node:dns').promises;
 
 const PROD = process.env.NODE_ENV === 'production';

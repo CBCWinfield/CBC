@@ -115,17 +115,6 @@ const FAMILY = [
     body: 'The news service of the Southern Baptist Convention: stories of missions, churches, and Southern Baptist life from around the world.' },
 ];
 
-// Central Gear (Fourthwall shop), as featured on the homepage design.
-const SHOP = [
-  { name: 'Black Hoodie', sub: 'White drawstring · Central Baptist', price: '$34.06', img: 'hoodie.webp', slug: 'black-hoodie-white-string-central-baptist-church', feature: true },
-  { name: 'Black T-Shirt', sub: 'Central Teens', price: '$14.75', img: 'tee-teens.webp', slug: 'black-t-shirt-central-teens', mult: true },
-  { name: 'Black T-Shirt', sub: 'Central Kids', price: '$14.75', img: 'tee-kids.webp', slug: 'black-t-shirt-central-kids', mult: true },
-  { name: 'Black T-Shirt', sub: 'Central Baptist Church', price: '$14.75', img: 'tee-central.webp', slug: 'black-t-shirt-central-baptist-church' },
-  { name: 'Adidas Polo', sub: 'Central Baptist Church', price: '$43.80', img: 'polo.webp', slug: 'polo-shirt-adidas-central-baptist-church' },
-  { name: 'Baby Outfit', sub: 'Central Kids', price: '$16.52', img: 'baby.webp', slug: 'central-kids-baby-outfit', mult: true },
-  { name: 'Under Armour Hat', sub: 'Central Baptist Church', price: '$28.99', img: 'hat-front.webp', back: 'hat-back.webp', slug: 'underarmour-hat' },
-];
-
 const SERVE_AREAS = ['Nursery & Kids', 'Central Teens', 'Bus ministry (driving or riding along)', 'Worship & music', 'Sound, video & livestream', 'Greeting & hospitality', 'Building & grounds', 'Church library', 'Missions & outreach', 'Wherever I’m needed'];
 
-module.exports = { BUS, CHURCH, TIMES, MINISTRIES, OUTREACH, STAFF, DEACONS, EVENTS, PARTNERS, FAMILY, SHOP, SERVE_AREAS };
+module.exports = { BUS, CHURCH, TIMES, MINISTRIES, OUTREACH, STAFF, DEACONS, EVENTS, PARTNERS, FAMILY, SERVE_AREAS };

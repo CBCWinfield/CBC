@@ -1,10 +1,6 @@
 'use strict';
-// One import tool for every list in the admin portal: upload a CSV (or paste rows), see what was added
-// and what was skipped and why. Each list has a downloadable template with the right columns.
-//   /checkin/import/incidents      past incident reports (co-admins)
-//   /checkin/import/families       families and kids for check-in (ministry leaders and up)
-//   /checkin/import/leads          contacts / visitor leads, added to Website messages (co-admins)
-//   /checkin/import/announcements  announcement slides (church admins and library staff)
+// CSV imports for the admin portal (/checkin/import/<key>: incidents, families, leads, announcements), each with a
+// template and a report of what was added or skipped.
 const db = require('../db');
 const { HttpError } = require('../lib/http');
 const { html, raw } = require('../lib/html');
@@ -191,9 +187,6 @@ function page({ key, def, csrf, result }) {
   </form>`;
 }
 
-// A small "Import" button for list pages.
-const importButton = (key, label = 'Import a list') => html`<a class="btn btn-quiet btn-small" href="/checkin/import/${key}">⇪ ${label}</a>`;
-
 function routes(app, { render, personValues, savePerson }) {
   const get = (req) => {
     const def = LISTS[req.params.key];
@@ -223,4 +216,4 @@ function routes(app, { render, personValues, savePerson }) {
   });
 }
 
-module.exports = { routes, importButton, dateKey, timeHm };
+module.exports = { routes, dateKey, timeHm };

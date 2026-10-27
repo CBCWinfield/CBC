@@ -1,9 +1,5 @@
 'use strict';
-// Required training for the check-in team: practical, factual lessons about
-// working with children and teens, drawn from recognized child-protection and
-// medical organizations. Every video was checked to be the publisher's own and
-// embeddable; sources are cited at the bottom of each lesson.
-//
+// Required child-safety training for the check-in team, drawn from recognized child-protection and medical sources.
 // Changing a module's `version` makes everyone take that lesson again.
 
 const SRC = {

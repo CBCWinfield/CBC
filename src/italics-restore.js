@@ -1,13 +1,7 @@
 'use strict';
-// Once, by itself: bring back the italics and bold that the first import of the old library dropped from the
-// descriptions (mostly book titles). The descriptions are read again from the old website's public shop listing
-// (WooCommerce's Store API), or from data/old-library-export.csv when that file is in the code. A description is
-// changed only when it still says exactly what the old site says (lib/richtext carryMarks): the stars are added in
-// the same places and nothing else changes, so anything edited here since is left alone.
-//
-// The result is kept in settings (key italics_restore) and shown on Books > Import. If the old site can't be
-// reached, it tries again at a later start-up (at most every 6 hours, 10 times). The same thing can be done by hand
-// on the Import page with the old export file and "only bring back the italics and bold" ticked.
+// One-time restore of the italics and bold the first import dropped from descriptions, read from the old site's
+// WooCommerce Store API (or data/old-library-export.csv). Only descriptions that still match the old copy get stars.
+// The result is kept in settings (key italics_restore); a failed read is retried at start-up (at most every 6 hours, 10 times).
 const fs = require('fs');
 const path = require('path');
 const woo = require('./lib/woo');

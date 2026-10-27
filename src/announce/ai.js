@@ -1,9 +1,7 @@
 'use strict';
-// AI helpers for announcements, using OpenAI (one key does both the writing and the voice).
-//   OPENAI_API_KEY   turns on AI copy polishing, narration scripts and the spoken voiceover
-//   OPENAI_TEXT_MODEL (default gpt-4o-mini), OPENAI_TTS_MODEL (default gpt-4o-mini-tts), TTS_VOICE (default "sage")
-// Without a key everything still works: slides use the words as typed, and reels are built without a voice.
-// AI_FAKE=1 (tests) returns predictable text and a generated tone instead of calling the internet.
+// OpenAI helpers for announcements: copy polishing, narration scripts and voiceover (OPENAI_API_KEY; models via
+// OPENAI_TEXT_MODEL, OPENAI_TTS_MODEL, TTS_VOICE). Without a key, slides use the typed words and reels have no voice.
+// AI_FAKE=1 (tests) returns predictable text and a generated tone.
 
 const KEY = () => process.env.OPENAI_API_KEY || '';
 const FAKE = () => process.env.AI_FAKE === '1';

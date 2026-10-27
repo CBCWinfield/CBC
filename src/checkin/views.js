@@ -56,7 +56,7 @@ ${Share.tags(tab === 'prayer'
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=Montserrat:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="/css/style.css?v=9">
-<link rel="stylesheet" href="/css/checkin.css?v=18">
+<link rel="stylesheet" href="/css/checkin.css?v=19">
 <script src="/js/app.js?v=9" defer></script>
 <script src="/js/checkin.js?v=8" defer></script>
 </head>
@@ -401,7 +401,7 @@ function familyMatchPage({ csrf, matches = [], requested }) {
       <ul class="match-list">${matches.map((m) => html`<li><label class="match-pick"><input type="radio" name="choice" value="${m.id}" required> <span><strong>${m.name}</strong>${m.city ? html` · ${m.city}` : ''}<br><span class="small muted">${m.members}</span></span></label></li>`)}</ul>
       <button class="btn" type="submit">Yes, that’s my family</button>
     </form>
-    <form method="post" action="/checkin/welcome-match" style="margin-top:10px">${csrfField(csrf)}<input type="hidden" name="choice" value="new"><button class="btn btn-quiet" type="submit">None of these. Start a new family</button></form>
+    <form method="post" action="/checkin/welcome-match" class="match-new">${csrfField(csrf)}<input type="hidden" name="choice" value="new"><button class="btn btn-quiet" type="submit">None of these. Start a new family</button></form>
   </section>`;
 }
 

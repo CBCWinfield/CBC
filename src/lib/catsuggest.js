@@ -1,13 +1,7 @@
 'use strict';
-// Suggests categories for a book from the library's own catalog, so the suggestions are always categories the
-// library already uses. Nothing is sent anywhere. Each suggestion says why, for the librarian to check:
-//   - the same series, or the same writer, is usually filed the same way;
-//   - books with similar words (title, subtitle, tags, description) and where they are filed;
-//   - a category's own name in the book's title, tags or subjects ("Marriage", "Grief", "Mystery");
-//   - the format and the publisher, when the library files them one way (DVDs, Love Inspired novels);
-//   - the subjects found by the ISBN lookup.
-// build(rows) makes the model from books.forSuggest(); suggest(model, book) returns
-//   [{ path, strength: 'strong' | 'likely' | 'maybe', score, reasons: [text] }], best first.
+// Suggests categories for a book from the library's own catalog (same series or writer, similar words, category names,
+// format, publisher, ISBN subjects), each with its reasons. Nothing is sent anywhere.
+// build(rows) makes the model from books.forSuggest(); suggest(model, book) returns [{ path, strength, score, reasons }], best first.
 
 const cats = require('./cats');
 const AUD = require('./audience');
