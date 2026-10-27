@@ -94,7 +94,7 @@ test('Ask: topics, authors, typos, audiences and library questions', () => {
   const keep = ask('how long can I keep a book', books, DEFAULTS);
   assert.match(keep.answer, /14 days/);
   assert.strictEqual(keep.books.length, 0);
-  assert.match(ask('zzzz qqqq', books, DEFAULTS).answer, /couldn't find/);
+  assert.match(ask('zzzz qqqq', books, DEFAULTS).answer, /couldn’t find/);
 });
 
 // ---- Old library (WooCommerce) export ----

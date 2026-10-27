@@ -34,6 +34,11 @@ h1, h2, h3, p { margin: 0; }
 .eyebrow { color: var(--green); font-weight: 700; font-size: 13.5px; letter-spacing: 0.12em; text-transform: uppercase; }
 .eyebrow-gold { color: var(--gold); }
 .h-sec { margin-top: 16px; font-family: var(--disp); letter-spacing: -0.02em; font-weight: 750; font-size: clamp(38px, 4.4vw, 60px); line-height: 1.08; }
+.h-sec-spaced { margin-bottom: 24px; }
+.mw-14ch { max-width: 14ch; }
+.mw-15ch { max-width: 15ch; }
+.mw-16ch { max-width: 16ch; }
+.mw-18ch { max-width: 18ch; }
 .lead { margin-top: 18px; font-size: 19px; line-height: 1.7; color: var(--muted); max-width: 520px; }
 .muted { color: var(--muted); }
 .sec { padding-top: clamp(96px, 11vw, 160px); }
@@ -242,6 +247,7 @@ body.menu-open { overflow: hidden; }
 
 /* Grids of cards */
 .grid3 { margin-top: 56px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.grid3.grid-videos { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 36px 24px; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
 .step { padding: 36px; }
 .step-n { font-family: var(--disp); font-weight: 800; font-size: 15px; color: var(--gold-dk); }
@@ -309,6 +315,8 @@ body.menu-open { overflow: hidden; }
 .prose { max-width: 680px; }
 .prose h2 { font-family: var(--disp); letter-spacing: -0.016em; font-weight: 800; font-size: clamp(28px, 3vw, 38px); line-height: 1.12; margin: 48px 0 14px; }
 .prose h2:first-child { margin-top: 0; }
+.prose h2.h-tight { margin-top: 14px; }
+.prose.prose-wide { max-width: 760px; }
 .prose h3 { font-family: var(--disp); letter-spacing: -0.02em; font-weight: 700; font-size: 21px; margin: 22px 0 6px; }
 .prose p { line-height: 1.75; color: var(--muted); margin-bottom: 16px; font-size: 18px; }
 .prose a { font-weight: 600; }
@@ -325,6 +333,7 @@ body.menu-open { overflow: hidden; }
 .aside-gold { border-radius: 32px; background: var(--gold); color: var(--deep); padding: clamp(32px, 4vw, 48px); position: sticky; top: 24px; overflow: hidden; }
 .aside-gold .big { font-family: var(--disp); letter-spacing: -0.025em; font-weight: 800; font-size: clamp(96px, 12vw, 150px); line-height: .85; }
 .aside-gold p { margin-top: 12px; font-size: 18px; line-height: 1.5; color: #2B3A26; }
+.aside-gold .eyebrow-ink { color: #10261A; }
 .aside-gold .btn { margin-top: 26px; }
 .values { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
 .value { padding: 26px; }
@@ -374,10 +383,12 @@ body.menu-open { overflow: hidden; }
 .form-card { padding: clamp(28px, 3.5vw, 44px); }
 .form-card h2 { font-family: var(--disp); letter-spacing: -0.016em; font-weight: 800; font-size: clamp(26px, 2.6vw, 34px); line-height: 1.12; }
 .form-card > p { margin-top: 10px; color: var(--muted); line-height: 1.6; }
+.form-card > p.form-card-action { margin-top: 22px; }
 .form { display: grid; gap: 16px; margin-top: 24px; }
 .form label { display: block; font-weight: 600; font-size: 15px; }
 .form label > input, .form label > select, .form label > textarea { display: block; margin-top: 8px; width: 100%; min-height: 52px; padding: 13px 16px; border: 1.5px solid rgba(16, 38, 26, .15); border-radius: 16px; font: 400 16px/1.4 var(--sans); color: var(--ink); background: #fff; }
 .form textarea { resize: vertical; }
+.form .form-note { margin: -4px 0 4px; }
 .form input:focus, .form select:focus, .form textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 4px rgba(226, 190, 102, .35); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .opt { font-weight: 400; color: var(--muted-2); }
@@ -572,6 +583,7 @@ body.menu-open { overflow: hidden; }
 .nowrap { white-space: nowrap; }
 .min-photo { overflow: hidden; border-radius: 32px; padding: 0; }
 .min-photo img { display: block; width: 100%; height: auto; }
+.min-photo-lead { margin-bottom: 28px; }
 .btn-ghost-dark { color: var(--deep); border: 1.5px solid rgba(16, 38, 26, .25); background: transparent; }
 .btn-ghost-dark:hover { border-color: var(--deep); }
 @media (max-width: 760px) { .bus-band { grid-template-columns: 1fr; } .bus-band img { min-height: 0; aspect-ratio: 4 / 3; } }

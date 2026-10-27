@@ -1,10 +1,7 @@
 'use strict';
-// Draws the pictures links show when they're shared or previewed (Facebook, Messages, email, Slack): 1200 x 630.
-//   node scripts/share-image.js              → every picture in public/img/share/
-//   node scripts/share-image.js visit give   → just those
-// Needs Playwright (with Chromium) where Node can find it, e.g. NODE_PATH=$(npm root -g) node scripts/share-image.js
-// Every picture uses the website's own fonts, colors, wheat field and cross, with art that fits its page.
-// After changing a picture, bump its ?v= in src/share.js so Facebook fetches the new one.
+// Draws the 1200x630 link-preview pictures in public/img/share/ (all, or the ones named on the command line).
+// Needs Playwright: NODE_PATH=$(npm root -g) node scripts/share-image.js [visit give ...]
+// After changing a picture, bump V in src/share.js so Facebook fetches the new one.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');

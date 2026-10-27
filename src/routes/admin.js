@@ -581,7 +581,7 @@ module.exports = (app) => {
     const u = await db.one("UPDATE users SET status = 'denied' WHERE id = $1 AND status = 'pending' AND role = 'patron' RETURNING *", [intParam(req.params.id)]);
     if (u) {
       notify.denied(u);
-      security.flash(req, 'ok', `${fullName(u)}'s application was denied.`);
+      security.flash(req, 'ok', `${fullName(u)}’s application was denied.`);
     }
     res.redirect('/admin/applications');
   });
@@ -717,7 +717,7 @@ module.exports = (app) => {
     }
     const rest = ['phone', 'address', 'city', 'state', 'zip'].map((k) => clean(req.body[k], 120) || null);
     await db.query('UPDATE users SET first_name=$2, last_name=$3, email=$4, phone=$5, address=$6, city=$7, state=$8, zip=$9, library_code=$10 WHERE id=$1', [id, first, last, email, ...rest, code]);
-    security.flash(req, 'ok', before && code !== before.library_code ? `Details saved. ${first}'s library code is now ${code}; let them know.` : 'Details saved.');
+    security.flash(req, 'ok', before && code !== before.library_code ? `Details saved. ${first}’s library code is now ${code}; let them know.` : 'Details saved.');
     res.redirect(`/admin/patrons/${id}`);
   });
 
@@ -725,14 +725,14 @@ module.exports = (app) => {
     const id = intParam(req.params.id);
     if (id === req.user.id) throw new HttpError(400, 'You can’t pause your own account.');
     const u = await db.one("UPDATE users SET status = 'paused' WHERE id = $1 AND status = 'approved' RETURNING *", [id]);
-    if (u) { notify.paused(u); security.flash(req, 'ok', `${fullName(u)}'s account is paused.`); }
+    if (u) { notify.paused(u); security.flash(req, 'ok', `${fullName(u)}’s account is paused.`); }
     res.redirect(`/admin/patrons/${id}`);
   });
 
   app.post('/admin/patrons/:id/resume', requireLibrarian, async (req, res) => {
     const id = intParam(req.params.id);
     const u = await db.one("UPDATE users SET status = 'approved' WHERE id = $1 AND status = 'paused' RETURNING *", [id]);
-    if (u) { notify.resumed(u); security.flash(req, 'ok', `${fullName(u)}'s account is active again. We emailed them.`); }
+    if (u) { notify.resumed(u); security.flash(req, 'ok', `${fullName(u)}’s account is active again. We emailed them.`); }
     res.redirect(`/admin/patrons/${id}`);
   });
 
@@ -761,7 +761,7 @@ module.exports = (app) => {
     }
     await db.query("DELETE FROM sessions WHERE data->>'userId' = $1", [String(id)]);
     await db.query('DELETE FROM users WHERE id = $1', [id]);
-    security.flash(req, 'ok', `${fullName(u)}'s account was deleted.`);
+    security.flash(req, 'ok', `${fullName(u)}’s account was deleted.`);
     res.redirect('/admin/patrons');
   });
 
@@ -798,7 +798,7 @@ module.exports = (app) => {
       return res.redirect('/admin/staff');
     }
     if (await users.byEmail(email)) {
-      security.flash(req, 'error', 'That email already has an account. Use “Give an existing patron staff access”.');
+      security.flash(req, 'error', 'That email already has an account. Use “Give an existing patron staff access.”');
       return res.redirect('/admin/staff');
     }
     const temp = security.tempPassword();

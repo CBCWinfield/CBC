@@ -27,9 +27,9 @@ const DEFS = [
 
 Thank you for signing up with Central Baptist Church. Your account is ready, and you can open it anytime with the button below.
 
-From your account you can keep your family's details up to date, add allergies and emergency contacts for your children, sign permission forms, message other families, and choose which notifications you get.
+From your account you can keep your family’s details up to date, add allergies and emergency contacts for your children, sign permission forms, message other families, and choose which notifications you get.
 
-We're so glad you're here. If you have any questions, reply to this email or give the church office a call.`,
+We’re so glad you’re here. If you have any questions, reply to this email or give the church office a call.`,
   },
   { key: 'checkin_notice', title: 'Check-in notice to parents', when: 'When a child is checked in. Parents can turn it off for themselves in Settings.' },
   { key: 'pickup_notice', title: 'Pickup notice to parents', when: 'When a child is checked out or picked up.' },
@@ -52,7 +52,7 @@ Everyone at Central wants to wish {child_name} a very happy birthday! We thank G
     subject: 'Happy birthday, {first_name}!',
     body: `Happy birthday, {first_name}!
 
-Your church family at Central is thankful for you and praying God's blessing over you this year.
+Your church family at Central is thankful for you and praying God’s blessing over you this year.
 
 "The LORD bless you and keep you; the LORD make his face to shine upon you and be gracious to you." (Numbers 6:24-25)`,
   },

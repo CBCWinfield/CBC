@@ -1,8 +1,6 @@
 'use strict';
-// Background cover finder. Works through books marked "pending":
-//   1. download the photo from the old library site (cover_source_url), then
-//   2. if there is none, or it fails, search Open Library by title and author.
-// Photos are shrunk to about 400×600 so 3,000+ covers fit easily in the database.
+// Background cover finder for books marked "pending": the old library site's photo, else an Open Library search.
+// Photos are shrunk to about 400x600.
 const db = require('./db');
 const { fetchCover, searchCover } = require('./lib/isbn');
 

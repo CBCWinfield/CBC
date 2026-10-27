@@ -5,9 +5,9 @@ const t = require('../lib/time');
 const { hours } = require('./public');
 
 function statusNote(user, s) {
-  if (user.status === 'pending') return html`<div class="card card-note"><h2>Your application is waiting for approval</h2><p>The librarian will review it soon. We'll email your library code to ${user.email} once you're approved. You can browse the catalog in the meantime.</p></div>`;
+  if (user.status === 'pending') return html`<div class="card card-note"><h2>Your application is waiting for approval</h2><p>The librarian will review it soon. We’ll email your library code to ${user.email} once you’re approved. You can browse the catalog in the meantime.</p></div>`;
   if (user.status === 'paused') return html`<div class="card card-warn"><h2>Your account is paused</h2><p>New checkouts are turned off for now. Please contact the librarian${s.contact_phone ? ` at ${s.contact_phone}` : ''} with any questions.</p></div>`;
-  if (user.status === 'denied') return html`<div class="card card-warn"><h2>Your application wasn't approved</h2><p>Please contact the church office if you have questions.</p></div>`;
+  if (user.status === 'denied') return html`<div class="card card-warn"><h2>Your application wasn’t approved</h2><p>Please contact the church office if you have questions.</p></div>`;
   return '';
 }
 

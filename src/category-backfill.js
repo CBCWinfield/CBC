@@ -1,16 +1,7 @@
 'use strict';
-// Once, after books could have several categories (migration 18): give the books from the old library every
-// category they had there, and suggest categories for the old books that have none.
-//
-// 1. The old library's import kept one category per book (the most specific), but it also wrote the name of each
-//    of the book's other categories into its tags ("historical fiction, romance"). Those names are matched back
-//    to the library's own categories, so "Christian Fiction › 1800's American West" with the tags "historical
-//    fiction, romance" gets "Christian Fiction › Historical Fiction" and "Christian Fiction › Romance" back. These
-//    were the old library's own categories, so they stay signed off.
-// 2. Old books with no category get the suggester's confident picks (lib/catsuggest), not signed off, so the
-//    librarian sees them under Books > Show: Categories to sign off.
-// Only books nobody has changed since are touched (one category, signed off by the old library, or none), and
-// each book is done once (category_backfill), so nothing a librarian removes later comes back.
+// One-time backfill (migration 18): gives old-library books the extra categories their import stored in tags, and
+// suggests categories for old books with none. Only untouched books are changed, each once (table category_backfill),
+// so nothing a librarian removes comes back.
 const cats = require('./lib/cats');
 const catSuggest = require('./lib/catsuggest');
 

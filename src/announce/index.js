@@ -1,8 +1,6 @@
 'use strict';
-// Announcements: admins type an announcement, AI polishes the words, and it becomes a branded slide.
-// Each week, one click builds a narrated "announcement reel" (title card → slides newest to oldest → end card),
-// recorded into a video right in the admin's browser. An admin or the librarian approves it, and the
-// website's Events & Announcements page shows it.
+// Announcements: typed text becomes a branded slide; each week a narrated reel of the slides is recorded in the
+// admin's browser and, once approved, shown on the website's Events page.
 const db = require('../db');
 const security = require('../lib/security');
 const { HttpError } = require('../lib/http');

@@ -1,13 +1,6 @@
 'use strict';
-// Which homepage banner shows, by the calendar (Central time):
-//   Oct 27 – Nov 27   fall       leaves falling
-//   Nov 28 – Nov 30   winter     snow
-//   December          christmas  snow, and the Christmas story plays in place of the cross
-//   Jan 1 – Mar 14    winter     snow
-//   Mar 15 – May 1    easter     the wheat, and the crucifixion and resurrection play in place of the cross
-//   May 2 – Oct 26    wheat      the swaying wheat field
-// SITE_SEASON can pin one (wheat, fall, winter, christmas, easter); "auto" or unset follows the calendar.
-// Anyone can preview a banner with ?season=fall (or winter, christmas, easter, wheat).
+// Which homepage banner shows (fall, winter, christmas, easter, wheat), by the Central-time calendar in README.md.
+// SITE_SEASON pins one ("auto" or unset follows the calendar); ?season=<name> previews one.
 
 const SEASONS = ['wheat', 'fall', 'winter', 'christmas', 'easter'];
 

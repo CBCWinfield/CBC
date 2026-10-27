@@ -42,7 +42,7 @@ function coRow(c, csrf, { now = new Date(), showPickup = false } = {}) {
     ${showPickup ? html`<td>${t.fmtTime(c.pickup_at)}</td>` : html`<td>${c.status === 'checked_out' ? html`${t.fmtDate(c.picked_up_at)}<br><span class="small muted">${daysOut} day${daysOut === 1 ? '' : 's'} out</span>` : c.status === 'reserved' ? t.fmtDateTime(c.pickup_at) : t.fmtDate(c.returned_at || c.cancelled_at)}</td>`}
     <td>${c.due_at && c.status === 'checked_out' ? t.fmtDate(c.due_at) : ''} <span class="badge badge-${st.cls}">${st.label}</span></td>
     <td class="actions">
-      ${c.status === 'reserved' ? html`${btnForm(`/admin/checkouts/${c.id}/pickup`, csrf, 'Picked up')} ${btnForm(`/admin/checkouts/${c.id}/cancel`, csrf, 'Cancel hold', { cls: 'btn-quiet btn-small', confirm: `Cancel ${c.first_name}'s hold on “${c.title}”? They'll get an email.` })}` : ''}
+      ${c.status === 'reserved' ? html`${btnForm(`/admin/checkouts/${c.id}/pickup`, csrf, 'Picked up')} ${btnForm(`/admin/checkouts/${c.id}/cancel`, csrf, 'Cancel hold', { cls: 'btn-quiet btn-small', confirm: `Cancel ${c.first_name}’s hold on “${c.title}”? They’ll get an email.` })}` : ''}
       ${c.status === 'checked_out' ? html`${btnForm(`/admin/checkouts/${c.id}/return`, csrf, 'Returned')} ${btnForm(`/admin/checkouts/${c.id}/extend`, csrf, 'Extend', { cls: 'btn-quiet btn-small' })}` : ''}
     </td>
   </tr>`;
@@ -92,7 +92,7 @@ function home({ user, csrf, todays, overdue, pending, counts, s, now, confirm = 
     ${isLib(user) && catReview ? html`<a class="btn btn-quiet" href="/admin/books?show=review">${catReview} book${catReview > 1 ? 's' : ''}: categories to sign off</a>` : ''}
   </div>
   <section class="admin-section">
-    <h2>Today's pickups</h2>
+    <h2>Today’s pickups</h2>
     ${todays.length ? coTable(todays, csrf, { showPickup: true, now }) : html`<p class="muted">No pickups scheduled today.</p>`}
   </section>
   <section class="admin-section">
@@ -130,7 +130,7 @@ function deskCheckout({ csrf, books, error, values = {} }) {
   ${error ? html`<p class="flash flash-error" role="alert">${error}</p>` : ''}
   <form method="post" action="/admin/checkouts/new" class="stack narrow-form">
     ${P.csrfField(csrf)}
-    <div class="field"><label for="dc-patron">Patron's library code or email</label><input id="dc-patron" name="patron" required value="${values.patron || ''}" placeholder="CBC-1234"></div>
+    <div class="field"><label for="dc-patron">Patron’s library code or email</label><input id="dc-patron" name="patron" required value="${values.patron || ''}" placeholder="CBC-1234"></div>
     <div class="field"><label for="dc-book">Book</label>
       <input id="dc-book" name="book" list="dc-books" required value="${values.book || ''}" placeholder="Start typing a title">
       <datalist id="dc-books">${books.map((b) => html`<option value="#${b.id} ${b.title}${b.author ? ' by ' + b.author : ''}">${b.available > 0 ? `${b.available} available` : 'checked out'}</option>`)}</datalist>
@@ -361,7 +361,7 @@ function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = 
 
       ${!isNew ? html`<section class="box">
         <h2 class="box-head">Recent checkouts</h2>
-        <div class="box-body">${history.length ? coTable(history, csrf, { history: true }) : html`<p class="muted">This book hasn't been checked out yet.</p>`}</div>
+        <div class="box-body">${history.length ? coTable(history, csrf, { history: true }) : html`<p class="muted">This book hasn’t been checked out yet.</p>`}</div>
       </section>` : ''}
     </div>
 
@@ -414,7 +414,7 @@ function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = 
       </section>
 
       <section class="box">
-        <h2 class="box-head">Who it's for</h2>
+        <h2 class="box-head">Who it’s for</h2>
         <div class="box-body audience-choices" id="audience-choices">
           <input type="hidden" name="audience_form" value="1">
           ${AUD.ALL.map((a) => html`<label class="check"><input type="checkbox" name="audiences[]" value="${a}"${checked(audiences.includes(a))}> ${AUD.FORM_LABEL[a]}</label>`)}
@@ -460,10 +460,10 @@ function importPage({ csrf, result, italics }) {
   const fromSite = it && it.source && /^https?:/.test(it.source) ? it.source.replace(/^https?:\/\//, '') : 'the old library export file';
   return html`
   ${it && it.done_at ? html`<div class="card card-note" role="status"><p><strong>Italics from the old library:</strong> on ${t.fmtDate(new Date(it.done_at))}, the italics and bold the first import left out were brought back in ${Number(it.restored || 0).toLocaleString()} book${it.restored === 1 ? '' : 's'}’ descriptions, from ${fromSite}.${it.edited ? ` ${it.edited} description${it.edited === 1 ? ' had' : 's had'} been edited here since, so ${it.edited === 1 ? 'it was' : 'they were'} left as ${it.edited === 1 ? 'it is' : 'they are'}.` : ''}</p></div>`
-    : it && it.error ? html`<div class="card card-note" role="status"><p><strong>Italics from the old library:</strong> the library tried to read the old descriptions from ${fromSite} to bring back their italics, but couldn’t (${it.error}). It will try again later${it.tries >= 10 ? ' no more' : ''}. You can also upload the old export file below with “only bring back the italics and bold” ticked.</p></div>` : ''}
+    : it && it.error ? html`<div class="card card-note" role="status"><p><strong>Italics from the old library:</strong> the library tried to read the old descriptions from ${fromSite} to bring back their italics, but couldn’t (${it.error}). ${it.tries >= 10 ? 'It won’t try again.' : 'It will try again later.'} You can also upload the old export file below with “only bring back the italics and bold” ticked.</p></div>` : ''}
   <p>Add many books at once from a spreadsheet saved as <strong>CSV</strong> (in Excel or Google Sheets: File › Download › CSV).</p>
   <ul class="small">
-    <li><strong>The old library system's export</strong> (the WooCommerce “product export” file) works as-is. Books are matched by their old ID, so importing the same file again updates them instead of adding duplicates. Cover photos are copied from the old site automatically.</li>
+    <li><strong>The old library system’s export</strong> (the WooCommerce “product export” file) works as-is. Books are matched by their old ID, so importing the same file again updates them instead of adding duplicates. Cover photos are copied from the old site automatically.</li>
     <li>For a simple list, <a href="/admin/books/template.csv" download>download the template</a>. Only <em>title</em> is required. Columns: title, subtitle, author, isbn, category (several separated by semicolons, like <em>Children's Books; Bible Stories</em>), audience, format, description, tags, publisher, year, pages, copies, shelf.</li>
   </ul>
   ${result ? html`<div class="card card-note" role="status">
@@ -508,7 +508,7 @@ function applicationsPage({ csrf, pending, recent, s }) {
       </dl>
       <div class="actions">
         ${btnForm(`/admin/applications/${u.id}/approve`, csrf, 'Approve', { cls: '' })}
-        ${btnForm(`/admin/applications/${u.id}/deny`, csrf, 'Deny', { cls: 'btn-quiet', confirm: `Deny ${fullName(u)}'s application? They'll get a polite email.` })}
+        ${btnForm(`/admin/applications/${u.id}/deny`, csrf, 'Deny', { cls: 'btn-quiet', confirm: `Deny ${fullName(u)}’s application? They’ll get a polite email.` })}
       </div>
     </li>`)}</ul>` : html`<p class="muted">No applications are waiting.</p>`}
   </section>
@@ -556,12 +556,12 @@ function patronPage({ user, patron, items, csrf, tempPassword, now }) {
     <div><h1>${fullName(patron)}</h1><p>${P.statusBadge(patron.status)} ${patron.role !== 'patron' ? html`<span class="badge badge-info">${P.roleLabel(patron.role)}</span>` : ''}</p></div>
     ${patron.library_code ? html`<div class="code-card"><span>Library code</span><strong>${patron.library_code}</strong></div>` : ''}
   </div>
-  ${tempPassword ? html`<div class="card card-note" role="status"><h2>Temporary password</h2><p>Give ${patron.first_name} this password: <strong class="code-big">${tempPassword}</strong></p><p class="small">We also emailed ${patron.first_name} a link to choose their own password (good for 7 days). Share this temporary password only if the email doesn’t arrive. This is the only time it's shown.</p></div>` : ''}
+  ${tempPassword ? html`<div class="card card-note" role="status"><h2>Temporary password</h2><p>Give ${patron.first_name} this password: <strong class="code-big">${tempPassword}</strong></p><p class="small">We also emailed ${patron.first_name} a link to choose their own password (good for 7 days). Share this temporary password only if the email doesn’t arrive. This is the only time it’s shown.</p></div>` : ''}
   ${lib ? html`<div class="quick">
     ${patron.status === 'pending' || patron.status === 'denied' ? btnForm(`/admin/applications/${patron.id}/approve`, csrf, 'Approve', { cls: '' }) : ''}
-    ${patron.status === 'approved' && patron.id !== user.id ? btnForm(`/admin/patrons/${patron.id}/pause`, csrf, 'Pause account', { cls: 'btn-quiet', confirm: `Pause ${patron.first_name}'s account? They won't be able to check out books until you resume it.` }) : ''}
+    ${patron.status === 'approved' && patron.id !== user.id ? btnForm(`/admin/patrons/${patron.id}/pause`, csrf, 'Pause account', { cls: 'btn-quiet', confirm: `Pause ${patron.first_name}’s account? They won’t be able to check out books until you resume it.` }) : ''}
     ${patron.status === 'paused' ? btnForm(`/admin/patrons/${patron.id}/resume`, csrf, 'Resume account', { cls: '' }) : ''}
-    ${btnForm(`/admin/patrons/${patron.id}/reset-password`, csrf, 'Make a temporary password', { cls: 'btn-quiet', confirm: `Replace ${patron.first_name}'s password with a temporary one?` })}
+    ${btnForm(`/admin/patrons/${patron.id}/reset-password`, csrf, 'Make a temporary password', { cls: 'btn-quiet', confirm: `Replace ${patron.first_name}’s password with a temporary one?` })}
   </div>` : ''}
   <div class="two-col">
     <section class="card">
@@ -597,20 +597,20 @@ function patronPage({ user, patron, items, csrf, tempPassword, now }) {
   </div>
   ${lib && patron.id !== user.id ? html`<section class="admin-section danger-zone">
     <h2>Delete account</h2>
-    <p class="small">Deletes ${patron.first_name}'s account and borrowing history. ${active.length ? 'Check in or cancel their current books first.' : 'This can’t be undone.'}</p>
-    ${active.length ? '' : btnForm(`/admin/patrons/${patron.id}/delete`, csrf, 'Delete account', { cls: 'btn-danger btn-small', confirm: `Permanently delete ${fullName(patron)}'s account? This can't be undone.` })}
+    <p class="small">Deletes ${patron.first_name}’s account and borrowing history. ${active.length ? 'Check in or cancel their current books first.' : 'This can’t be undone.'}</p>
+    ${active.length ? '' : btnForm(`/admin/patrons/${patron.id}/delete`, csrf, 'Delete account', { cls: 'btn-danger btn-small', confirm: `Permanently delete ${fullName(patron)}’s account? This can’t be undone.` })}
   </section>` : ''}`;
 }
 
 function staffPage({ csrf, staff, user, tempPassword, created }) {
   return html`
-  <p>Assistants can add and edit books and handle pickups, checkouts and returns. They can't approve applications, pause or delete accounts, or change settings.</p>
-  ${tempPassword ? html`<div class="card card-note" role="status"><h2>Account created</h2><p>${created}'s temporary password is <strong class="code-big">${tempPassword}</strong></p><p class="small">We emailed them a welcome with their library code and a link to set their own password (good for 7 days). Share this temporary password only if the email doesn’t arrive. This is the only time it's shown.</p></div>` : ''}
+  <p>Assistants can add and edit books and handle pickups, checkouts and returns. They can’t approve applications, pause or delete accounts, or change settings.</p>
+  ${tempPassword ? html`<div class="card card-note" role="status"><h2>Account created</h2><p>${created}’s temporary password is <strong class="code-big">${tempPassword}</strong></p><p class="small">We emailed them a welcome with their library code and a link to set their own password (good for 7 days). Share this temporary password only if the email doesn’t arrive. This is the only time it’s shown.</p></div>` : ''}
   <div class="table-wrap"><table class="table">
     <thead><tr><th>Name</th><th>Role</th><th>Email</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
     <tbody>${staff.map((u) => html`<tr>
       <td><a href="/admin/patrons/${u.id}">${fullName(u)}</a></td><td>${P.roleLabel(u.role)}</td><td>${u.email}</td>
-      <td class="actions">${u.id !== user.id ? btnForm(`/admin/staff/${u.id}/remove`, csrf, u.role === 'librarian' ? 'Remove librarian access' : 'Remove assistant', { cls: 'btn-quiet btn-small', confirm: `Remove ${u.first_name}'s staff access? Their library account stays.` }) : html`<span class="small muted">You</span>`}</td>
+      <td class="actions">${u.id !== user.id ? btnForm(`/admin/staff/${u.id}/remove`, csrf, u.role === 'librarian' ? 'Remove librarian access' : 'Remove assistant', { cls: 'btn-quiet btn-small', confirm: `Remove ${u.first_name}’s staff access? Their library account stays.` }) : html`<span class="small muted">You</span>`}</td>
     </tr>`)}</tbody></table></div>
   <div class="two-col">
     <section class="card">
