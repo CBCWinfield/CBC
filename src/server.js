@@ -88,7 +88,13 @@ app.errorHandler = async (err, req, res) => {
     return res.json({ error: message });
   }
   if (res.render) return res.render(V.errorPage({ status, message }), { title: 'Error' });
-  res.send(message);
+  // Errors before the page helper is ready (an expired form, an upload that is too big) still get the
+  // site header and a link home, so the visitor is never left on a bare line of text.
+  try {
+    return res.send(layout({ body: V.errorPage({ status, message }), title: 'Error', user: req.user, csrf: res.locals.csrf, settings: await settings.get() }).toString());
+  } catch (e) {
+    res.send(message);
+  }
 };
 
 async function bootstrap() {
