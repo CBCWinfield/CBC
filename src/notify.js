@@ -114,11 +114,11 @@ module.exports = {
   approved: safe(async (user) => {
     const s = await settingsStore.get();
     await email(user, {
-      subject: `You're approved! Your library card number is ${user.library_code}`,
+      subject: `You’re approved! Your library card number is ${user.library_code}`,
       heading: `Welcome to Central, ${user.first_name}!`,
       paragraphs: [
         'Your Central Baptist Church membership account is approved.',
-        `Your library card number is <strong style="font-size:20px;letter-spacing:1px">${esc(user.library_code)}</strong>. You'll enter it when you check out a book. It's also on your My Library page.`,
+        `Your library card number is <strong style="font-size:20px;letter-spacing:1px">${esc(user.library_code)}</strong>. You’ll enter it when you check out a book. It’s also on your My Library page.`,
         `With your account you can now:<br>• <a href="${esc(url('/catalog'))}">Borrow books</a>: pick up ${esc(settingsStore.describeDays(s.pickup_days))}, ${t.fmtHm(s.pickup_start)}–${t.fmtHm(s.pickup_end)}, and keep them ${s.checkout_days} days<br>• <a href="${esc(url('/checkin/prayer'))}">Share and pray on the Prayer Wall</a><br>• <a href="${esc(url('/checkin/welcome/family'))}">Set up your family for check-in</a><br>• <a href="${esc(url('/checkin/inbox'))}">Message other families and the church team</a>`,
       ],
       button: { label: user.signup_source === 'prayer' ? 'Open the Prayer Wall' : user.signup_source === 'family' ? 'Set up my family' : 'Browse the catalog', url: url(user.signup_source === 'prayer' ? '/checkin/prayer' : user.signup_source === 'family' ? '/checkin/welcome/family' : '/catalog') },
@@ -132,7 +132,7 @@ module.exports = {
       subject: 'About your membership application',
       heading: `Hi ${user.first_name}`,
       paragraphs: [
-        `Thank you for your interest in the ${esc(s.library_name)}. We weren't able to approve your membership application at this time.`,
+        `Thank you for your interest in the ${esc(s.library_name)}. We weren’t able to approve your membership application at this time.`,
         'If you have questions, please contact the church office.',
       ],
     });
@@ -164,7 +164,7 @@ module.exports = {
       heading: `Hi ${user.first_name}`,
       paragraphs: [
         `You’ve been made a library <strong>${role}</strong>. Log in with your usual account and open <strong>Admin</strong> at the top of the page.`,
-        role === 'librarian' ? 'As a librarian you can approve applications, manage books, patrons, staff and settings.' : 'As an assistant you can check books in and out, manage pickups, and help patrons.',
+        role === 'librarian' ? 'As a librarian you can approve applications and manage books, patrons, staff and settings.' : 'As an assistant you can check books in and out, manage pickups, and help patrons.',
       ],
       button: { label: 'Open the library dashboard', url: url('/admin') },
     });
@@ -206,10 +206,10 @@ module.exports = {
       subject: `Pickup confirmed for ${t.fmtDate(items[0].pickup_at)} at ${t.fmtTime(items[0].pickup_at)}`,
       heading: 'Your books are on hold',
       paragraphs: [
-        `We're holding ${list} for you.`,
+        `We’re holding ${list} for you.`,
         `<strong>Pickup:</strong> ${esc(when)}${s.library_address ? `<br><strong>Where:</strong> ${esc(s.library_address)}` : ''}`,
-        `Bring your library code: <strong>${esc(user.library_code)}</strong>. The calendar file attached adds this to your phone's calendar.`,
-        `If you don't pick up within ${s.missed_pickup_days} days, the hold may be released for someone else.`,
+        `Bring your library code: <strong>${esc(user.library_code)}</strong>. The calendar file attached adds this to your phone’s calendar.`,
+        `If you don’t pick up within ${s.missed_pickup_days} days, the hold may be released for someone else.`,
       ],
       button: { label: 'View My Library', url: url('/my') },
       attachments: [calendarFile(items.map((c) => ({ ...c, user_id: user.id, library_code: user.library_code })), s)],

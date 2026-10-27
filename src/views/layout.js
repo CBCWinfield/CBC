@@ -80,7 +80,7 @@ ${Share.tags({ title: shareTitle || (title ? `${title} | ${s.short_name || 'CBC 
       <div id="ask-body">
         <p class="ask-answer" id="ask-answer"></p>
         <ul class="ask-results" id="ask-results"></ul>
-        <p class="ask-note">Answers come from this library's catalog. Nothing you type leaves this site.</p>
+        <p class="ask-note">Answers come from this library’s catalog. Nothing you type leaves this site.</p>
       </div>
     </div>
   </section>

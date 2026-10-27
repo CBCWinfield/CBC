@@ -1290,7 +1290,7 @@ module.exports = (app) => {
       const area = areas.get(String(r.area || '').trim().toLowerCase()) || (/infant|baby|babies/i.test(r.area || '') ? 'Nursery' : /toddler|preschool/i.test(r.area || '') ? 'Toddlers' : /teen|youth/i.test(r.area || '') ? 'Teens' : /kid|child/i.test(r.area || '') ? 'Kids' : /adult/i.test(r.area || '') ? 'Adults' : null);
       const name = clean(r.name, 120);
       const service = clean(r.service, 80);
-      if (!dateOrNull(date)) { result.skipped.push({ row: i + 2, reason: `date “${r.date}” isn't a date` }); continue; }
+      if (!dateOrNull(date)) { result.skipped.push({ row: i + 2, reason: `date “${r.date}” isn’t a date` }); continue; }
       if (!area) { result.skipped.push({ row: i + 2, reason: `area “${r.area}” should be Nursery, Toddlers, Kids, Teens or Adults` }); continue; }
       if (!name || !service) { result.skipped.push({ row: i + 2, reason: 'missing service or name' }); continue; }
       const sv = await db.one(`INSERT INTO serve_services (service_date, name) VALUES ($1, $2) ON CONFLICT (service_date, name) DO UPDATE SET name = EXCLUDED.name RETURNING id`, [date, service]);
@@ -1340,7 +1340,7 @@ module.exports = (app) => {
     if (area && !service.cancelled) {
       const dup = await db.one('SELECT id FROM serve_slots WHERE service_id = $1 AND area = $2 AND user_id = $3', [service.id, area, req.user.id]);
       if (!dup) await db.query('INSERT INTO serve_slots (service_id, area, user_id, name, email, created_by) VALUES ($1, $2, $3, $4, $5, $3)', [service.id, area, req.user.id, `${req.user.first_name} ${req.user.last_name}`, req.user.email]);
-      security.flash(req, 'ok', `Thank you! You're serving in ${area}.`);
+      security.flash(req, 'ok', `Thank you! You’re serving in ${area}.`);
     }
     res.redirect(`/checkin/serve/${service.id}`);
   });

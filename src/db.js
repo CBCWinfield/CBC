@@ -748,6 +748,12 @@ const MIGRATIONS = [
       UPDATE books SET audiences = ARRAY[audience] WHERE audience IN ('Everyone','Adults','Youth','Children') AND audiences = '{}';
       CREATE INDEX IF NOT EXISTS books_audiences_idx ON books USING gin (audiences);`,
   },
+  {
+    // Proofread library welcome wording (only if the saved setting is still the earlier default).
+    version: 22,
+    sql: `UPDATE settings SET value = to_jsonb('Borrow Christian books, Bibles, devotionals and family reading at no cost. Our library consists of over 3,000 offerings, all of which have been lovingly, meticulously, and diligently selected for their quality moral content. You will not find immoral books in our library. We thank God for the opportunity to offer the public such a rich selection of Christian work. Apply for a free library account, reserve books online, and pick them up during library hours.'::text)
+      WHERE key = 'welcome_message' AND value = to_jsonb('Borrow Christian books, Bibles, devotionals and family reading at no cost. Our library consists of over 3000 offerings. All of which have been lovingly, meticulously, and diligently selected for its quality moral content. You will not find immoral books in our library. We thank God for the opportunity to offer the public such a rich selection of Christian work. Apply for a free library account, reserve books online, and pick them up during library hours.'::text);`,
+  },
 ];
 
 async function migrate() {

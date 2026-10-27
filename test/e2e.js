@@ -43,7 +43,7 @@ class Browser {
   r = await lib.post('/login', { email: 'librarian@example.com', password: 'testpass123' });
   assert.strictEqual(r.location, '/admin', 'librarian goes to dashboard');
   r = await lib.follow(r);
-  assert.match(r.body, /Today's pickups/);
+  assert.match(r.body, /Today’s pickups/);
 
   // Import the sample catalog
   const csv = fs.readFileSync(path.join(__dirname, 'fixtures/sample-books.csv'), 'utf8');

@@ -186,7 +186,7 @@ function station({ csrf, event, recent, counts }) {
   <section class="ci-search-hero">
     <form action="/checkin" method="get" class="ci-search suggest-wrap" role="search">
       <label for="fam-q" class="visually-hidden">Find a family</label>
-      <input id="fam-q" name="q" type="search" placeholder="Family name, child's name or phone" autocomplete="off" autofocus data-family-search data-csrf="${csrf}">
+      <input id="fam-q" name="q" type="search" placeholder="Family name, child’s name or phone" autocomplete="off" autofocus data-family-search data-csrf="${csrf}">
       <div class="ci-results" id="fam-results" aria-live="polite"></div>
     </form>
     <p class="ci-counts">${plural(counts.kids, 'kid')} · ${plural(counts.adults, 'adult')} checked in · <a href="/checkin/roster">See everyone</a></p>
@@ -422,7 +422,7 @@ function newFamilyFlow({ csrf, name = '', error, v = {}, matches = [] }) {
         <div class="field short"><label for="nf-rel">Relationship</label><select id="nf-rel" name="relationship">${RELATIONSHIPS.map((r) => html`<option${selected(r, v.relationship)}>${r}</option>`)}</select></div>
       </div></section>
       <section class="box"><h2 class="box-head">Emergency contact</h2><div class="box-body stack">
-        <p class="small muted">Someone other than the parent we can call if we can't reach them.</p>
+        <p class="small muted">Someone other than the parent we can call if we can’t reach them.</p>
         <div class="row">${f('ec_name', 'Name')}${f('ec_relationship', 'Relationship', { ph: 'e.g. Grandma' })}${f('ec_phone', 'Phone', { type: 'tel' })}</div>
       </div></section>
       <section class="box"><h2 class="box-head">Family</h2><div class="box-body stack">
@@ -465,11 +465,11 @@ function guestPage({ csrf, name = '', error, v = {} }) {
     ${error ? html`<p class="flash flash-error" role="alert">${error}</p>` : ''}
     <form method="post" action="/checkin/guest" class="stack ci-form" data-guest-form>
       ${csrfField(csrf)}
-      <div class="row"><div class="field"><label for="g-first">Child's first name</label><input id="g-first" name="first_name" value="${v.first_name || name}" required autofocus></div>
+      <div class="row"><div class="field"><label for="g-first">Child’s first name</label><input id="g-first" name="first_name" value="${v.first_name || name}" required autofocus></div>
         <div class="field"><label for="g-last">Last name <span class="muted">(optional)</span></label><input id="g-last" name="last_name" value="${v.last_name || ''}"></div></div>
       <div class="row">
         <div class="field"><label for="g-class">Class</label><select id="g-class" name="class_override" required><option value="">Choose…</option>${D.CLASSES.map((c) => html`<option${selected(c, v.class_override)}>${c}</option>`)}</select></div>
-        <div class="field"><label for="g-phone">Parent or guardian's phone</label><input id="g-phone" name="phone" type="tel" value="${v.phone || ''}" required></div>
+        <div class="field"><label for="g-phone">Parent or guardian’s phone</label><input id="g-phone" name="phone" type="tel" value="${v.phone || ''}" required></div>
       </div>
       <div class="field"><label for="g-allergies">Allergies <span class="muted">(ask: leave blank if none)</span></label><input id="g-allergies" name="allergies" value="${v.allergies || ''}"></div>
       <fieldset class="ci-custody"><legend>Who did they come with?</legend>
@@ -516,7 +516,7 @@ function roster({ csrf, user, event, rows, q, show }) {
         ${!r.checked_out_at ? html`
           ${r.kind === 'child' ? html`<form method="post" action="/checkin/reprint" class="inline">${csrfField(csrf)}<input type="hidden" name="event_id" value="${event.id}"><input type="hidden" name="family_id" value="${r.family_id}"><input type="hidden" name="people" value="${r.person_id}"><input type="hidden" name="parent" value="0"><button class="btn btn-quiet btn-small" type="submit">Reprint</button></form>` : ''}
           <form method="post" action="/checkin/attendance/${r.id}/out" class="inline">${csrfField(csrf)}<button class="btn btn-small" type="submit">Check out</button></form>
-          <form method="post" action="/checkin/attendance/${r.id}/remove" class="inline" data-confirm="Remove ${r.first_name} from tonight's list? Use this if they were checked in by mistake.">${csrfField(csrf)}<button class="btn btn-quiet btn-small" type="submit" title="Checked in by mistake">Remove</button></form>` : ''}
+          <form method="post" action="/checkin/attendance/${r.id}/remove" class="inline" data-confirm="Remove ${r.first_name} from tonight’s list? Use this if they were checked in by mistake.">${csrfField(csrf)}<button class="btn btn-quiet btn-small" type="submit" title="Checked in by mistake">Remove</button></form>` : ''}
       </div>
     </li>`)}</ul>
   </section>`) : html`<div class="empty"><p>No one is checked in for ${event.name} yet.</p><p><a class="btn" href="/checkin">Check in a family</a></p></div>`}
@@ -547,8 +547,8 @@ function scanPage({ csrf, event, match, code, error, user }) {
   ${error ? html`<p class="flash flash-error" role="alert">${error}</p>` : ''}
   ${match ? html`<section class="ci-card ci-match">
     <h2>${match.family.name} · code ${match.code}</h2>
-    ${match.blocked.length ? html`<div class="ci-alert ci-alert-danger" role="alert"><strong>Stop. Not allowed to pick up:</strong> ${match.blocked.map((b) => b.name).join(', ')}. If one of these people is here, don't release the child; get a leader now.</div>` : ''}
-    ${match.kids.some((k) => k.custody_alert) ? html`<div class="ci-alert ci-alert-warn">A child in this family has a custody alert. Check the person's ID against the approved list before releasing.</div>` : ''}
+    ${match.blocked.length ? html`<div class="ci-alert ci-alert-danger" role="alert"><strong>Stop. Not allowed to pick up:</strong> ${match.blocked.map((b) => b.name).join(', ')}. If one of these people is here, don’t release the child; get a leader now.</div>` : ''}
+    ${match.kids.some((k) => k.custody_alert) ? html`<div class="ci-alert ci-alert-warn">A child in this family has a custody alert. Check the person’s ID against the approved list before releasing.</div>` : ''}
     <form method="post" action="/checkin/release" data-checkin-form>
       ${csrfField(csrf)}
       <input type="hidden" name="event_id" value="${event.id}">
@@ -835,7 +835,7 @@ function servingMonth({ csrf, user, month, weeks, services, mine, prev, next, la
   const todayKey = t.dateKey(new Date());
   return html`
   <div class="ci-section-head">
-    <div><h1>Serving calendar</h1><p class="muted">Tap a service to see who's serving and sign up.</p></div>
+    <div><h1>Serving calendar</h1><p class="muted">Tap a service to see who’s serving and sign up.</p></div>
     <div class="ci-family-tools">
       <a class="btn btn-quiet btn-small" href="/checkin/serve?month=${prev}" aria-label="Previous month">‹</a>
       <strong class="ci-month">${label}</strong>
@@ -843,7 +843,7 @@ function servingMonth({ csrf, user, month, weeks, services, mine, prev, next, la
       ${admin ? html`<a class="btn btn-quiet btn-small" href="/checkin/serve/import">Import</a>` : ''}
     </div>
   </div>
-  ${mine.length ? html`<div class="ci-alert ci-alert-ok"><strong>You're serving:</strong> ${mine.map((m) => `${t.fmtDate(t.zoned(...m.service_date.split('-').map(Number), 12))} ${m.name} (${m.area})`).join(' · ')}</div>` : ''}
+  ${mine.length ? html`<div class="ci-alert ci-alert-ok"><strong>You’re serving:</strong> ${mine.map((m) => `${t.fmtDate(t.zoned(...m.service_date.split('-').map(Number), 12))} ${m.name} (${m.area})`).join(' · ')}</div>` : ''}
   <div class="ci-cal" role="grid" aria-label="${label}">
     ${WEEKDAYS.map((d) => html`<div class="ci-cal-dow" role="columnheader">${d}</div>`)}
     ${weeks.flat().map((day) => {
@@ -969,7 +969,7 @@ function wizard({ step, csrf, user, full, error }) {
       <div class="row"><div class="field"><label for="w-ofirst">First name</label><input id="w-ofirst" name="other_first_name" value="${other.first_name || ''}"></div><div class="field"><label for="w-olast">Last name</label><input id="w-olast" name="other_last_name" value="${other.last_name || ''}"></div></div>
       <div class="row"><div class="field"><label for="w-orel">Relationship</label><select id="w-orel" name="other_relationship">${RELATIONSHIPS.map((r) => html`<option${selected(r, other.relationship)}>${r}</option>`)}</select></div>
         <div class="field"><label for="w-oemail">Email</label><input id="w-oemail" name="other_email" type="email" value="${other.email || ''}"></div><div class="field"><label for="w-ophone">Phone</label><input id="w-ophone" name="other_phone" type="tel" value="${other.phone || ''}"></div></div>
-      <p class="hint">We'll send them their own sign-up link so they get notices too.</p>
+      <p class="hint">We’ll send them their own sign-up link so they get notices too.</p>
       ${nextBtn()}</form>`;
   } else if (step === 'kids') {
     body = html`
@@ -997,7 +997,7 @@ function wizard({ step, csrf, user, full, error }) {
   } else if (step === 'contacts') {
     body = html`<form method="post" action="/checkin/welcome/contacts" class="stack ci-form">${csrfField(csrf)}
       <section class="box"><h2 class="box-head">Emergency contacts</h2><div class="box-body stack">
-        <p class="small">Someone other than you we can call if we can't reach you.</p>
+        <p class="small">Someone other than you we can call if we can’t reach you.</p>
         ${[0, 1].map((i) => { const c = contacts[i] || {}; return html`<div class="row"><input type="hidden" name="ec_id_${i}" value="${c.id || ''}">
           <div class="field"><label for="ec-n-${i}">Name</label><input id="ec-n-${i}" name="ec_name_${i}" value="${c.name || ''}"${i === 0 ? raw(' required') : ''}></div>
           <div class="field"><label for="ec-r-${i}">Relationship</label><input id="ec-r-${i}" name="ec_rel_${i}" value="${c.relationship || ''}"></div>
@@ -1075,7 +1075,7 @@ function installPage() {
       <li>Open this page in <strong>Chrome</strong>.</li><li>Tap the <strong>⋮</strong> menu, then <strong>Install app</strong> (or <strong>Add to Home screen</strong>).</li><li>Open Central from the new icon.</li></ol></div></section>
     <section class="box"><h2 class="box-head">Windows or Mac computer (check-in station)</h2><div class="box-body"><ol>
       <li>Open this page in <strong>Chrome</strong> or <strong>Edge</strong>.</li><li>Click the <strong>install</strong> icon at the right end of the address bar, then <strong>Install</strong>.</li>
-      <li>Set up the Brother QL-810W in the computer's printer settings, with the 62mm roll loaded and auto-cut on.</li>
+      <li>Set up the Brother QL-810W in the computer’s printer settings, with the 62mm roll loaded and auto-cut on.</li>
       <li>The first time you print name tags, choose the Brother printer, paper <strong>62mm × 100mm</strong>, <strong>landscape</strong>, and margins <strong>none</strong>. Chrome remembers it.</li></ol></div></section>
     <p><a class="btn" href="/checkin">Open Central Check-In</a></p>
   </div>`;

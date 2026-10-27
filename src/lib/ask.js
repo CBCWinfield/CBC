@@ -163,7 +163,7 @@ function faqAnswer(q, s) {
   const hours = `${describeDays(s.pickup_days)}, ${fmtHm(s.pickup_start)}–${fmtHm(s.pickup_end)}`;
 
   if (has('hour', 'hours', 'open', 'when can i pick', 'when can i come', 'pick up time', 'pickup time', 'what time', 'pick up', 'pickup', 'what days')) {
-    return `Books are picked up ${hours}. When you check out a book online you choose a ${s.slot_minutes}-minute pickup time in that window.`;
+    return `Books are picked up ${hours}. When you check out a book online, you choose a ${s.slot_minutes}-minute pickup time in that window.`;
   }
   if (has('how long', 'keep', 'due', 'loan period', 'checkout period', 'check out period', 'borrow for')) {
     return `You can keep books for ${s.checkout_days} days, counted from the day you pick them up. Your due dates are listed on your My Library page.`;
@@ -416,9 +416,9 @@ function askOnce(question, books, settings, { ignoreAudience = false } = {}) {
     if (filters.availableOnly && totalFound) {
       answer = `We have ${totalFound} ${noun}${totalFound > 1 ? 's' : ''} ${desc}, but they are all checked out right now. Try again soon, or browse the catalog.`;
     } else if (filters.authorGuess && !filters.author) {
-      answer = `I couldn't find anything by "${filters.authorGuess}" in our catalog. Check the spelling, or try a topic instead.`;
+      answer = `I couldn’t find anything by “${filters.authorGuess}” in our catalog. Check the spelling, or try a topic instead.`;
     } else {
-      answer = `I couldn't find ${noun}s ${desc || `matching "${q}"`}. Try a broader word (like prayer, marriage or devotional), or browse by category.`;
+      answer = `I couldn’t find ${noun}s ${desc || `matching “${q}”`}. Try a broader word (like prayer, marriage or devotional), or browse by category.`;
     }
   } else if (closeOnly && !filters.author) {
     answer = `I couldn't find “${terms.join(' ')}” exactly. The closest match${list.length > 1 ? 'es are' : ' is'} below.`;

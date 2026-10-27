@@ -145,7 +145,7 @@ function checkoutPage({ book, days, user, csrf, s, error, values = {} }) {
   return html`
   <p class="crumb"><a href="/books/${book.id}">Back to ${book.title}</a></p>
   <div class="page-head"><h1>Check out “${book.title}”</h1>
-  <p class="muted">Choose when you'll come pick it up. Pickups are ${hours(s)}.</p></div>
+  <p class="muted">Choose when you’ll come pick it up. Pickups are ${hours(s)}.</p></div>
   ${error ? html`<p class="flash flash-error" role="alert">${error}</p>` : ''}
   <form method="post" action="/books/${book.id}/checkout" class="checkout-form">
     ${P.csrfField(csrf)}
@@ -162,7 +162,7 @@ function checkoutPage({ book, days, user, csrf, s, error, values = {} }) {
     <div class="field code-field">
       <label for="library_code">Your library code</label>
       <input id="library_code" name="library_code" required autocomplete="off" placeholder="CBC-1234" value="${values.library_code || ''}">
-      <p class="hint">It's in your approval email and on your <a href="/my">My Library</a> page.</p>
+      <p class="hint">It’s in your approval email and on your <a href="/my">My Library</a> page.</p>
     </div>
     ${days.length ? html`<button class="btn" type="submit">Reserve and schedule pickup</button>` : ''}
   </form>`;
