@@ -296,6 +296,36 @@
       f.value = v; lastFill[k] = v;
       f.dispatchEvent(new Event('input', { bubbles: true }));
     };
+    // A barcode scanner types the number and presses Enter: that looks the book up instead of saving the form.
+    field('isbn').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        lookupBtn.click();
+      }
+    });
+    // The camera (scan-ean.js): the number goes in the box and the book is looked up.
+    var scanBtn = document.getElementById('isbn-scan');
+    if (scanBtn && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.isSecureContext) {
+      scanBtn.hidden = false;
+      scanBtn.addEventListener('click', function () {
+        if (!window.CBCScanIsbn) return;
+        window.CBCScanIsbn(function (code) {
+          field('isbn').value = code;
+          lookupBtn.click();
+        });
+      });
+    }
+    // "Already in the catalog", with a link to that book, so a second copy is added there instead.
+    var dupNote = function (dup) {
+      var span = document.createElement('span'),
+        a = document.createElement('a');
+      span.appendChild(document.createTextNode(' Note: “' + dup.title + '” with this ISBN is already in the catalog. You may just need to add a copy: '));
+      a.href = '/admin/books/' + dup.id + '/edit';
+      a.textContent = 'open that book';
+      span.appendChild(a);
+      span.appendChild(document.createTextNode('.'));
+      return span;
+    };
     lookupBtn.addEventListener('click', function () {
       var isbn = field('isbn').value.trim();
       if (!isbn) { isbnStatus.textContent = 'Type the ISBN first.'; field('isbn').focus(); return; }
@@ -304,7 +334,11 @@
       fetch('/admin/books/lookup?isbn=' + encodeURIComponent(isbn), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
         .then(function (r) { return r.json(); })
         .then(function (d) {
-          if (d.error) { isbnStatus.textContent = d.error; return; }
+          if (d.error) {
+            isbnStatus.textContent = d.error;
+            if (d.duplicate) isbnStatus.appendChild(dupNote(d.duplicate));
+            return;
+          }
           var filled = [], kept = [];
           FILL.forEach(function (k) {
             var f = field(k);
@@ -340,7 +374,7 @@
             use.addEventListener('click', function () { Object.keys(keep).forEach(function (k) { setField(k, keep[k]); }); use.remove(); });
             isbnStatus.appendChild(use);
           }
-          if (d.duplicate) isbnStatus.appendChild(document.createTextNode(' Note: “' + d.duplicate.title + '” with this ISBN is already in the catalog. You may just need to add a copy.'));
+          if (d.duplicate) isbnStatus.appendChild(dupNote(d.duplicate));
         })
         .catch(function () { isbnStatus.textContent = 'The lookup didn’t work. You can type the details in yourself.'; })
         .then(function () { lookupBtn.disabled = false; });

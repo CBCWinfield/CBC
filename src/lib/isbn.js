@@ -4,7 +4,12 @@
 const rich = require('./richtext');
 
 const UA = 'CBC-Library/1.0 (church lending library)';
-const clean = (s) => String(s || '').replace(/[^0-9Xx]/g, '').toUpperCase();
+// Digits and X only. A scanner reading the barcode with its price add-on (978… plus 2 or 5 digits) gives the ISBN first.
+const clean = (s) => {
+  let d = String(s || '').replace(/[^0-9Xx]/g, '').toUpperCase();
+  if ((d.length === 15 || d.length === 18) && /^97[89]\d+$/.test(d)) d = d.slice(0, 13);
+  return d;
+};
 
 function validIsbn(raw) {
   const s = clean(raw);
@@ -56,10 +61,14 @@ function guessCategory(subjects) {
 
 // ---------- the two sources ----------
 // Open Library: the record for this exact edition (pages, year), its subjects, and usually a good cover.
-async function fromOpenLibrary(isbn, get) {
-  const data = await get(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
-  const d = data && data[`ISBN:${isbn}`];
+async function fromOpenLibrary(isbn13, get) {
+  // Older books are often filed under their 10-digit ISBN only, so both are asked for.
+  const keys = [isbn13, to10(isbn13)].filter(Boolean);
+  const data = await get(`https://openlibrary.org/api/books?bibkeys=${keys.map((k) => `ISBN:${k}`).join(',')}&format=json&jscmd=data`);
+  const key = data && keys.find((k) => data[`ISBN:${k}`]);
+  const d = key && data[`ISBN:${key}`];
   if (!d) return null;
+  const isbn = key;
   let description = '';
   try {
     const ed = await get(`https://openlibrary.org/isbn/${isbn}.json`);
@@ -87,6 +96,7 @@ const yearOf = (s) => { const y = (String(s || '').match(/\b(1[5-9]\d\d|20\d\d)\
 
 // Google Books: usually the cleanest title, writers and publisher, and the publisher's description with its italics.
 async function fromGoogle(isbn, get) {
+  // isbn is the 13-digit form; Google matches either, and the right volume is picked by its identifiers below
   const key = process.env.GOOGLE_BOOKS_KEY ? `&key=${encodeURIComponent(process.env.GOOGLE_BOOKS_KEY)}` : '';
   const list = await get(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=5${key}`);
   const items = (list && list.items) || [];
@@ -124,6 +134,17 @@ function htmlToText(h) {
     .replace(/&#(\d+);/g, (m, n) => String.fromCodePoint(Number(n))).replace(/&[a-z]+;/gi, ' ');
   return s.split('\n').map((l) => l.replace(/[ \t ]+/g, ' ').trim()).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
+
+// The form a book's ISBN is kept in: ISBN-13 when the number checks out (the barcode's number), else null.
+const normalize = (raw) => {
+  const s = validIsbn(raw);
+  return s ? to13(s) : null;
+};
+// Both forms of one book's ISBN, for finding it however it was saved.
+const forms = (raw) => {
+  const s = validIsbn(raw);
+  return s ? [...new Set([to13(s), to10(s)].filter(Boolean))] : [];
+};
 
 const to13 = (s) => {
   if (s.length !== 10) return s.length === 13 ? s : null;
@@ -188,8 +209,9 @@ function audiencesFrom(gb, subjects) {
 }
 
 async function lookup(raw, { get = getJson } = {}) {
-  const isbn = validIsbn(raw);
-  if (!isbn) return { error: 'That ISBN doesn’t look right. It should be 10 or 13 digits.' };
+  const typed = validIsbn(raw);
+  if (!typed) return { error: isbnProblem(raw) };
+  const isbn = to13(typed);
   const safe = (p) => p.catch(() => null);
   const [ol, gb] = await Promise.all([safe(fromOpenLibrary(isbn, get)), safe(fromGoogle(isbn, get))]);
   if (!ol && !gb) return { error: 'No book was found for that ISBN. You can type the details in yourself.' };
@@ -285,4 +307,13 @@ async function searchCover(title, author) {
   return null;
 }
 
-module.exports = { lookup, fetchCover, searchCover, validIsbn, htmlToText, splitSeries, tidyAuthors, tidyTitle };
+// Why a typed ISBN isn't one, in words the librarian can act on.
+function isbnProblem(raw) {
+  const d = clean(raw);
+  if (!d) return 'Type or scan the ISBN first.';
+  if (d.length !== 10 && d.length !== 13) return `That ISBN has ${d.length} digits. An ISBN has 10 or 13 (the 13-digit one is under the barcode).`;
+  if (d.length === 13 && !/^97[89]/.test(d)) return 'That number doesn’t start with 978 or 979, so it isn’t an ISBN. It may be the store’s price barcode.';
+  return 'That ISBN doesn’t check out, so a digit is probably mistyped. Check it against the back cover.';
+}
+
+module.exports = { lookup, normalize, forms, isbnProblem, to13, to10, fetchCover, searchCover, validIsbn, htmlToText, splitSeries, tidyAuthors, tidyTitle };

@@ -337,9 +337,11 @@ function bookForm({ csrf, book = {}, errors = {}, categoryPaths = [], history = 
             ${f('shelf_location', 'Shelf location', { hint: 'Optional, e.g. B-3' })}
           </div>
           <div class="isbn-row">
-            ${f('isbn', 'ISBN', { inputmode: 'numeric', hint: 'On the back cover above the barcode. Press the button to fill in the rest.' })}
+            ${f('isbn', 'ISBN', { inputmode: 'numeric', hint: 'On the back cover above the barcode, 10 or 13 digits. Type it, scan it, or use a barcode scanner, then fill in the rest.' })}
             <button type="button" class="btn btn-quiet" id="isbn-lookup">Fill in from ISBN</button>
+            <button type="button" class="btn btn-quiet" id="isbn-scan" hidden>Scan the barcode</button>
           </div>
+          <script src="/js/scan-ean.js?v=1" defer></script>
           <p class="small muted" id="isbn-status" role="status"></p>
 
           <h3 class="box-sub">Attributes</h3>

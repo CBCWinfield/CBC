@@ -754,6 +754,20 @@ const MIGRATIONS = [
     sql: `UPDATE settings SET value = to_jsonb('Borrow Christian books, Bibles, devotionals and family reading at no cost. Our library consists of over 3,000 offerings, all of which have been lovingly, meticulously, and diligently selected for their quality moral content. You will not find immoral books in our library. We thank God for the opportunity to offer the public such a rich selection of Christian work. Apply for a free library account, reserve books online, and pick them up during library hours.'::text)
       WHERE key = 'welcome_message' AND value = to_jsonb('Borrow Christian books, Bibles, devotionals and family reading at no cost. Our library consists of over 3000 offerings. All of which have been lovingly, meticulously, and diligently selected for its quality moral content. You will not find immoral books in our library. We thank God for the opportunity to offer the public such a rich selection of Christian work. Apply for a free library account, reserve books online, and pick them up during library hours.'::text);`,
   },
+  {
+    // ISBNs are kept as ISBN-13 with no dashes (the number under the barcode), so search and duplicate checks find a
+    // book however its ISBN was typed. Numbers that don't check out as an ISBN are left as they are.
+    version: 23,
+    sql: 'SELECT 1;',
+    run: async (c) => {
+      const { normalize } = require('./lib/isbn');
+      const rows = (await c.query('SELECT id, isbn FROM books WHERE isbn IS NOT NULL')).rows;
+      for (const r of rows) {
+        const n = normalize(r.isbn);
+        if (n && n !== r.isbn) await c.query('UPDATE books SET isbn = $2 WHERE id = $1', [r.id, n]);
+      }
+    },
+  },
 ];
 
 async function migrate() {
@@ -764,6 +778,7 @@ async function migrate() {
     console.log(`Applying database migration ${m.version}…`);
     await tx(async (c) => {
       await c.query(m.sql);
+      if (m.run) await m.run(c);
       await c.query('INSERT INTO schema_migrations (version) VALUES ($1)', [m.version]);
     });
   }

@@ -77,6 +77,25 @@ test('ISBN check digits', () => {
   assert.strictEqual(validIsbn('9780060652921'), null);
 });
 
+test('ISBNs are kept as ISBN-13, and problems are explained', () => {
+  const I = require('../src/lib/isbn');
+  assert.strictEqual(I.normalize('0-06-065292-6'), '9780060652920'); // ISBN-10 with dashes
+  assert.strictEqual(I.normalize('ISBN 978 0 06 065292 0'), '9780060652920');
+  assert.strictEqual(I.normalize('080442957X'), '9780804429573'); // check digit X
+  assert.strictEqual(I.normalize('080442957x'), '9780804429573');
+  assert.strictEqual(I.normalize('9780060652920 51699'), '9780060652920'); // scanned with the price add-on
+  assert.strictEqual(I.normalize('978006065292012'), '9780060652920'); // two-digit add-on
+  assert.strictEqual(I.normalize('9798886000016'), '9798886000016'); // 979 ISBNs have no 10-digit form
+  assert.deepStrictEqual(I.forms('9780060652920').sort(), ['0060652926', '9780060652920']);
+  assert.deepStrictEqual(I.forms('9798886000016'), ['9798886000016']);
+  assert.deepStrictEqual(I.forms('Max Lucado'), []);
+  assert.strictEqual(I.normalize('9780060652921'), null);
+  assert.match(I.isbnProblem('97800606529'), /11 digits/);
+  assert.match(I.isbnProblem('0123456789012'), /978 or 979/);
+  assert.match(I.isbnProblem('9780060652921'), /mistyped/);
+  assert.match(I.isbnProblem(''), /Type or scan/);
+});
+
 // ---- Ask engine against the sample catalog ----
 const books = parseCsvObjects(fs.readFileSync(path.join(__dirname, 'fixtures/sample-books.csv'), 'utf8'))
   .map((b, i) => ({ ...b, id: i + 1, copies_total: Number(b.copies), available: Number(b.copies), active: true }));
@@ -372,7 +391,7 @@ test('ISBN lookup: Google Books and Open Library together, tidied', async () => 
   // a Google result for a different book is ignored
   r = await isbnLib.lookup('9780310247456', { get: routes({ 'volumes?q=isbn': { items: [{ id: 'z', volumeInfo: { title: 'Wrong', industryIdentifiers: [{ identifier: '9781111111111' }] } }, { id: 'y', volumeInfo: { title: 'Also wrong' } }] } }) });
   assert.match(r.error, /No book was found/);
-  assert.match((await isbnLib.lookup('12345')).error, /doesn’t look right/);
+  assert.match((await isbnLib.lookup('12345')).error, /has 5 digits/);
 });
 
 test('carryMarks: the old site’s italics go into the text here, only when it says the same thing', () => {
