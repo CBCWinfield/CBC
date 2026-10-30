@@ -17,6 +17,7 @@ const ACTIVE = `status IN ('reserved','checked_out')`;
 
 // One of a book's category paths, split into its first part (the subject) and the rest.
 const PATH_TOP = "split_part(cp, ' › ', 1)";
+const { forms: isbnForms } = require('./lib/isbn');
 const PATH_REST = "CASE WHEN strpos(cp, ' › ') > 0 THEN substr(cp, strpos(cp, ' › ') + 3) END";
 
 function bookFilters({ q, category, subcategory, audience, format, available, notable, includeInactive, noCover, review, uncategorized } = {}) {
@@ -26,7 +27,14 @@ function bookFilters({ q, category, subcategory, audience, format, available, no
   if (q) {
     params.push(`%${q.trim()}%`);
     const i = params.length;
-    where.push(`(b.title ILIKE $${i} OR b.subtitle ILIKE $${i} OR b.author ILIKE $${i} OR b.isbn ILIKE $${i} OR b.tags ILIKE $${i} OR b.category ILIKE $${i}
+    // An ISBN typed with dashes or spaces, or in the other form (10 or 13 digits), still finds the book.
+    const isbns = isbnForms(q);
+    let isbnMatch = '';
+    if (isbns.length) {
+      params.push(isbns);
+      isbnMatch = ` OR b.isbn = ANY($${params.length})`;
+    }
+    where.push(`(b.title ILIKE $${i} OR b.subtitle ILIKE $${i} OR b.author ILIKE $${i} OR b.isbn ILIKE $${i}${isbnMatch} OR b.tags ILIKE $${i} OR b.category ILIKE $${i}
       OR b.subcategory ILIKE $${i} OR array_to_string(b.categories, ' ') ILIKE $${i} OR b.series ILIKE $${i} OR b.call_number ILIKE $${i} OR b.description ILIKE $${i})`);
   }
   // In a category when any of the book's categories is in it (or below it).

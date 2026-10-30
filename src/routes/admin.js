@@ -65,7 +65,7 @@ function bookValues(body) {
     title: clean(body.title, 300),
     subtitle: clean(body.subtitle, 300) || null,
     author: clean(body.author, 300) || null,
-    isbn: (clean(body.isbn, 20).replace(/[^0-9Xx]/g, '').toUpperCase()) || null,
+    isbn: null, // below: the 13-digit ISBN when the number checks out
     category: clean(body.category, 80) || null,
     audience: null, // below, from the groups
     format: clean(body.format, 40) || 'Book',
@@ -113,6 +113,16 @@ function bookValues(body) {
   }
   const errors = {};
   if (!v.title) errors.title = 'A title is required.';
+  // ISBNs are kept as ISBN-13 (the number under the barcode), so a book is found however its ISBN is typed.
+  // A number that doesn't check out is kept as typed (old catalog numbers, imports) and flagged on the form.
+  const isbnRaw = clean(body.isbn, 40);
+  if (isbnRaw) {
+    v.isbn = isbnLib.normalize(isbnRaw);
+    if (!v.isbn) {
+      v.isbn = isbnRaw.replace(/[^0-9Xx]/g, '').toUpperCase() || null;
+      errors.isbn = isbnLib.isbnProblem(isbnRaw);
+    }
+  }
   return { v, errors };
 }
 
@@ -340,11 +350,11 @@ module.exports = (app) => {
 
   app.get('/admin/books/lookup', requireStaff, security.rateLimit('isbn', { max: 60, windowMs: 600000 }), async (req, res) => {
     try {
+      // Already in the catalog? Checked first, so it's said even when the lookup services find nothing.
+      const forms = isbnLib.forms(req.query.isbn);
+      const dup = forms.length ? await db.one('SELECT id, title FROM books WHERE isbn = ANY($1) LIMIT 1', [forms]) : null;
       const result = await isbnLib.lookup(req.query.isbn);
-      if (!result.error && result.isbn) {
-        const dup = await db.one('SELECT id, title FROM books WHERE isbn = $1 LIMIT 1', [result.isbn]);
-        if (dup) result.duplicate = dup;
-      }
+      if (dup) result.duplicate = dup;
       res.json(result);
     } catch {
       res.json({ error: 'The book lookup service didn’t answer. You can type the details in yourself.' });
@@ -399,6 +409,7 @@ module.exports = (app) => {
     const existing = await books.get(id);
     if (!existing) throw new HttpError(404, 'That book wasn’t found.');
     const { v, errors } = bookValues(req.body);
+    if (errors.isbn && v.isbn === existing.isbn) delete errors.isbn; // an old catalog number, unchanged
     if (Object.keys(errors).length) {
       res.status(422);
       return page(req, res, 'books', 'Edit book', A.bookForm({ csrf: res.locals.csrf, user: req.user, book: { ...existing, ...v }, errors, categoryPaths: await books.categoryPaths() }));
@@ -515,7 +526,7 @@ module.exports = (app) => {
         if (!v.audiences) v.audiences = ['Adults'];
         if (skipDup) {
           const dup = v.isbn
-            ? await db.one('SELECT id FROM books WHERE isbn = $1 LIMIT 1', [v.isbn])
+            ? await db.one('SELECT id FROM books WHERE isbn = ANY($1) LIMIT 1', [isbnLib.forms(v.isbn).concat(v.isbn)])
             : await db.one('SELECT id FROM books WHERE lower(title) = lower($1) AND lower(COALESCE(author, \'\')) = lower(COALESCE($2, \'\')) LIMIT 1', [v.title, v.author]);
           if (dup) { result.skipped.push({ row: i + 2, reason: `“${v.title}” is already in the catalog` }); continue; }
         }
