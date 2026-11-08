@@ -453,4 +453,8 @@ test('youtube: a scheduled stream is not "the latest sermon"', () => {
   assert.equal(playableFrom('"playabilityStatus":{"status":"OK"},"videoDetails":{"isUpcoming":true}'), false);
   assert.equal(playableFrom('"playabilityStatus":{"status":"OK","playableInEmbed":true}'), true);
   assert.equal(playableFrom(''), true);
+  assert.equal(playableFrom('"playabilityStatus":{"status":"LOGIN_REQUIRED","reason":"Sign in to confirm you’re not a bot"}'), true);
+  const { placeholders } = require('../src/lib/youtube');
+  const vids = [{ id: 'a', title: 'Out of Time', views: 0 }, { id: 'b', title: 'Out of Time', views: 5 }, { id: 'c', title: 'Glory', views: 0 }];
+  assert.deepStrictEqual([...placeholders(vids)], ['a']);
 });

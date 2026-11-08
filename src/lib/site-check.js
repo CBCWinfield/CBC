@@ -66,14 +66,21 @@ async function check(base, { log = () => {} } = {}) {
     if (o.status === 401 || o.status === 403) bad(`Sermon video ${id} does not allow embedding (on YouTube, turn "Allow embedding" back on)`);
     else if (!o.ok) bad(`Sermon video ${id} is not on YouTube (${o.status || o.error}): private, deleted or wrong ID`);
   }
-  // 4. the big player's video can be watched now (not a stream scheduled for later: "live stream offline")
+  // 4. the big player shows the newest sermon people can watch: not a stream scheduled for later ("live stream
+  //    offline"), and not an older one either. The newest watchable one is the newest in the channel's feed with views.
   const top = [...ids][0];
   if (top) {
     const w = await get(`https://www.youtube.com/watch?v=${top}`, { headers: { 'Accept-Language': 'en-US' } });
     const html = w.ok ? await w.text() : '';
-    const st = (html.match(/"playabilityStatus":\{"status":"([A-Z_]+)"/) || [])[1];
-    if ((st && st !== 'OK' && !/"isLiveNow":true/.test(html)) || (/"isUpcoming":true/.test(html) && !/"isLiveNow":true/.test(html)))
-      bad(`The big player shows video ${top}, which can't be watched now (${st || 'upcoming'}): visitors see "live stream offline"`);
+    const live = /"isLiveNow":true/.test(html);
+    if (!live && (/"status":"LIVE_STREAM_OFFLINE"/.test(html) || /"isUpcoming":true/.test(html)))
+      bad(`The big player shows video ${top}, a stream that hasn't started: visitors see "live stream offline"`);
+    const feed = await get('https://www.youtube.com/feeds/videos.xml?channel_id=' + (process.env.YOUTUBE_CHANNEL_ID || 'UC9BRxQwyc_4GnB8p-p8k-aw'));
+    if (feed.ok && !live) {
+      const xml = await feed.text();
+      const newest = [...xml.matchAll(/<yt:videoId>([\w-]{11})<\/yt:videoId>[\s\S]*?<media:statistics views="(\d+)"/g)].find((m) => +m[2] > 0);
+      if (newest && newest[1] !== top) bad(`The big player shows ${top}, but the newest sermon on YouTube is ${newest[1]}`);
+    }
   }
   log(`${ids.size} sermon videos checked.`);
   return { base: BASE, pages: seen.size, videos: ids.size, problems, at: new Date().toISOString() };
