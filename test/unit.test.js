@@ -403,3 +403,29 @@ test('carryMarks: the old site’s italics go into the text here, only when it s
   assert.strictEqual(rich.carryMarks('No marks', 'No marks'), null);
   assert.strictEqual(rich.carryMarks('5 * 3 = The Toy', '5 * 3 = *The Toy*'), '5 * 3 = *The Toy*');
 });
+
+// ---- Daily site check (src/lib/site-check.js) ----
+test('site check: finds broken pages, a referrer YouTube refuses, and missing videos', async () => {
+  const http = require('node:http');
+  const { check } = require('../src/lib/site-check');
+  const srv = http.createServer((q, s) => {
+    s.setHeader('Referrer-Policy', 'same-origin');
+    if (q.url === '/' || q.url === '/sermons') { s.setHeader('content-type', 'text/html'); return s.end('<a href="/about">a</a><a href="/missing">m</a><button data-video="aaaaaaaaaaa"></button><button data-video="bbbbbbbbbbb"></button>'); }
+    if (q.url === '/about') { s.setHeader('content-type', 'text/html'); return s.end('ok'); }
+    s.statusCode = 404; s.end();
+  });
+  await new Promise((r) => srv.listen(0, r));
+  const real = global.fetch;
+  global.fetch = (url, o) => (String(url).startsWith('https://www.youtube.com/oembed')
+    ? Promise.resolve(new Response('{}', { status: String(url).includes('aaaaaaaaaaa') ? 200 : 401 }))
+    : real(url, o));
+  try {
+    const r = await check(`http://localhost:${srv.address().port}`);
+    assert.equal(r.pages, 3);
+    assert.equal(r.videos, 2);
+    assert.ok(r.problems.some((p) => /\/missing answers 404/.test(p)));
+    assert.ok(r.problems.some((p) => /Error 153/.test(p)));
+    assert.ok(r.problems.some((p) => /bbbbbbbbbbb does not allow embedding/.test(p)));
+    assert.ok(!r.problems.some((p) => /aaaaaaaaaaa/.test(p)));
+  } finally { global.fetch = real; srv.close(); }
+});
