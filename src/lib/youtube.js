@@ -32,4 +32,32 @@ async function recent() {
   return cache.videos; // last good copy if YouTube is briefly unreachable
 }
 
-module.exports = { recent, parse, CHANNEL };
+// Is the church streaming right now? YouTube's /live address for the channel points (rel=canonical) at the live
+// video while a stream is on, and at the channel when it is not. Checked at most every 2 minutes.
+let liveCache = { at: 0, video: null };
+function parseLive(html) {
+  const m = String(html).match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([\w-]{11})"/);
+  if (!m) return null;
+  if (/"isUpcoming":true/.test(html) || !/"isLive(Now)?":true/.test(html)) return null; // scheduled, or a finished stream
+  const t = String(html).match(/<meta name="title" content="([^"]*)"/);
+  return { id: m[1], title: t ? decode(t[1]) : 'Live now', live: true };
+}
+async function live() {
+  if (process.env.YOUTUBE_LIVE_FILE) return parseLive(require('fs').readFileSync(process.env.YOUTUBE_LIVE_FILE, 'utf8')); // tests
+  if (Date.now() - liveCache.at < 2 * 60 * 1000) return liveCache.video;
+  try {
+    const res = await fetch(`https://www.youtube.com/channel/${CHANNEL}/live`, { headers: { 'Accept-Language': 'en-US', 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
+    liveCache = { at: Date.now(), video: res.ok ? parseLive(await res.text()) : null };
+  } catch (err) {
+    liveCache = { at: Date.now(), video: null };
+  }
+  return liveCache.video;
+}
+
+// What the "watch" spots on the site show: the live stream while we're live, otherwise the newest sermon.
+async function current() {
+  const [on, videos] = await Promise.all([live(), recent()]);
+  return { live: on, latest: on || videos[0] || null, videos: on ? videos.filter((v) => v.id !== on.id) : videos };
+}
+
+module.exports = { recent, parse, parseLive, live, current, CHANNEL };

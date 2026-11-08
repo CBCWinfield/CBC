@@ -53,11 +53,18 @@ function readForm(b) {
 module.exports = (app) => {
   const page = (path, key, render, meta) => app.get(`/site${path}`, async (req, res) => show(req, res, key, await render(req, res), meta));
 
-  page('', 'home', async (req) => V.home({ latest: (await yt.recent())[0], base: baseFor(req) }));
+  // One address for "watch live": the stream while we're live, otherwise the newest sermon (never YouTube's "offline").
+  app.get('/site/live', async (req, res) => {
+    const c = await yt.current();
+    res.setHeader('Cache-Control', 'no-cache');
+    res.redirect(c.latest ? `https://www.youtube.com/watch?v=${c.latest.id}` : 'https://www.youtube.com/@cbcwinfield');
+  });
+
+  page('', 'home', async (req) => { const c = await yt.current(); return V.home({ latest: c.latest, live: c.live, base: baseFor(req) }); });
   page('/visit', 'visit', (req, res) => V.visit({ csrf: res.locals.csrf, base: baseFor(req), sent: req.query.sent === '1' }), { title: 'Plan your visit', desc: 'Service times, directions, and what to expect for your kids on your first Sunday at Central Baptist Church in Winfield, Kansas.' });
   page('/about', 'about', (req) => V.about({ base: baseFor(req) }), { title: 'About', desc: 'Central Baptist Church is a Southern Baptist congregation in Winfield, Kansas, celebrating 75 years of God’s faithfulness.' });
   page('/ministries', 'ministries', (req) => V.ministries({ base: baseFor(req), logos: logos.info }), { title: 'Ministries', desc: 'Central Kids, Central Teens, adult Bible studies, and missions at Central Baptist Church in Winfield, Kansas.' });
-  page('/sermons', 'sermons', async () => V.sermons({ videos: await yt.recent() }), { title: 'Sermons', desc: 'Watch past sermons from Central Baptist Church in Winfield, Kansas, any day of the week.', shareTitle: 'Sermons from Central Baptist Church' });
+  page('/sermons', 'sermons', async () => { const c = await yt.current(); return V.sermons({ videos: c.latest ? [c.latest, ...c.videos.filter((v) => v.id !== c.latest.id)] : c.videos, live: c.live }); }, { title: 'Sermons', desc: 'Watch past sermons from Central Baptist Church in Winfield, Kansas, any day of the week.', shareTitle: 'Sermons from Central Baptist Church' });
   page('/events', 'events', async (req) => { const A = require('../announce'); const [reel, slides] = await Promise.all([A.latestReel(), A.list()]); return V.events({ base: baseFor(req), reel, slides, longDate: A.longDate, keyOf: A.keyOf }); }, { title: 'Events & announcements', desc: 'This week’s announcements and upcoming events at Central Baptist Church in Winfield, Kansas.' });
   page('/staff', 'staff', () => V.staff(), { title: 'Staff & leaders', desc: 'Meet the pastors, staff, and deacons of Central Baptist Church in Winfield, Kansas.' });
   page('/give', 'give', (req) => V.give({ base: baseFor(req) }), { title: 'Give', desc: 'Give online to Central Baptist Church in Winfield, Kansas, through our secure giving partner Vanco.' });
