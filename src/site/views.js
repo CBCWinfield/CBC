@@ -158,7 +158,7 @@ ${Share.tags({
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png?v=2">
 <link rel="preload" href="/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/css/site.css?v=30">
+<link rel="stylesheet" href="/css/site.css?v=31">
 <script src="/js/site.js?v=8" defer></script>
 ${sky ? raw('<script src="/js/season.js?v=2" defer></script>') : ''}${story ? raw('<script src="/js/story.js?v=2" defer></script>') : ''}
 <script type="application/ld+json">${raw(JSON.stringify({ '@context': 'https://schema.org', '@type': 'Church', name: CHURCH.name, telephone: CHURCH.phone, email: CHURCH.email, address: { '@type': 'PostalAddress', streetAddress: '904 Wheat Rd', addressLocality: 'Winfield', addressRegion: 'KS', postalCode: '67156', addressCountry: 'US' }, sameAs: [CHURCH.youtube, CHURCH.facebook] }).replace(/</g, '\\u003c'))}</script>
@@ -244,7 +244,7 @@ function player(v, { small = false, caption = true } = {}) {
     <button class="player-btn" type="button" data-video="${v.id}" aria-label="Play ${v.title}">
       <img src="https://i.ytimg.com/vi/${v.id}/${small ? 'hqdefault' : 'maxresdefault'}.jpg" data-fallback="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="" loading="${small ? 'lazy' : 'eager'}" width="1280" height="720">
       <span class="player-play"><span>${raw('<svg width="34" height="34" viewBox="0 0 24 24" fill="#10261A" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>')}</span></span>
-      ${!small && caption ? html`<span class="player-cap">${when(v.published)}</span>` : ''}
+      ${!small && caption ? html`<span class="player-cap">${v.live ? 'Live now' : when(v.published)}</span>` : ''}
     </button>
     ${small ? html`<figcaption><strong>${v.title}</strong><span>${when(v.published)}</span></figcaption>` : ''}
   </figure>`;
@@ -285,7 +285,7 @@ function eventCard(e, base, { detail = false } = {}) {
 const pageHead = (title, lead, kicker) => ({ kicker, title, lead });
 
 // ---------------------------------------------------------------- home (the design, section by section)
-function home({ latest, base }) {
+function home({ latest, live, base }) {
   const ev = upcoming();
   const orr = staffPhoto('orr');
   const body = html`
@@ -294,10 +294,10 @@ function home({ latest, base }) {
 
   <section id="sermons" class="wrap sec"><div class="sermon">
     <div class="sermon-text">
-      <p class="eyebrow">This week’s message</p>
+      <p class="eyebrow">${live ? html`<span class="live-dot" aria-hidden="true"></span>Live now` : 'This week’s message'}</p>
       <h2>${latest ? latest.title : 'Sunday’s message'}</h2>
-      <p class="lead">Pastor Blake Orr${latest ? ` · ${when(latest.published)}` : ''}. Missed Sunday, or want to hear it again? Catch up from anywhere.</p>
-      <div class="btn-row"><a class="btn btn-dark" href="#sermon-player" data-play-latest>Watch now</a><a class="btn btn-line" href="${base}/sermons">All sermons</a></div>
+      <p class="lead">${live ? 'We’re worshiping together right now. Join us from wherever you are.' : html`Pastor Blake Orr${latest ? ` · ${when(latest.published)}` : ''}. Missed Sunday, or want to hear it again? Catch up from anywhere.`}</p>
+      <div class="btn-row"><a class="btn btn-dark" href="#sermon-player" data-play-latest>${live ? 'Watch live' : 'Watch now'}</a><a class="btn btn-line" href="${base}/sermons">All sermons</a></div>
     </div>
     <div class="player" id="sermon-player">${player(latest)}</div>
   </div></section>
@@ -506,18 +506,18 @@ function ministries({ base, logos = () => null }) {
   };
 }
 
-function sermons({ videos }) {
+function sermons({ videos, live }) {
   const [latest, ...rest] = videos;
   return {
     head: { kicker: 'Sermons', title: html`This week’s <span class="serif">message.</span>`, lead: 'Messages from Sunday worship at Central. Watch here, or join us live on YouTube.' },
     body: html`<section class="wrap sec-tight"><div class="sermon">
       <div class="sermon-text">
-        <p class="eyebrow">Latest</p>
+        <p class="eyebrow">${live ? html`<span class="live-dot" aria-hidden="true"></span>Live now` : 'Latest'}</p>
         <h2>${latest ? latest.title : 'Sunday’s message'}</h2>
-        <p class="lead">Pastor Blake Orr${latest ? ` · ${when(latest.published)}` : ''}.</p>
-        <div class="btn-row"><a class="btn btn-dark" href="${CHURCH.youtubeLive}" target="_blank" rel="noopener">Watch live on YouTube</a><a class="btn btn-line" href="${CHURCH.youtube}" target="_blank" rel="noopener">Subscribe</a></div>
+        <p class="lead">${live ? 'We’re worshiping together right now.' : html`Pastor Blake Orr${latest ? ` · ${when(latest.published)}` : ''}. We’re live on Sundays at 10:45 AM; until then, here’s the latest message.`}</p>
+        <div class="btn-row"><a class="btn btn-dark" href="#sermon-player" data-play-latest>${live ? 'Watch live' : 'Watch the latest sermon'}</a><a class="btn btn-line" href="${CHURCH.youtube}" target="_blank" rel="noopener">Subscribe</a></div>
       </div>
-      <div class="player">${player(latest)}</div>
+      <div class="player" id="sermon-player">${player(latest)}</div>
     </div></section>
     ${rest.length ? html`<section class="wrap sec sec-last"><p class="eyebrow">Recent messages</p><h2 class="h-sec">Catch up from anywhere.</h2>
       <div class="grid3 grid-videos">${rest.map((v) => player(v, { small: true }))}</div></section>` : html`<div class="sec-last"></div>`}`,

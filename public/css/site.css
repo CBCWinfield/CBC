@@ -33,6 +33,9 @@ h1, h2, h3, p { margin: 0; }
 /* Type helpers */
 .eyebrow { color: var(--green); font-weight: 700; font-size: 13.5px; letter-spacing: 0.12em; text-transform: uppercase; }
 .eyebrow-gold { color: var(--gold); }
+.live-dot { display: inline-block; width: 9px; height: 9px; margin-right: 8px; border-radius: 50%; background: #D32F2F; vertical-align: 1px; animation: live-pulse 1.6s ease-in-out infinite; }
+@keyframes live-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
 .h-sec { margin-top: 16px; font-family: var(--disp); letter-spacing: -0.02em; font-weight: 750; font-size: clamp(38px, 4.4vw, 60px); line-height: 1.08; }
 .h-sec-spaced { margin-bottom: 24px; }
 .mw-14ch { max-width: 14ch; }

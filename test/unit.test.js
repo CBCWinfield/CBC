@@ -429,3 +429,13 @@ test('site check: finds broken pages, a referrer YouTube refuses, and missing vi
     assert.ok(!r.problems.some((p) => /aaaaaaaaaaa/.test(p)));
   } finally { global.fetch = real; srv.close(); }
 });
+
+// ---- Live or latest (src/lib/youtube.js) ----
+test('youtube: live only while a stream is on, not for a scheduled or finished one', () => {
+  const { parseLive } = require('../src/lib/youtube');
+  const page = (extra) => `<link rel="canonical" href="https://www.youtube.com/watch?v=abcdefghijk"><meta name="title" content="Sunday Service &amp; Worship">${extra}`;
+  assert.deepStrictEqual(parseLive(page('"isLiveNow":true')), { id: 'abcdefghijk', title: 'Sunday Service & Worship', live: true });
+  assert.equal(parseLive(page('"isUpcoming":true,"isLive":true')), null);
+  assert.equal(parseLive(page('')), null);
+  assert.equal(parseLive('<link rel="canonical" href="https://www.youtube.com/channel/UC9BRxQwyc_4GnB8p-p8k-aw">'), null);
+});
