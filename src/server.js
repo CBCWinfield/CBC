@@ -26,6 +26,7 @@ app.use(security.headers());
 // Health check for Render and UptimeRobot (no database or session work).
 app.use(async (req, res, next) => {
   if (req.path === '/healthz') return res.type('text/plain').send('ok');
+  if (req.path === '/healthz/site-check') { const r = require('./site-check-job').last(); return res.json(r ? { ok: !r.problems.length, ...r } : { ok: null, note: 'No check yet since the last restart; it runs each morning after 7.' }); }
   await next();
 });
 
@@ -60,7 +61,7 @@ app.use(async (req, res, next) => {
 // The church website (cbcwinfield.org) is served from /site; on the church's own domain
 // its pages answer at the root, e.g. cbcwinfield.org/about -> /site/about.
 const SITE_HOSTS = (process.env.SITE_HOSTS || 'cbcwinfield.org,www.cbcwinfield.org').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
-const SHARED = /^\/(css\/|js\/|img\/|fonts\/|sermons\/(embed|latest)|sermons\.json|announcements\/|site(\/|$)|privacy$|terms$|healthz$|sw\.js$|manifest|favicon|robots\.txt$)/;
+const SHARED = /^\/(css\/|js\/|img\/|fonts\/|sermons\/(embed|latest)|sermons\.json|announcements\/|site(\/|$)|privacy$|terms$|healthz(\/site-check)?$|sw\.js$|manifest|favicon|robots\.txt$)/;
 app.beforeMatch = (req) => {
   const host = String(req.headers.host || '').split(':')[0].toLowerCase();
   if (SITE_HOSTS.includes(host) && !SHARED.test(req.path)) req.path = `/site${req.path === '/' ? '' : req.path}`;
@@ -160,6 +161,7 @@ if (require.main === module) {
       if (process.env.DISABLE_REMINDERS !== '1') { reminders.start(); require('./checkin/automations').start(); require('./checkin/autocheckout').start(); }
       if (process.env.DISABLE_COVERS !== '1') covers.start();
       if (process.env.DISABLE_PARTNER_LOGOS !== '1') require('./site/partner-logos').start();
+      if (process.env.DISABLE_SITE_CHECK !== '1') require('./site-check-job').start(); // emails when a page or sermon video breaks
     })
     .catch((err) => {
       console.error('Startup failed:', err);
