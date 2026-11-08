@@ -439,3 +439,10 @@ test('youtube: live only while a stream is on, not for a scheduled or finished o
   assert.equal(parseLive(page('')), null);
   assert.equal(parseLive('<link rel="canonical" href="https://www.youtube.com/channel/UC9BRxQwyc_4GnB8p-p8k-aw">'), null);
 });
+
+test('youtube: the speaker comes only from the video itself', () => {
+  const { speaker } = require('../src/lib/youtube');
+  assert.equal(speaker({ title: "We're Out of Time - Sunday Service - Nov 8th, 2026", description: 'Central Baptist Church of Winfield KS' }), '');
+  assert.equal(speaker({ title: 'Grace Abounds - Pastor Blake Orr - Nov 1', description: '' }), 'Pastor Blake Orr');
+  assert.equal(speaker({ title: 'Grace Abounds', description: 'Guest speaker Bro. Jim Smith from Wichita' }), 'Bro. Jim Smith');
+});

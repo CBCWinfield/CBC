@@ -238,6 +238,13 @@ ${body}
 }
 
 // ---------------------------------------------------------------- shared pieces
+// "Pastor Blake Orr · Nov 8, 2026. " when the video names its speaker, otherwise just the date.
+function byline(v) {
+  if (!v) return '';
+  const who = require('../lib/youtube').speaker(v);
+  return [who, when(v.published)].filter(Boolean).join(' · ') + '. ';
+}
+
 function player(v, { small = false, caption = true } = {}) {
   if (!v) return html`<figure class="player${small ? ' player-sm' : ''}"><a class="player-btn" href="${CHURCH.youtube}" target="_blank" rel="noopener"><span class="player-play"><span>${raw('<svg width="34" height="34" viewBox="0 0 24 24" fill="#10261A" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>')}</span></span><span class="player-cap">Watch on YouTube</span></a></figure>`;
   return html`<figure class="player${small ? ' player-sm' : ''}">
@@ -296,7 +303,7 @@ function home({ latest, live, base }) {
     <div class="sermon-text">
       <p class="eyebrow">${live ? html`<span class="live-dot" aria-hidden="true"></span>Live now` : 'This week’s message'}</p>
       <h2>${latest ? latest.title : 'Sunday’s message'}</h2>
-      <p class="lead">${live ? 'We’re worshiping together right now. Join us from wherever you are.' : html`Pastor Blake Orr${latest ? ` · ${when(latest.published)}` : ''}. Missed Sunday, or want to hear it again? Catch up from anywhere.`}</p>
+      <p class="lead">${live ? 'We’re worshiping together right now. Join us from wherever you are.' : html`${byline(latest)}Missed Sunday, or want to hear it again? Catch up from anywhere.`}</p>
       <div class="btn-row"><a class="btn btn-dark" href="#sermon-player" data-play-latest>${live ? 'Watch live' : 'Watch now'}</a><a class="btn btn-line" href="${base}/sermons">All sermons</a></div>
     </div>
     <div class="player" id="sermon-player">${player(latest)}</div>
@@ -514,7 +521,7 @@ function sermons({ videos, live }) {
       <div class="sermon-text">
         <p class="eyebrow">${live ? html`<span class="live-dot" aria-hidden="true"></span>Live now` : 'Latest'}</p>
         <h2>${latest ? latest.title : 'Sunday’s message'}</h2>
-        <p class="lead">${live ? 'We’re worshiping together right now.' : html`Pastor Blake Orr${latest ? ` · ${when(latest.published)}` : ''}. We’re live on Sundays at 10:45 AM; until then, here’s the latest message.`}</p>
+        <p class="lead">${live ? 'We’re worshiping together right now.' : html`${byline(latest)}We’re live on Sundays at 10:45 AM; until then, here’s the latest message.`}</p>
         <div class="btn-row"><a class="btn btn-dark" href="#sermon-player" data-play-latest>${live ? 'Watch live' : 'Watch the latest sermon'}</a><a class="btn btn-line" href="${CHURCH.youtube}" target="_blank" rel="noopener">Subscribe</a></div>
       </div>
       <div class="player" id="sermon-player">${player(latest)}</div>
