@@ -18,13 +18,40 @@ function parse(xml) {
   })).filter((v) => /^[\w-]{6,20}$/.test(v.id));
 }
 
+// Can this video be watched now? The feed also lists streams scheduled for later (and ones not processed yet),
+// which only show "live stream offline" when played. Their watch page says so; the answer is kept for 15 minutes.
+const playCache = new Map();
+function playableFrom(html) {
+  const m = String(html).match(/"playabilityStatus":\{"status":"([A-Z_]+)"/);
+  if (m && m[1] !== 'OK') return false;
+  if (/"isUpcoming":true/.test(html)) return false;
+  return true;
+}
+async function playable(id) {
+  const c = playCache.get(id);
+  if (c && Date.now() - c.at < 15 * 60 * 1000) return c.ok;
+  let ok = true; // unknown counts as playable: never hide a sermon because YouTube was slow
+  try {
+    const res = await fetch(`https://www.youtube.com/watch?v=${id}`, { headers: { 'Accept-Language': 'en-US', 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
+    if (res.ok) ok = playableFrom(await res.text());
+  } catch { /* keep it */ }
+  playCache.set(id, { at: Date.now(), ok });
+  return ok;
+}
+// the newest few are the ones that can be a scheduled stream; older ones were watchable last week
+async function onlyPlayable(videos) {
+  const head = videos.slice(0, 4);
+  const ok = await Promise.all(head.map((v) => playable(v.id)));
+  return head.filter((v, i) => ok[i]).concat(videos.slice(4));
+}
+
 async function recent() {
   if (process.env.YOUTUBE_FEED_FILE) return parse(require('fs').readFileSync(process.env.YOUTUBE_FEED_FILE, 'utf8')); // tests
   if (Date.now() - cache.at < TTL && cache.videos.length) return cache.videos;
   try {
     const res = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL}`, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) throw new Error(`YouTube feed ${res.status}`);
-    const videos = parse(await res.text());
+    const videos = await onlyPlayable(parse(await res.text()));
     if (videos.length) cache = { at: Date.now(), videos };
   } catch (err) {
     console.error('YouTube feed failed:', err.message);
@@ -72,4 +99,4 @@ function speaker(v) {
   return '';
 }
 
-module.exports = { recent, parse, parseLive, live, current, speaker, CHANNEL };
+module.exports = { recent, parse, parseLive, playableFrom, live, current, speaker, CHANNEL };

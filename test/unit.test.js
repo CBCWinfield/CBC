@@ -446,3 +446,11 @@ test('youtube: the speaker comes only from the video itself', () => {
   assert.equal(speaker({ title: 'Grace Abounds - Pastor Blake Orr - Nov 1', description: '' }), 'Pastor Blake Orr');
   assert.equal(speaker({ title: 'Grace Abounds', description: 'Guest speaker Bro. Jim Smith from Wichita' }), 'Bro. Jim Smith');
 });
+
+test('youtube: a scheduled stream is not "the latest sermon"', () => {
+  const { playableFrom } = require('../src/lib/youtube');
+  assert.equal(playableFrom('"playabilityStatus":{"status":"LIVE_STREAM_OFFLINE","reason":"This live event will begin in a few moments."}'), false);
+  assert.equal(playableFrom('"playabilityStatus":{"status":"OK"},"videoDetails":{"isUpcoming":true}'), false);
+  assert.equal(playableFrom('"playabilityStatus":{"status":"OK","playableInEmbed":true}'), true);
+  assert.equal(playableFrom(''), true);
+});
