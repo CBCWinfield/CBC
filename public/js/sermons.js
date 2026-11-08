@@ -28,6 +28,7 @@
     ifr.title = title;
     ifr.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
     ifr.allowFullscreen = true;
+    ifr.referrerPolicy = 'strict-origin-when-cross-origin'; // YouTube needs it (Error 153 without)
     frame.innerHTML = ''; frame.appendChild(ifr);
     playing = { frame: frame, id: id, title: title };
   });

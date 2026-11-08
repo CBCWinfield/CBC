@@ -148,7 +148,9 @@ const FRAME_ANCESTORS = (process.env.FRAME_ANCESTORS ||
 function headers() {
   return async (req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Referrer-Policy', 'same-origin');
+    // YouTube refuses to play an embed that arrives with no referrer ("Error 153"), so other sites get our
+    // origin only (never the path or query), and same-site requests the full URL.
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()'); // camera: scanning pickup tags
     res.setHeader('Content-Security-Policy', [
       "default-src 'self'",
