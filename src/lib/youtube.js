@@ -60,4 +60,16 @@ async function current() {
   return { live: on, latest: on || videos[0] || null, videos: on ? videos.filter((v) => v.id !== on.id) : videos };
 }
 
-module.exports = { recent, parse, parseLive, live, current, CHANNEL };
+// Who preached, only when the video says so (title first, then description): "Pastor Blake Orr", "Bro. Jim Smith",
+// "Rev. Dr. Ann Lee"... YouTube gives no speaker of its own, so a video that names nobody gets no name on the site.
+const TITLES = '(?:Senior |Associate |Youth |Interim |Guest |Lead )?(?:Pastor|Pr\\.|Rev\\.?|Reverend|Dr\\.|Brother|Bro\\.|Evangelist|Missionary|Elder|Deacon)';
+const SPEAKER = new RegExp(`\\b(${TITLES}(?:\\s+${TITLES})*\\s+[A-Z][a-zA-Z.'’-]+(?:\\s+[A-Z][a-zA-Z'’-]+){0,2})`);
+function speaker(v) {
+  for (const s of [v && v.title, v && v.description]) {
+    const m = String(s || '').match(SPEAKER);
+    if (m) return m[1].replace(/\s+/g, ' ').replace(/\s+(Sunday|Service|Sermon|Message)$/i, '').trim();
+  }
+  return '';
+}
+
+module.exports = { recent, parse, parseLive, live, current, speaker, CHANNEL };
