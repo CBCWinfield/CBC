@@ -47,6 +47,7 @@
     f.title = b.getAttribute('aria-label') || 'Sermon';
     f.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
     f.allowFullscreen = true;
+    f.referrerPolicy = 'strict-origin-when-cross-origin'; // YouTube needs it (Error 153 without)
     fig.replaceChild(f, b);
     playing = { fig: fig, btn: b };
   });
