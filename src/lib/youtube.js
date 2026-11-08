@@ -15,16 +15,19 @@ function parse(xml) {
     title: tag(e, 'title'),
     published: tag(e, 'published'),
     description: tag(e, 'media:description'),
+    views: +((e.match(/<media:statistics views="(\d+)"/) || [])[1] || 0),
   })).filter((v) => /^[\w-]{6,20}$/.test(v.id));
 }
 
 // Can this video be watched now? The feed also lists streams scheduled for later (and ones not processed yet),
 // which only show "live stream offline" when played. Their watch page says so; the answer is kept for 15 minutes.
 const playCache = new Map();
+// Only YouTube's own word that it is a stream not started yet counts: a server is sometimes shown a sign-in or
+// "not a bot" page instead, and that must never hide a sermon.
 function playableFrom(html) {
   const m = String(html).match(/"playabilityStatus":\{"status":"([A-Z_]+)"/);
-  if (m && m[1] !== 'OK') return false;
-  if (/"isUpcoming":true/.test(html)) return false;
+  if (m && m[1] === 'LIVE_STREAM_OFFLINE') return false;
+  if (/"isUpcoming":true/.test(html) && !/"isLiveNow":true/.test(html)) return false;
   return true;
 }
 async function playable(id) {
@@ -39,9 +42,19 @@ async function playable(id) {
   return ok;
 }
 // the newest few are the ones that can be a scheduled stream; older ones were watchable last week
+// A scheduled stream also shows in the feed as a second copy of a title with no views yet, next to the real one.
+function placeholders(videos) {
+  const out = new Set();
+  for (const v of videos.slice(0, 4)) {
+    const twin = videos.find((w) => w !== v && w.title === v.title && w.views > 0);
+    if (twin && !v.views) out.add(v.id);
+  }
+  return out;
+}
 async function onlyPlayable(videos) {
   const head = videos.slice(0, 4);
-  const ok = await Promise.all(head.map((v) => playable(v.id)));
+  const twin = placeholders(videos);
+  const ok = await Promise.all(head.map((v) => (twin.has(v.id) ? false : playable(v.id))));
   return head.filter((v, i) => ok[i]).concat(videos.slice(4));
 }
 
@@ -99,4 +112,4 @@ function speaker(v) {
   return '';
 }
 
-module.exports = { recent, parse, parseLive, playableFrom, live, current, speaker, CHANNEL };
+module.exports = { recent, parse, parseLive, playableFrom, placeholders, live, current, speaker, CHANNEL };
