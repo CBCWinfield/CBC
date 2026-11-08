@@ -66,6 +66,15 @@ async function check(base, { log = () => {} } = {}) {
     if (o.status === 401 || o.status === 403) bad(`Sermon video ${id} does not allow embedding (on YouTube, turn "Allow embedding" back on)`);
     else if (!o.ok) bad(`Sermon video ${id} is not on YouTube (${o.status || o.error}): private, deleted or wrong ID`);
   }
+  // 4. the big player's video can be watched now (not a stream scheduled for later: "live stream offline")
+  const top = [...ids][0];
+  if (top) {
+    const w = await get(`https://www.youtube.com/watch?v=${top}`, { headers: { 'Accept-Language': 'en-US' } });
+    const html = w.ok ? await w.text() : '';
+    const st = (html.match(/"playabilityStatus":\{"status":"([A-Z_]+)"/) || [])[1];
+    if ((st && st !== 'OK' && !/"isLiveNow":true/.test(html)) || (/"isUpcoming":true/.test(html) && !/"isLiveNow":true/.test(html)))
+      bad(`The big player shows video ${top}, which can't be watched now (${st || 'upcoming'}): visitors see "live stream offline"`);
+  }
   log(`${ids.size} sermon videos checked.`);
   return { base: BASE, pages: seen.size, videos: ids.size, problems, at: new Date().toISOString() };
 }
