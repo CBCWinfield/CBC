@@ -561,8 +561,8 @@ function staff() {
   return {
     head: { kicker: 'Staff & leaders', title: html`The people who <span class="serif">serve.</span>`, lead: 'Our pastors, staff, and deacons, serving our church family week in and week out.' },
     body: html`<section class="wrap sec-tight sec-last">
-      <div class="staff-grid">${C.STAFF.map((s, i) => { const ph = staffPhoto(s.key); return html`<article class="card staff-card${i === 0 ? ' staff-lead' : ''}${ph ? ' has-photo' : ''}">
-        ${ph ? html`<div class="staff-photo"><img src="/img/staff/${s.key}.jpg?v=${ph}" alt="${s.names}" width="1000" height="750" ${i === 0 ? '' : raw('loading="lazy"')}></div>`
+      <div class="staff-grid">${C.STAFF.map((s, i) => { const ph = s.blank ? 0 : staffPhoto(s.key); return html`<article class="card staff-card${i === 0 ? ' staff-lead' : ''}${ph || s.blank ? ' has-photo' : ''}">
+        ${s.blank ? html`<div class="staff-photo staff-photo-blank" aria-hidden="true"></div>` : ph ? html`<div class="staff-photo"><img src="/img/staff/${s.key}.jpg?v=${ph}" alt="${s.names}" width="1000" height="750" ${i === 0 ? '' : raw('loading="lazy"')}></div>`
     : html`<span class="staff-av"><span aria-hidden="true">${initial(s.names)}</span></span>`}
         <div class="staff-text"><h2>${s.names}</h2><p class="tag staff-role">${s.role}</p><p class="body">${s.body}</p></div>
       </article>`; })}</div>
