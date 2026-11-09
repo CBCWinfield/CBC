@@ -76,9 +76,9 @@ const STAFF = [
   { key: 'orr', names: 'Blake & Ruth Orr', role: 'Senior Pastor', body: 'Pastor Blake faithfully leads our church in preaching, teaching, and shepherding, with Ruth serving alongside him. He is in his 17th year of ministry at Central.' },
   { key: 'norris', names: 'Micah & Ashley Norris', role: 'Worship Director', body: 'Micah and Ashley lead Christ-centered worship and teach in our children’s services.' },
   { key: 'ryker', names: 'Anthony & Lacy Ryker', role: 'Youth Pastor', body: 'Anthony and Lacy lead and disciple our students, helping them grow in their walk with Christ.' },
-  { key: 'higdon', names: 'Daniel & Stacey Higdon', role: 'Deacon, Teen Leaders & Church IT', body: 'Daniel and Stacey lead Wednesday teen services. Daniel manages our technology, and Stacey leads Sunday worship.' },
+  { key: 'higdon', blank: true, names: 'Daniel & Stacey Higdon', role: 'Deacon, Teen Leaders & Church IT', body: 'Daniel and Stacey lead Wednesday teen services. Daniel manages our technology, and Stacey leads Sunday worship.' },
   { key: 'smith', names: 'Ray & Carol Smith', role: 'Building & Grounds, Church Secretary, Librarian', body: 'Ray cares for our building, serves as a deacon, and has catalogued the 3,000+ books in our library. Carol keeps the church office running with day-to-day administration and communication.' },
-  { key: 'caudill', names: 'Ray & Kitty Caudill', role: 'Treasurer & Controller', body: 'Ray and Kitty oversee church finances and accounting with careful stewardship.' },
+  { key: 'caudill', blank: true, names: 'Ray & Kitty Caudill', role: 'Treasurer & Controller', body: 'Ray and Kitty oversee church finances and accounting with careful stewardship.' },
   { key: 'sodowsky', names: 'Diana Sodowsky', role: 'Sanitation Director', body: 'Diana keeps our facility clean and welcoming for every family who walks through the doors.' },
 ];
 const DEACONS = ['Randy Norris', 'Ray Smith', 'Micah Norris', 'Daniel Higdon'];
