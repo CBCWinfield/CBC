@@ -27,7 +27,7 @@ function validIsbn(raw) {
 }
 
 async function getJson(url) {
-  const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
+  const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
   if (!res.ok) return null;
   return res.json();
 }

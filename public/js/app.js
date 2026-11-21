@@ -296,6 +296,36 @@
       f.value = v; lastFill[k] = v;
       f.dispatchEvent(new Event('input', { bubbles: true }));
     };
+    // Typing or pasting a whole ISBN looks the book up by itself, as soon as the number checks out (10 or 13 digits,
+    // with its check digit right), and again when the box is left; the same number is never looked up twice in a row.
+    var looked = '';
+    var isbnDigits = function (v) {
+      var d = String(v || '').replace(/[^0-9Xx]/g, '').toUpperCase();
+      if ((d.length === 15 || d.length === 18) && /^97[89]\d+$/.test(d)) d = d.slice(0, 13);
+      return d;
+    };
+    var isbnOk = function (d) {
+      var i, sum = 0;
+      if (d.length === 10) {
+        for (i = 0; i < 10; i++) sum += (d[i] === 'X' ? 10 : Number(d[i])) * (10 - i);
+        return /^\d{9}[\dX]$/.test(d) && sum % 11 === 0;
+      }
+      if (d.length === 13 && /^\d+$/.test(d)) {
+        for (i = 0; i < 13; i++) sum += Number(d[i]) * (i % 2 ? 3 : 1);
+        return sum % 10 === 0;
+      }
+      return false;
+    };
+    var autoT = 0;
+    var autoLook = function (wait) {
+      clearTimeout(autoT);
+      autoT = setTimeout(function () {
+        var d = isbnDigits(field('isbn').value);
+        if (isbnOk(d) && d !== looked && !lookupBtn.disabled) lookupBtn.click();
+      }, wait);
+    };
+    field('isbn').addEventListener('input', function () { autoLook(500); });
+    field('isbn').addEventListener('change', function () { autoLook(0); });
     // A barcode scanner types the number and presses Enter: that looks the book up instead of saving the form.
     field('isbn').addEventListener('keydown', function (e) {
       if (e.key === 'Enter') {
@@ -329,6 +359,8 @@
     lookupBtn.addEventListener('click', function () {
       var isbn = field('isbn').value.trim();
       if (!isbn) { isbnStatus.textContent = 'Type the ISBN first.'; field('isbn').focus(); return; }
+      looked = isbnDigits(isbn);
+      clearTimeout(autoT);
       lookupBtn.disabled = true;
       isbnStatus.textContent = 'Looking up the book…';
       fetch('/admin/books/lookup?isbn=' + encodeURIComponent(isbn), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
